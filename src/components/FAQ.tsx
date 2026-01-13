@@ -33,6 +33,11 @@ const faqs = [
     answer:
       "All clicks, conversions, and earnings are tracked through a secure system powered by Trackier. You'll have access to a real-time dashboard showing exactly how your content is performing.",
   },
+  {
+    question: "How much do I earn on renewals?",
+    answer:
+      "When a user you referred renews their subscription, you earn 20% commission, which is ₹40 per renewal. This recurring income continues every month as long as they stay subscribed, creating a passive income stream.",
+  },
 ];
 
 const FAQ = () => {

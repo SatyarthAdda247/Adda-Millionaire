@@ -1,13 +1,12 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { TrendingUp, Users, Coins, Target } from "lucide-react";
+import { TrendingUp, Users, Coins } from "lucide-react";
 
 const stats = [
   {
     icon: Coins,
     value: "₹15,000+",
     label: "Earn Per Month",
-    description: "Minimum for 5K followers",
   },
   {
     icon: Users,
@@ -15,14 +14,9 @@ const stats = [
     label: "People Already Earning",
   },
   {
-    icon: Target,
-    value: "15%",
-    label: "People Who Buy",
-  },
-  {
     icon: TrendingUp,
     value: "100%",
-    label: "You Get Full Payment",
+    label: "Payout",
   },
 ];
 
@@ -33,7 +27,7 @@ const Stats = () => {
   return (
     <section className="py-20 md:py-28 bg-background" ref={ref}>
       <div className="container px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
           {stats.map((stat, index) => (
             <motion.div
               key={stat.label}

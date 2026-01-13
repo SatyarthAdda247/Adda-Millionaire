@@ -10,7 +10,7 @@ const features = [
   {
     icon: Zap,
     title: "Earn Every Month",
-    description: "Get paid 100% on first sale. Then keep earning monthly when users renew. No limit on how much you can make.",
+    description: "Get paid 100% (₹199) on first sale. Then earn 20% (₹40) every month when users renew. No limit on how much you can make.",
   },
   {
     icon: Link2,

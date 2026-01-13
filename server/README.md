@@ -22,6 +22,13 @@ APPTROVE_API_KEY=your_api_key_here
 APPTROVE_API_URL=https://api.apptrove.com
 DB_PATH=./data/database.json
 FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:3001
+
+# Google OAuth for Admin Login
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+ADMIN_EMAILS=admin1@example.com,admin2@example.com
+SESSION_SECRET=your-random-secret-key-change-this-in-production
 ```
 
 4. Get your AppTrove API Key:
@@ -45,10 +52,19 @@ The server will run on `http://localhost:3001`
 - `GET /api/templates` - Get available link templates from AppTrove
 
 ### Users
-- `POST /api/users/register` - Register a new user and create Trackier link
+- `POST /api/users/register` - Register a new user and create Trackier link (creates with pending approval)
 - `GET /api/users/:id` - Get user by ID
 - `GET /api/users/email/:email` - Get user by email
-- `GET /api/users` - Get all users (admin)
+- `GET /api/users` - Get all users (admin only, requires authentication)
+- `PUT /api/users/:id` - Update user information (admin only)
+- `POST /api/users/:id/approve` - Approve user application (admin only)
+- `POST /api/users/:id/reject` - Reject user application (admin only)
+
+### Authentication (Admin)
+- `GET /api/auth/google` - Initiate Google OAuth login
+- `GET /api/auth/google/callback` - Google OAuth callback
+- `GET /api/auth/me` - Get current authenticated admin user
+- `POST /api/auth/logout` - Logout admin user
 
 ## Database
 

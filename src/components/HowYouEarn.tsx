@@ -1,6 +1,7 @@
 import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
-import { TrendingUp, Users, ArrowRight } from "lucide-react";
+import { useRef, useState, useMemo } from "react";
+import { TrendingUp, Users } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 const earningStages = [
   {
@@ -9,7 +10,6 @@ const earningStages = [
     commissionPerConversion: 199,
     totalEarnings: 9950,
     description: "50 New Conversions × ₹199",
-    payout: "100% Payout",
     progress: 33,
     color: "green",
   },
@@ -41,6 +41,9 @@ const HowYouEarn = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
+  const [newConversions, setNewConversions] = useState([50]);
+  const [renewals, setRenewals] = useState([30]);
+
   const formatCurrency = (num: number) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -49,8 +52,31 @@ const HowYouEarn = () => {
     }).format(num);
   };
 
+  const formatNumber = (num: number) => {
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
+    return num.toString();
+  };
+
+  const earnings = useMemo(() => {
+    const newConversionEarnings = newConversions[0] * 199;
+    const renewalEarnings = renewals[0] * 40;
+    const totalEarnings = newConversionEarnings + renewalEarnings;
+    
+    // Add variance: ±10% for realistic range
+    const monthlyLow = Math.round(totalEarnings * 0.9);
+    const monthlyHigh = Math.round(totalEarnings * 1.1);
+
+    return {
+      low: monthlyLow,
+      high: monthlyHigh,
+      newConversionEarnings,
+      renewalEarnings,
+      totalEarnings,
+    };
+  }, [newConversions, renewals]);
+
   return (
-    <section className="py-24 md:py-32 bg-background" ref={ref}>
+    <section id="calculator" className="py-24 md:py-32 bg-background" ref={ref}>
       <div className="container px-6">
         <motion.div
           initial={{ opacity: 0, x: -100 }}
@@ -124,26 +150,6 @@ const HowYouEarn = () => {
                 {stage.description}
               </p>
 
-              {stage.payout && (
-                <div className="flex items-center gap-2 mb-4">
-                  <ArrowRight
-                    className={`w-4 h-4 ${
-                      stage.color === "gradient"
-                        ? "text-white"
-                        : "text-green-600"
-                    }`}
-                  />
-                  <span
-                    className={`text-sm font-medium ${
-                      stage.color === "gradient"
-                        ? "text-white"
-                        : "text-green-600"
-                    }`}
-                  >
-                    {stage.payout}
-                  </span>
-                </div>
-              )}
 
               {stage.growth && (
                 <div
@@ -222,12 +228,12 @@ const HowYouEarn = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-          className="max-w-4xl mx-auto bg-blue-50 rounded-2xl p-6 md:p-8 border border-blue-100"
+          className="max-w-4xl mx-auto bg-blue-50 rounded-2xl p-6 md:p-8 border border-blue-100 mb-12"
         >
-          <h3 className="text-xl md:text-2xl font-display font-semibold text-gray-900 mb-4 text-center">
-            How Conversions Work
+          <h3 className="text-xl md:text-2xl font-display font-semibold text-gray-900 mb-2 text-center">
+            Create Videos. Get Paid Every Month.
           </h3>
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-6 mt-6">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
                 <Users className="w-5 h-5 text-green-600" />
@@ -250,11 +256,106 @@ const HowYouEarn = () => {
                   Renewal Commission
                 </h4>
                 <p className="text-sm text-gray-600">
-                  When they renew monthly: <strong className="text-gray-900">₹40 recurring commission</strong>
+                  When they renew monthly: <strong className="text-gray-900">20% commission (₹40)</strong> per renewal, every month
                 </p>
               </div>
             </div>
           </div>
+        </motion.div>
+
+        {/* Earnings Calculator */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
+          className="max-w-2xl mx-auto bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200"
+        >
+          <h3 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 text-center">
+            Estimate Your <span className="text-green-600">Earnings</span>
+          </h3>
+          <p className="text-lg text-gray-600 text-center mb-8">
+            See what your conversions could earn you each month
+          </p>
+
+          {/* New Conversions Slider */}
+          <div className="mb-10">
+            <div className="flex justify-between items-center mb-4">
+              <label className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <Users className="w-5 h-5 text-green-600" />
+                New Conversions
+              </label>
+              <span className="text-2xl font-display font-bold text-green-700">
+                {formatNumber(newConversions[0])}
+              </span>
+            </div>
+            <Slider
+              value={newConversions}
+              onValueChange={setNewConversions}
+              min={10}
+              max={200}
+              step={5}
+              className="py-2"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>10</span>
+              <span>200</span>
+            </div>
+            <p className="text-sm text-gray-600 mt-2">
+              {newConversions[0]} × ₹199 = {formatCurrency(earnings.newConversionEarnings)}
+            </p>
+          </div>
+
+          {/* Renewals Slider */}
+          <div className="mb-10">
+            <div className="flex justify-between items-center mb-4">
+              <label className="text-lg font-medium text-gray-700 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+                Monthly Renewals
+              </label>
+              <span className="text-2xl font-display font-bold text-blue-700">
+                {formatNumber(renewals[0])}
+              </span>
+            </div>
+            <Slider
+              value={renewals}
+              onValueChange={setRenewals}
+              min={0}
+              max={150}
+              step={5}
+              className="py-2"
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>0</span>
+              <span>150</span>
+            </div>
+            <p className="text-sm text-gray-600 mt-2">
+              {renewals[0]} × ₹40 = {formatCurrency(earnings.renewalEarnings)}
+            </p>
+          </div>
+
+          {/* Earnings Result */}
+          <motion.div
+            key={`${newConversions[0]}-${renewals[0]}`}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4 }}
+            className="bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl p-6 text-center border border-green-200"
+          >
+            <p className="text-lg text-gray-600 mb-3">
+              Estimated Monthly Earnings
+            </p>
+            <p className="text-4xl md:text-5xl font-display font-bold text-green-700">
+              {formatCurrency(earnings.low)}{" "}
+              <span className="text-gray-500 font-normal text-xl">
+                —
+              </span>{" "}
+              {formatCurrency(earnings.high)}
+            </p>
+          </motion.div>
+
+          <p className="text-xs text-gray-500 text-center mt-6">
+            Actual earnings depend on engagement and conversions.
+          </p>
         </motion.div>
       </div>
     </section>

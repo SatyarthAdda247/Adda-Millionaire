@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Shield } from "lucide-react";
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -74,7 +76,16 @@ const Navbar = () => {
             </button>
           </div>
 
-          <div className="hidden md:block">
+          <div className="hidden md:flex items-center gap-3">
+            <Button
+              onClick={() => navigate('/admin/dashboard')}
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl px-4"
+              size="sm"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Admin
+            </Button>
             <Button
               onClick={() => scrollToSection("signup")}
               className="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-xl px-6 shadow-lg hover:shadow-xl transition-all duration-300"
@@ -129,6 +140,17 @@ const Navbar = () => {
               >
                 FAQ
               </button>
+              <Button
+                onClick={() => {
+                  navigate('/admin/dashboard');
+                  setIsMobileMenuOpen(false);
+                }}
+                variant="outline"
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl w-full"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Admin Dashboard
+              </Button>
               <Button
                 onClick={() => scrollToSection("signup")}
                 className="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-xl w-full mt-2"

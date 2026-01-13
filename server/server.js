@@ -6,6 +6,9 @@ import { dirname, join } from 'path';
 import fs from 'fs/promises';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 
 dotenv.config();
 
@@ -18,12 +21,75 @@ const DB_PATH = process.env.DB_PATH || join(__dirname, 'data', 'database.json');
 const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY;
 const APPTROVE_API_URL = process.env.APPTROVE_API_URL || 'https://api.apptrove.com';
 
+// Admin configuration
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+
 // Middleware
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
 app.use(express.json());
+
+// Session configuration
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Passport initialization
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Google OAuth Strategy
+if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID: GOOGLE_CLIENT_ID,
+    clientSecret: GOOGLE_CLIENT_SECRET,
+    callbackURL: `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/auth/google/callback`
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    // Check if user is an admin
+    const email = profile.emails?.[0]?.value;
+    if (!email) {
+      return done(new Error('No email found in Google profile'));
+    }
+    
+    if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(email)) {
+      return done(new Error('Access denied. Admin email not authorized.'));
+    }
+    
+    return done(null, {
+      id: profile.id,
+      email: email,
+      name: profile.displayName,
+      picture: profile.photos?.[0]?.value
+    });
+  }));
+
+  passport.serializeUser((user, done) => {
+    done(null, user);
+  });
+
+  passport.deserializeUser((user, done) => {
+    done(null, user);
+  });
+}
+
+// Admin authentication middleware (temporarily disabled - will configure auth later)
+function isAdmin(req, res, next) {
+  // Temporarily allow all requests - auth will be configured later
+  return next();
+}
 
 // Ensure data directory exists
 async function ensureDataDir() {
@@ -68,9 +134,26 @@ async function writeDB(data) {
   }
 }
 
+// Validation helpers
+function validateEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function validatePhone(phone) {
+  // Basic phone validation - accepts digits, spaces, dashes, parentheses, plus
+  const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+  const digitsOnly = phone.replace(/\D/g, '');
+  return phoneRegex.test(phone) && digitsOnly.length >= 10;
+}
+
 // AppTrove API helper functions
 async function getLinkTemplates() {
   try {
+    if (!APPTROVE_API_KEY) {
+      throw new Error('AppTrove API key not configured');
+    }
+
     const response = await axios.get(`${APPTROVE_API_URL}/internal/link-template`, {
       headers: {
         'api-key': APPTROVE_API_KEY,
@@ -79,12 +162,25 @@ async function getLinkTemplates() {
       params: {
         status: 'active',
         limit: 100
-      }
+      },
+      timeout: 10000 // 10 second timeout
     });
-    return response.data;
+    
+    if (response.data && response.data.linkTemplateList) {
+      return response.data;
+    }
+    
+    // Handle different response structures
+    return response.data || { linkTemplateList: [] };
   } catch (error) {
-    console.error('Error fetching link templates:', error.response?.data || error.message);
-    throw error;
+    console.error('Error fetching link templates:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
+    // Return empty templates instead of throwing to allow user creation
+    return { linkTemplateList: [] };
   }
 }
 
@@ -144,6 +240,37 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Server is running' });
 });
 
+// Google OAuth routes
+if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
+  app.get('/api/auth/google',
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+  );
+
+  app.get('/api/auth/google/callback',
+    passport.authenticate('google', { failureRedirect: '/admin/login?error=auth_failed' }),
+    (req, res) => {
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/admin/dashboard`);
+    }
+  );
+
+  app.get('/api/auth/me', (req, res) => {
+    if (req.isAuthenticated && req.isAuthenticated()) {
+      res.json({ user: req.user, authenticated: true });
+    } else {
+      res.json({ authenticated: false });
+    }
+  });
+
+  app.post('/api/auth/logout', (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+      res.json({ success: true, message: 'Logged out successfully' });
+    });
+  });
+}
+
 // Get link templates
 app.get('/api/templates', async (req, res) => {
   try {
@@ -164,33 +291,68 @@ app.post('/api/users/register', async (req, res) => {
 
     // Validate required fields
     if (!name || !email || !phone) {
-      return res.status(400).json({ error: 'Name, email, and phone are required' });
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        details: 'Name, email, and phone are required' 
+      });
     }
+
+    // Validate email format
+    if (!validateEmail(email)) {
+      return res.status(400).json({ 
+        error: 'Invalid email format',
+        details: 'Please provide a valid email address' 
+      });
+    }
+
+    // Validate phone format
+    if (!validatePhone(phone)) {
+      return res.status(400).json({ 
+        error: 'Invalid phone number',
+        details: 'Please provide a valid phone number (at least 10 digits)' 
+      });
+    }
+
+    // Sanitize inputs
+    const sanitizedName = name.trim();
+    const sanitizedEmail = email.trim().toLowerCase();
+    const sanitizedPhone = phone.trim();
 
     const db = await readDB();
 
     // Check if user already exists
-    const existingUser = db.users.find(u => u.email === email);
+    const existingUser = db.users.find(u => u.email === sanitizedEmail);
     if (existingUser) {
-      return res.status(409).json({ error: 'User with this email already exists' });
+      return res.status(409).json({ 
+        error: 'User already exists',
+        details: 'A user with this email already exists',
+        userId: existingUser.id,
+        trackierLink: db.links.find(l => l.userId === existingUser.id)?.link || null
+      });
     }
 
-    // Create new user
+    // Create new user with pending approval status
     const newUser = {
       id: uuidv4(),
-      name,
-      email,
-      phone,
-      platform: platform || '',
-      socialHandle: socialHandle || '',
-      followerCount: followerCount || '',
+      name: sanitizedName,
+      email: sanitizedEmail,
+      phone: sanitizedPhone,
+      platform: (platform || '').trim(),
+      socialHandle: (socialHandle || '').trim(),
+      followerCount: (followerCount || '').trim(),
+      status: 'pending', // New users need approval
+      approvalStatus: 'pending', // pending, approved, rejected
+      adminNotes: '',
+      approvedBy: null,
+      approvedAt: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    // Get link templates
+    // Get link templates and create Trackier link
     let trackierLink = null;
     let linkError = null;
+    let templateId = null;
 
     if (APPTROVE_API_KEY) {
       try {
@@ -198,32 +360,54 @@ app.post('/api/users/register', async (req, res) => {
         
         // Use the first active template or a default one
         const template = templates.linkTemplateList?.[0];
+        templateId = template?.id || null;
         
         if (template) {
           // Create UniLink for this user
-          // Note: You may need to adjust this based on actual AppTrove API
           const linkData = await createUniLink(template.id, newUser.id, {
             name: newUser.name,
-            email: newUser.email
+            email: newUser.email,
+            phone: newUser.phone
           });
           
-          // Try different possible response fields
-          trackierLink = linkData.link || linkData.url || linkData.unilink || linkData.data?.link || null;
+          // Try different possible response fields (AppTrove API may return link in different formats)
+          trackierLink = linkData.link || 
+                        linkData.url || 
+                        linkData.unilink || 
+                        linkData.data?.link || 
+                        linkData.data?.url ||
+                        linkData.data?.unilink ||
+                        null;
           
-          // If link creation failed but we have template info, create a placeholder
-          if (!trackierLink && !linkData.error) {
-            // Generate a placeholder link - replace with actual API response
-            trackierLink = `${APPTROVE_API_URL}/link/${newUser.id}`;
+          // If link creation failed, log but continue
+          if (!trackierLink) {
+            if (linkData.error) {
+              linkError = linkData.error;
+            } else {
+              // Generate a placeholder link that can be updated later
+              trackierLink = `https://trackier.link/${newUser.id}`;
+              linkError = 'Link created but may need manual verification';
+            }
           }
         } else {
           // No template available, create a placeholder link
-          trackierLink = `${APPTROVE_API_URL}/link/${newUser.id}`;
+          trackierLink = `https://trackier.link/${newUser.id}`;
+          linkError = 'No active template found. Link created as placeholder.';
         }
       } catch (error) {
-        console.error('Error creating Trackier link:', error);
+        console.error('Error creating Trackier link:', {
+          message: error.message,
+          userId: newUser.id,
+          email: newUser.email
+        });
         linkError = error.message;
-        // Continue with user creation even if link creation fails
+        // Create placeholder link so user can still be registered
+        trackierLink = `https://trackier.link/${newUser.id}`;
       }
+    } else {
+      // No API key configured, create placeholder link
+      trackierLink = `https://trackier.link/${newUser.id}`;
+      linkError = 'AppTrove API key not configured. Link is a placeholder.';
     }
 
     // Save user to database
@@ -236,8 +420,10 @@ app.post('/api/users/register', async (req, res) => {
         id: uuidv4(),
         userId: newUser.id,
         link: trackierLink,
-        templateId: templates?.linkTemplateList?.[0]?.id || null,
-        createdAt: new Date().toISOString()
+        templateId: templateId,
+        status: linkError ? 'pending' : 'active',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
       db.links.push(newLink);
@@ -253,8 +439,9 @@ app.post('/api/users/register', async (req, res) => {
         trackierLink: trackierLink || null
       },
       message: linkError 
-        ? 'User created successfully, but link creation failed. Please contact support.'
-        : 'User registered successfully and Trackier link created'
+        ? 'User created successfully. Trackier link may need verification.'
+        : 'User registered successfully and Trackier link created',
+      warning: linkError || null
     });
 
   } catch (error) {
@@ -308,10 +495,10 @@ app.get('/api/users/email/:email', async (req, res) => {
 });
 
 // Get all users (admin endpoint) with analytics
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', isAdmin, async (req, res) => {
   try {
     const db = await readDB();
-    const { search, platform, status, sortBy, sortOrder } = req.query;
+    const { search, platform, status, approvalStatus, sortBy, sortOrder } = req.query;
     
     let users = db.users.map(user => {
       const userLinks = db.links.filter(l => l.userId === user.id);
@@ -350,6 +537,14 @@ app.get('/api/users', async (req, res) => {
     
     if (platform) {
       users = users.filter(u => u.platform === platform);
+    }
+    
+    if (approvalStatus) {
+      users = users.filter(u => (u.approvalStatus || 'pending') === approvalStatus);
+    }
+    
+    if (status) {
+      users = users.filter(u => (u.status || 'active') === status);
     }
     
     // Apply sorting
@@ -413,10 +608,10 @@ app.get('/api/users/:id/analytics', async (req, res) => {
   }
 });
 
-// Update user information
-app.put('/api/users/:id', async (req, res) => {
+// Update user information (admin only)
+app.put('/api/users/:id', isAdmin, async (req, res) => {
   try {
-    const { name, phone, platform, socialHandle, followerCount, status } = req.body;
+    const { name, phone, platform, socialHandle, followerCount, status, approvalStatus, adminNotes } = req.body;
     const db = await readDB();
     
     const userIndex = db.users.findIndex(u => u.id === req.params.id);
@@ -431,6 +626,16 @@ app.put('/api/users/:id', async (req, res) => {
     if (socialHandle !== undefined) db.users[userIndex].socialHandle = socialHandle;
     if (followerCount !== undefined) db.users[userIndex].followerCount = followerCount;
     if (status !== undefined) db.users[userIndex].status = status;
+    if (approvalStatus !== undefined) {
+      db.users[userIndex].approvalStatus = approvalStatus;
+      if (approvalStatus === 'approved') {
+        db.users[userIndex].approvedAt = new Date().toISOString();
+        db.users[userIndex].status = 'active';
+      } else if (approvalStatus === 'rejected') {
+        db.users[userIndex].status = 'inactive';
+      }
+    }
+    if (adminNotes !== undefined) db.users[userIndex].adminNotes = adminNotes;
     db.users[userIndex].updatedAt = new Date().toISOString();
     
     await writeDB(db);
@@ -438,6 +643,66 @@ app.put('/api/users/:id', async (req, res) => {
     res.json(db.users[userIndex]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update user', details: error.message });
+  }
+});
+
+// Approve user (admin only)
+app.post('/api/users/:id/approve', isAdmin, async (req, res) => {
+  try {
+    const { adminNotes, approvedBy } = req.body;
+    const db = await readDB();
+    
+    const userIndex = db.users.findIndex(u => u.id === req.params.id);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    db.users[userIndex].approvalStatus = 'approved';
+    db.users[userIndex].status = 'active';
+    db.users[userIndex].approvedBy = approvedBy || 'admin';
+    db.users[userIndex].approvedAt = new Date().toISOString();
+    if (adminNotes) db.users[userIndex].adminNotes = adminNotes;
+    db.users[userIndex].updatedAt = new Date().toISOString();
+    
+    await writeDB(db);
+    
+    res.json({
+      success: true,
+      user: db.users[userIndex],
+      message: 'User approved successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to approve user', details: error.message });
+  }
+});
+
+// Reject user (admin only)
+app.post('/api/users/:id/reject', isAdmin, async (req, res) => {
+  try {
+    const { adminNotes, approvedBy } = req.body;
+    const db = await readDB();
+    
+    const userIndex = db.users.findIndex(u => u.id === req.params.id);
+    if (userIndex === -1) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    db.users[userIndex].approvalStatus = 'rejected';
+    db.users[userIndex].status = 'inactive';
+    db.users[userIndex].approvedBy = approvedBy || 'admin';
+    db.users[userIndex].approvedAt = new Date().toISOString();
+    if (adminNotes) db.users[userIndex].adminNotes = adminNotes;
+    db.users[userIndex].updatedAt = new Date().toISOString();
+    
+    await writeDB(db);
+    
+    res.json({
+      success: true,
+      user: db.users[userIndex],
+      message: 'User rejected'
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reject user', details: error.message });
   }
 });
 
@@ -472,8 +737,8 @@ app.post('/api/analytics', async (req, res) => {
   }
 });
 
-// Get dashboard statistics
-app.get('/api/dashboard/stats', async (req, res) => {
+// Get dashboard statistics (admin only)
+app.get('/api/dashboard/stats', isAdmin, async (req, res) => {
   try {
     const db = await readDB();
     
@@ -573,15 +838,55 @@ app.post('/api/analytics/sync', async (req, res) => {
   }
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found', path: req.path });
+});
+
 // Initialize server
 async function startServer() {
-  await ensureDataDir();
-  
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📊 Database: ${DB_PATH}`);
-    console.log(`🔑 AppTrove API: ${APPTROVE_API_KEY ? 'Configured' : 'Not configured'}`);
-  });
+  try {
+    await ensureDataDir();
+    
+    app.listen(PORT, () => {
+      console.log('\n🚀 Server started successfully!');
+      console.log(`📍 URL: http://localhost:${PORT}`);
+      console.log(`📊 Database: ${DB_PATH}`);
+      console.log(`🔑 AppTrove API: ${APPTROVE_API_KEY ? '✅ Configured' : '⚠️  Not configured (using placeholder links)'}`);
+      console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+      console.log(`\n📝 Available endpoints:`);
+      console.log(`   GET  /api/health`);
+      console.log(`   GET  /api/templates`);
+      console.log(`   POST /api/users/register`);
+      console.log(`   GET  /api/users`);
+      console.log(`   GET  /api/users/:id`);
+      console.log(`   GET  /api/dashboard/stats`);
+      console.log(`\n`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
 }
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
 
 startServer().catch(console.error);

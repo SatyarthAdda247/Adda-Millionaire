@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import { Play } from "lucide-react";
 
 const Hero = () => {
   const scrollToSection = (id: string) => {
@@ -68,34 +67,8 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
             className="text-2xl md:text-3xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
           >
-            Make videos. Get paid every month. It's that simple.
+            Create Videos. Get Paid Every Month.
           </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-            className="flex justify-center items-center"
-          >
-            <div className="relative flex items-center gap-8">
-              <div className="h-px w-12 md:w-20 bg-muted-foreground/30"></div>
-              <motion.div
-                onClick={() => scrollToSection("signup")}
-                className="group cursor-pointer bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl px-8 md:px-12 py-6 md:py-8 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col items-center gap-4"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                  <Play className="w-8 h-8 md:w-10 md:h-10 text-blue-600 fill-blue-600 ml-1" />
-                </div>
-                <div className="text-xl md:text-2xl font-display font-bold text-gray-900 whitespace-nowrap">
-                  Create Once{" "}
-                  <span className="text-green-600">→</span> Earn Every Month
-                </div>
-              </motion.div>
-              <div className="h-px w-12 md:w-20 bg-muted-foreground/30"></div>
-            </div>
-          </motion.div>
         </div>
       </div>
 

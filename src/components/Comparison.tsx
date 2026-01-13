@@ -5,7 +5,7 @@ import { Check, X } from "lucide-react";
 const comparisons = [
   {
     feature: "Money Every Month",
-    ourModel: "Yes - Keep earning monthly",
+    ourModel: "Yes - 20% (₹40) on renewals",
     others: "No - One payment only",
   },
   {

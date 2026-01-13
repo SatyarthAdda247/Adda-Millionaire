@@ -20,6 +20,7 @@ const products = [
     iconBg: "bg-blue-50",
     iconColor: "text-blue-600",
     fallbackLetter: "R",
+    comingSoon: false,
   },
   {
     name: "Adda247 App",
@@ -37,6 +38,7 @@ const products = [
     iconBg: "bg-green-50",
     iconColor: "text-green-600",
     fallbackLetter: "A",
+    comingSoon: true,
   },
   {
     name: "Learner's Adda App",
@@ -54,6 +56,7 @@ const products = [
     iconBg: "bg-purple-50",
     iconColor: "text-purple-600",
     fallbackLetter: "L",
+    comingSoon: true,
   },
 ];
 
@@ -109,58 +112,81 @@ const ProductCards = () => {
         </motion.div>
 
         <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {products.map((product, index) => (
-            <motion.a
-              key={product.name}
-              href={product.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              initial={{ opacity: 0, x: -150 }}
-              animate={isInView ? { opacity: 1, x: 0 } : {}}
-              transition={{
-                duration: 0.8,
-                delay: index * 0.15,
-                ease: "easeOut",
-              }}
-              whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className="bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-gray-200 flex flex-col cursor-pointer hover:shadow-xl transition-all duration-300 group"
-            >
-              <div className="mb-6 flex justify-center">
-                <div className={`w-20 h-20 rounded-full ${product.iconBg} flex items-center justify-center shadow-md`}>
-                  <LogoDisplay 
-                    logo={product.logo} 
-                    alt={product.logoAlt}
-                    name={product.name}
-                    iconBg={product.iconBg}
-                    iconColor={product.iconColor}
-                    fallbackLetter={product.fallbackLetter}
-                  />
-                </div>
-              </div>
+          {products.map((product, index) => {
+            const CardWrapper = product.comingSoon ? motion.div : motion.a;
+            const wrapperProps = product.comingSoon 
+              ? {} 
+              : {
+                  href: product.website,
+                  target: "_blank",
+                  rel: "noopener noreferrer",
+                };
 
-              <h3 className="text-2xl md:text-3xl font-display font-bold text-gray-900 mb-4">
-                {product.name}
-              </h3>
-
-              <p className="text-lg text-gray-600 mb-4 leading-relaxed">
-                {product.tagline}
-              </p>
-
-              <p className="text-base text-gray-700 mb-6 leading-relaxed flex-grow">
-                {product.description}
-              </p>
-
-              <div className="space-y-3 mt-auto">
-                <p className="text-sm font-semibold text-gray-900 mb-2">What it does:</p>
-                {product.features.map((feature, i) => (
-                  <div key={i} className={`flex items-start gap-3 ${product.iconBg} rounded-lg p-3 border ${product.iconBg.replace('bg-', 'border-')}200`}>
-                    <Target className={`w-5 h-5 ${product.iconColor} mt-0.5 shrink-0`} />
-                    <span className="text-sm text-gray-700 leading-relaxed">{feature}</span>
+            return (
+              <CardWrapper
+                key={product.name}
+                {...wrapperProps}
+                initial={{ opacity: 0, x: -150 }}
+                animate={isInView ? { opacity: 1, x: 0 } : {}}
+                transition={{
+                  duration: 0.8,
+                  delay: index * 0.15,
+                  ease: "easeOut",
+                }}
+                whileHover={product.comingSoon ? {} : { y: -8, transition: { duration: 0.3 } }}
+                className={`bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-gray-200 flex flex-col relative ${
+                  product.comingSoon 
+                    ? "cursor-not-allowed opacity-75" 
+                    : "cursor-pointer hover:shadow-xl transition-all duration-300 group"
+                }`}
+              >
+                {product.comingSoon && (
+                  <div className="absolute top-4 right-4 z-10">
+                    <span className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                      Coming Soon
+                    </span>
                   </div>
-                ))}
-              </div>
-            </motion.a>
-          ))}
+                )}
+
+                <div className={`mb-6 flex justify-center ${product.comingSoon ? "blur-none opacity-80" : ""}`}>
+                  <div className={`w-20 h-20 rounded-full ${product.iconBg} flex items-center justify-center shadow-md`}>
+                    <LogoDisplay 
+                      logo={product.logo} 
+                      alt={product.logoAlt}
+                      name={product.name}
+                      iconBg={product.iconBg}
+                      iconColor={product.iconColor}
+                      fallbackLetter={product.fallbackLetter}
+                    />
+                  </div>
+                </div>
+
+                <div className={product.comingSoon ? "blur-sm" : ""}>
+                  <h3 className="text-2xl md:text-3xl font-display font-bold text-gray-900 mb-4">
+                    {product.name}
+                  </h3>
+
+                  <p className="text-lg text-gray-600 mb-4 leading-relaxed">
+                    {product.tagline}
+                  </p>
+
+                  <p className="text-base text-gray-700 mb-6 leading-relaxed flex-grow">
+                    {product.description}
+                  </p>
+
+                  <div className="space-y-3 mt-auto">
+                    <p className="text-sm font-semibold text-gray-900 mb-2">What it does:</p>
+                    {product.features.map((feature, i) => (
+                      <div key={i} className={`flex items-start gap-3 ${product.iconBg} rounded-lg p-3 border ${product.iconBg.replace('bg-', 'border-')}200`}>
+                        <Target className={`w-5 h-5 ${product.iconColor} mt-0.5 shrink-0`} />
+                        <span className="text-sm text-gray-700 leading-relaxed">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardWrapper>
+            );
+          })}
         </div>
       </div>
     </section>

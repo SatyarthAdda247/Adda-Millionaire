@@ -4,7 +4,6 @@ import Stats from "@/components/Stats";
 import ProductCards from "@/components/ProductCards";
 import AffiliateJourney from "@/components/AffiliateJourney";
 import HowYouEarn from "@/components/HowYouEarn";
-import EarningsCalculator from "@/components/EarningsCalculator";
 import Features from "@/components/Features";
 import Comparison from "@/components/Comparison";
 import SignupForm from "@/components/SignupForm";
@@ -19,9 +18,8 @@ const Index = () => {
       <Stats />
       <Features />
       <Comparison />
-      <HowYouEarn />
       <section id="calculator">
-        <EarningsCalculator />
+        <HowYouEarn />
       </section>
       <section id="products">
         <ProductCards />
