@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 
 const Hero = () => {
   const scrollToSection = (id: string) => {
@@ -65,10 +66,24 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
-            className="text-2xl md:text-3xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
+            className="text-2xl md:text-3xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed font-light"
           >
             Create Videos. Get Paid Every Month.
           </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+            className="flex justify-center"
+          >
+            <Button
+              onClick={() => scrollToSection("signup")}
+              className="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-xl px-8 py-6 text-lg md:text-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              Start your Affiliate Journey
+            </Button>
+          </motion.div>
         </div>
       </div>
 
