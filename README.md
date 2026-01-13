@@ -1,4 +1,4 @@
-# Adda Millionaire Affiliate Program
+# Millionaire's Adda Affiliate Program
 
 Affiliate program landing page for AddaEducation.
 

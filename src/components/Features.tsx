@@ -4,30 +4,23 @@ import {
   Zap,
   Link2,
   Activity,
-  Shield,
-  Sparkles,
 } from "lucide-react";
 
 const features = [
   {
     icon: Zap,
-    title: "One-time onboarding",
-    description: "Quick setup, then you're ready to earn",
+    title: "Earn like a partner",
+    description: "100% payout on the first paid subscription. Recurring commission when the learner renews. Unlimited earning potential (no cap)",
   },
   {
     icon: Link2,
-    title: "Instant tracking links",
-    description: "Generate links for any product in seconds",
+    title: "Everything to help you win",
+    description: "Your unique link. Ready creative angles + sample scripts. Transparent tracking + payout visibility",
   },
   {
     icon: Activity,
-    title: "Real-time analytics",
-    description: "Watch clicks and conversions as they happen",
-  },
-  {
-    icon: Shield,
-    title: "Transparent payouts",
-    description: "Clear earnings and monthly settlements",
+    title: "Works at any scale",
+    description: "100 or 1M followers - if your audience pays, you earn",
   },
 ];
 
@@ -45,15 +38,14 @@ const Features = () => {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-5xl font-display font-bold text-foreground mb-6">
-            Everything You Need,{" "}
-            <span className="text-gradient">Nothing You Don't</span>
+            What you <span className="text-gradient">get?</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Simple, powerful tools that stay out of your way.
+            Brand deals are one-time. This is your chance to make monthly income that compounds.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto mb-12">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-12">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
@@ -69,28 +61,16 @@ const Features = () => {
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
                 <feature.icon className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="font-display font-semibold text-foreground mb-2">
+              <h3 className="font-display font-semibold text-foreground mb-3">
                 {feature.title}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-foreground/80 leading-relaxed">
                 {feature.description}
               </p>
             </motion.div>
           ))}
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
-        >
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span>
-            Performance and earnings tracked via a secure system powered by
-            Trackier.
-          </span>
-        </motion.div>
       </div>
     </section>
   );

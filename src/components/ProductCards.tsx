@@ -1,34 +1,22 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
 import { useRef } from "react";
-import { GraduationCap, BookOpen, Target, Heart } from "lucide-react";
+import { GraduationCap, Target } from "lucide-react";
 
 const products = [
   {
     icon: GraduationCap,
-    name: "Reevo by AddaEducation",
-    tagline: "Smart, structured exam preparation",
+    name: "Reevo",
+    tagline: "AI-powered English learning & speaking app for Bharat",
+    description: "Perfect for creators who talk about: confidence, personality development, career growth, cracking interviews, dating tips, and more.",
     features: [
-      "Designed for serious aspirants",
-      "High-intent learners, strong conversions",
+      "Practice with an AI coach - Riya - and gain confidence",
+      "Real-time scenario practice with instant feedback",
+      "Start speaking English at just ₹1 (trial entry and then ₹199/month)",
     ],
-    bestFor: "competitive exams, focused learners",
     gradient: "from-primary/10 to-primary/5",
     iconBg: "bg-primary/10",
     iconColor: "text-primary",
-  },
-  {
-    icon: BookOpen,
-    name: "Learners Adda",
-    tagline: "Daily learning made simple",
-    features: [
-      "Beginner-friendly, habit-building content",
-      "Perfect for short-form content promotion",
-    ],
-    bestFor: "students, beginners, lifelong learners",
-    gradient: "from-accent/10 to-accent/5",
-    iconBg: "bg-accent/10",
-    iconColor: "text-accent",
   },
 ];
 
@@ -46,15 +34,14 @@ const ProductCards = () => {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-5xl font-display font-bold text-foreground mb-6">
-            Learning Products Your Audience{" "}
-            <span className="text-gradient">Already Trusts</span>
+            About the <span className="text-gradient">Campaign</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Promote products that genuinely help your audience grow.
+            We're looking for creators to make videos talking about our products. That's it! No extra work, no hidden hoops. Just your videos, your audience.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-1 gap-8 max-w-3xl mx-auto">
           {products.map((product, index) => (
             <motion.div
               key={product.name}
@@ -78,24 +65,24 @@ const ProductCards = () => {
                 {product.name}
               </h3>
 
-              <p className="text-lg text-muted-foreground mb-6">
+              <p className="text-lg text-muted-foreground mb-4">
                 {product.tagline}
               </p>
 
-              <ul className="space-y-3 mb-8">
-                {product.features.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <Target className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-                    <span className="text-foreground/80">{feature}</span>
-                  </li>
-                ))}
-              </ul>
+              <p className="text-base text-foreground/90 mb-6">
+                {product.description}
+              </p>
 
-              <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-xl px-4 py-3">
-                <Heart className="w-4 h-4 text-accent" />
-                <span>
-                  Best for: <strong className="text-foreground">{product.bestFor}</strong>
-                </span>
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-foreground mb-3">Highlights:</p>
+                <ul className="space-y-2">
+                  {product.features.map((feature, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <Target className="w-5 h-5 text-primary mt-0.5 shrink-0" />
+                      <span className="text-foreground/80">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </motion.div>
           ))}

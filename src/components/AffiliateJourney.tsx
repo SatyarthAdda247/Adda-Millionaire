@@ -1,32 +1,22 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
-import { UserPlus, Link2, Share2, BarChart3, Wallet } from "lucide-react";
+import { UserPlus, Share2, Wallet } from "lucide-react";
 
 const steps = [
   {
     icon: UserPlus,
-    title: "Sign up once",
-    description: "Quick, one-time registration",
-  },
-  {
-    icon: Link2,
-    title: "Get your links",
-    description: "Unique tracking links ready instantly",
+    title: "Join & choose",
+    description: "Join our affiliate program and get your unique partner link",
   },
   {
     icon: Share2,
-    title: "Share naturally",
-    description: "Integrate into your content flow",
-  },
-  {
-    icon: BarChart3,
-    title: "Track everything",
-    description: "Real-time clicks & conversions",
+    title: "Create & post",
+    description: "Make videos in your style and post it on social media with your unique affiliate link",
   },
   {
     icon: Wallet,
-    title: "Earn monthly",
-    description: "Consistent, recurring payouts",
+    title: "Earn & grow",
+    description: "Get monthly payouts. Track your progress on the dashboard and scale with insights",
   },
 ];
 
@@ -44,14 +34,11 @@ const AffiliateJourney = () => {
           className="text-center mb-16"
         >
           <h2 className="text-3xl md:text-5xl font-display font-bold text-foreground mb-6">
-            Your Journey with{" "}
-            <span className="text-gradient">Adda Millionaire</span>
+            Get Started in{" "}
+            <span className="text-gradient">3 Simple Steps</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            A long-term model. No campaigns. No pressure.{" "}
-            <span className="italic">
-              Your content keeps working, even when you're not.
-            </span>
+            Turn your content into monthly income.
           </p>
         </motion.div>
 
@@ -77,7 +64,7 @@ const AffiliateJourney = () => {
                     delay: 0.3 + index * 0.15,
                     ease: "easeOut",
                   }}
-                  className="flex flex-col items-center text-center w-40"
+                  className="flex flex-col items-center text-center flex-1 max-w-xs"
                 >
                   <motion.div
                     whileHover={{ scale: 1.1, y: -5 }}

@@ -59,7 +59,7 @@ const Hero = () => {
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <span className="inline-block px-4 py-2 mb-8 text-sm font-medium text-primary bg-primary/10 rounded-full">
-              Adda Millionaire Affiliate Program
+              Creator-First Growth Program
             </span>
           </motion.div>
 
@@ -69,18 +69,38 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
             className="text-4xl md:text-6xl lg:text-7xl font-display font-bold text-foreground leading-tight mb-8"
           >
-            Create once.{" "}
-            <span className="text-gradient">Earn every month.</span>
+            Create Videos.{" "}
+            <span className="text-gradient">Get Paid Every Month.</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed"
+            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed"
           >
-            Turn your everyday content into a sustainable income stream by
-            recommending learning platforms your audience genuinely needs.
+            Creator-first growth program that lets you earn real income by helping learners discover Reevo.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.35, ease: "easeOut" }}
+            className="flex flex-wrap justify-center gap-4 mb-12 text-sm md:text-base"
+          >
+            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">No minimum followers</span>
+            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">No upfront fees</span>
+            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">Full transparency</span>
+            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">Monthly payouts</span>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+            className="text-base md:text-lg text-foreground max-w-2xl mx-auto mb-12 font-medium"
+          >
+            Turn your content into a compounding income stream.
           </motion.p>
 
           <motion.div

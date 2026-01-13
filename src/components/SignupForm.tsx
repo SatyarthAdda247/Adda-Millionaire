@@ -56,7 +56,7 @@ const SignupForm = () => {
       return;
     }
     toast({
-      title: "Welcome to Adda Millionaire! 🎉",
+      title: "Welcome to Millionaire's Adda! 🎉",
       description: "We'll be in touch shortly to get you started.",
     });
   };
@@ -78,7 +78,7 @@ const SignupForm = () => {
             Join as an <span className="text-gradient">Affiliate</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Start your journey with Adda Millionaire today.
+            Start your journey with Millionaire's Adda today.
           </p>
         </motion.div>
 

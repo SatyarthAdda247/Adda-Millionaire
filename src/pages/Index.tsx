@@ -2,7 +2,6 @@ import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import ProductCards from "@/components/ProductCards";
 import AffiliateJourney from "@/components/AffiliateJourney";
-import WhyItWorks from "@/components/WhyItWorks";
 import EarningsCalculator from "@/components/EarningsCalculator";
 import Features from "@/components/Features";
 import SignupForm from "@/components/SignupForm";
@@ -20,7 +19,6 @@ const Index = () => {
       <section id="journey">
         <AffiliateJourney />
       </section>
-      <WhyItWorks />
       <section id="calculator">
         <EarningsCalculator />
       </section>

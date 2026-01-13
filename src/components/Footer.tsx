@@ -13,7 +13,7 @@ const Footer = () => {
             transition={{ duration: 0.6 }}
           >
             <h3 className="text-2xl font-display font-bold text-background">
-              Adda <span className="text-primary-foreground/80">Millionaire</span>
+              Millionaire's <span className="text-primary-foreground/80">Adda</span>
             </h3>
             <p className="text-background/60 text-sm mt-1">
               An affiliate program by AddaEducation
