@@ -9,18 +9,18 @@ import {
 const features = [
   {
     icon: Zap,
-    title: "Earn like a partner",
-    description: "100% payout on the first paid subscription. Recurring commission when the learner renews. Unlimited earning potential (no cap)",
+    title: "Earn Every Month",
+    description: "Get paid 100% on first sale. Then keep earning monthly when users renew. No limit on how much you can make.",
   },
   {
     icon: Link2,
-    title: "Everything to help you win",
-    description: "Your unique link. Ready creative angles + sample scripts. Transparent tracking + payout visibility",
+    title: "We Help You Succeed",
+    description: "Get your unique link. We give you video ideas and scripts. Track everything in real-time.",
   },
   {
     icon: Activity,
-    title: "Works at any scale",
-    description: "100 or 1M followers - if your audience pays, you earn",
+    title: "Works for Everyone",
+    description: "100 followers or 1 million - doesn't matter. If your audience buys, you earn money.",
   },
 ];
 
@@ -32,16 +32,16 @@ const Features = () => {
     <section className="py-24 md:py-32 bg-background" ref={ref}>
       <div className="container px-6">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
+          initial={{ opacity: 0, x: -100 }}
+          animate={isInView ? { opacity: 1, x: 0 } : {}}
+          transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl md:text-5xl font-display font-bold text-foreground mb-6">
-            What you <span className="text-gradient">get?</span>
+          <h2 className="text-4xl md:text-6xl font-display font-bold text-gray-900 mb-8">
+            What You <span className="text-green-600">Get</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Brand deals are one-time. This is your chance to make monthly income that compounds.
+          <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
+            Three simple reasons to join us
           </p>
         </motion.div>
 
@@ -49,22 +49,22 @@ const Features = () => {
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
-              initial={{ opacity: 0, y: 30 }}
-              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              initial={{ opacity: 0, x: -150 }}
+              animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{
-                duration: 0.6,
-                delay: 0.1 + index * 0.1,
+                duration: 0.8,
+                delay: 0.2 + index * 0.15,
                 ease: "easeOut",
               }}
-              className="bg-muted/30 rounded-2xl p-6 hover:bg-muted/50 transition-colors duration-300"
+              className="bg-white rounded-2xl p-8 md:p-10 hover:shadow-lg transition-all duration-300 border border-gray-100"
             >
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                <feature.icon className="w-6 h-6 text-primary" />
+              <div className="w-16 h-16 rounded-xl bg-blue-50 flex items-center justify-center mb-6 shadow-sm">
+                <feature.icon className="w-8 h-8 text-blue-500" />
               </div>
-              <h3 className="font-display font-semibold text-foreground mb-3">
+              <h3 className="text-xl md:text-2xl font-display font-semibold text-gray-900 mb-4">
                 {feature.title}
               </h3>
-              <p className="text-sm text-foreground/80 leading-relaxed">
+              <p className="text-base md:text-lg text-gray-600 leading-relaxed">
                 {feature.description}
               </p>
             </motion.div>

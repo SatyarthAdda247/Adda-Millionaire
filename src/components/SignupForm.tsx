@@ -69,29 +69,29 @@ const SignupForm = () => {
     >
       <div className="container px-6">
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8 }}
+          initial={{ opacity: 0, x: -100 }}
+          animate={isInView ? { opacity: 1, x: 0 } : {}}
+          transition={{ duration: 0.8, ease: "easeOut" }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl md:text-5xl font-display font-bold text-foreground mb-6">
-            Join as an <span className="text-gradient">Affiliate</span>
+          <h2 className="text-4xl md:text-6xl font-display font-bold text-gray-900 mb-8">
+            Ready to Start <span className="text-green-600">Earning?</span>
           </h2>
-          <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Start your journey with Millionaire's Adda today.
+          <p className="text-xl md:text-2xl text-gray-600 max-w-2xl mx-auto mb-4">
+            Join our affiliate program today and start earning monthly commissions
           </p>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 40, scale: 0.95 }}
-          animate={isInView ? { opacity: 1, y: 0, scale: 1 } : {}}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="max-w-xl mx-auto floating-card p-8 md:p-10"
+          initial={{ opacity: 0, x: -150 }}
+          animate={isInView ? { opacity: 1, x: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+          className="max-w-xl mx-auto bg-white rounded-2xl p-8 md:p-10 shadow-lg border border-gray-200"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   Full Name
                 </label>
                 <Input
@@ -101,12 +101,12 @@ const SignupForm = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
-                  className="rounded-xl border-border/50 focus:border-primary bg-background/50"
+                  className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   Email
                 </label>
                 <Input
@@ -116,14 +116,14 @@ const SignupForm = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
-                  className="rounded-xl border-border/50 focus:border-primary bg-background/50"
+                  className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label className="block text-base font-medium text-gray-700 mb-3">
                 Phone
               </label>
               <Input
@@ -133,14 +133,14 @@ const SignupForm = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
                 }
-                className="rounded-xl border-border/50 focus:border-primary bg-background/50"
+                className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50"
                 required
               />
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   Primary Platform
                 </label>
                 <Select
@@ -149,7 +149,7 @@ const SignupForm = () => {
                     setFormData({ ...formData, platform: value })
                   }
                 >
-                  <SelectTrigger className="rounded-xl border-border/50 focus:border-primary bg-background/50">
+                  <SelectTrigger className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50">
                     <SelectValue placeholder="Select platform" />
                   </SelectTrigger>
                   <SelectContent>
@@ -162,7 +162,7 @@ const SignupForm = () => {
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-2">
+                <label className="block text-base font-medium text-gray-700 mb-3">
                   Follower Count
                 </label>
                 <Select
@@ -171,7 +171,7 @@ const SignupForm = () => {
                     setFormData({ ...formData, followerCount: value })
                   }
                 >
-                  <SelectTrigger className="rounded-xl border-border/50 focus:border-primary bg-background/50">
+                  <SelectTrigger className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50">
                     <SelectValue placeholder="Select range" />
                   </SelectTrigger>
                   <SelectContent>
@@ -186,7 +186,7 @@ const SignupForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label className="block text-base font-medium text-gray-700 mb-3">
                 Social Handle
               </label>
               <Input
@@ -196,7 +196,7 @@ const SignupForm = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, socialHandle: e.target.value })
                 }
-                className="rounded-xl border-border/50 focus:border-primary bg-background/50"
+                className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50"
               />
             </div>
 
@@ -211,14 +211,14 @@ const SignupForm = () => {
               />
               <label
                 htmlFor="terms"
-                className="text-sm text-muted-foreground cursor-pointer"
+                className="text-base text-gray-600 cursor-pointer"
               >
                 I agree to the{" "}
-                <a href="#" className="text-primary hover:underline">
+                <a href="#" className="text-blue-600 hover:underline">
                   Terms and Conditions
                 </a>{" "}
                 and{" "}
-                <a href="#" className="text-primary hover:underline">
+                <a href="#" className="text-blue-600 hover:underline">
                   Privacy Policy
                 </a>
               </label>
@@ -227,15 +227,15 @@ const SignupForm = () => {
             <Button
               type="submit"
               size="lg"
-              className="w-full gradient-cta text-primary-foreground py-6 text-lg rounded-2xl shadow-glow hover:shadow-elevated transition-all duration-300 group"
+              className="w-full bg-gradient-to-r from-blue-600 to-green-600 text-white py-7 text-xl font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 group"
             >
-              Join as an Affiliate
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              Start Now
+              <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6 flex items-center justify-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
+          <p className="text-center text-sm text-gray-500 mt-6 flex items-center justify-center gap-2">
+            <Sparkles className="w-4 h-4 text-blue-600" />
             Takes less than a minute.
           </p>
         </motion.div>

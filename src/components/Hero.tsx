@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
-import { ArrowRight, Calculator } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Play } from "lucide-react";
 
 const Hero = () => {
   const scrollToSection = (id: string) => {
@@ -53,79 +52,49 @@ const Hero = () => {
 
       <div className="container relative z-10 px-6 py-20 md:py-32">
         <div className="max-w-4xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-          >
-            <span className="inline-block px-4 py-2 mb-8 text-sm font-medium text-primary bg-primary/10 rounded-full">
-              Creator-First Growth Program
-            </span>
-          </motion.div>
-
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
-            className="text-4xl md:text-6xl lg:text-7xl font-display font-bold text-foreground leading-tight mb-8"
+            className="text-5xl md:text-7xl lg:text-8xl font-display font-bold text-gray-900 leading-[1.1] mb-10"
           >
-            Create Videos.{" "}
-            <span className="text-gradient">Get Paid Every Month.</span>
+            Join Millionaire's{" "}
+            <span className="text-blue-600">Adda Affiliate Program</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed"
+            transition={{ duration: 0.8, delay: 0.25, ease: "easeOut" }}
+            className="text-2xl md:text-3xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-light"
           >
-            Creator-first growth program that lets you earn real income by helping learners discover Reevo.
+            Make videos. Get paid every month. It's that simple.
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.35, ease: "easeOut" }}
-            className="flex flex-wrap justify-center gap-4 mb-12 text-sm md:text-base"
-          >
-            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">No minimum followers</span>
-            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">No upfront fees</span>
-            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">Full transparency</span>
-            <span className="px-4 py-2 bg-muted/50 rounded-full text-foreground">Monthly payouts</span>
-          </motion.div>
-
-          <motion.p
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-            className="text-base md:text-lg text-foreground max-w-2xl mx-auto mb-12 font-medium"
+            className="flex justify-center items-center"
           >
-            Turn your content into a compounding income stream.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.45, ease: "easeOut" }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-          >
-            <Button
-              size="lg"
-              onClick={() => scrollToSection("signup")}
-              className="group gradient-cta text-primary-foreground px-8 py-6 text-lg rounded-2xl shadow-glow hover:shadow-elevated transition-all duration-300"
-            >
-              Join as an Affiliate
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={() => scrollToSection("calculator")}
-              className="text-muted-foreground hover:text-foreground px-8 py-6 text-lg rounded-2xl"
-            >
-              <Calculator className="mr-2 w-5 h-5" />
-              Estimate Your Earnings
-            </Button>
+            <div className="relative flex items-center gap-8">
+              <div className="h-px w-12 md:w-20 bg-muted-foreground/30"></div>
+              <motion.div
+                onClick={() => scrollToSection("signup")}
+                className="group cursor-pointer bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl px-8 md:px-12 py-6 md:py-8 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col items-center gap-4"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                  <Play className="w-8 h-8 md:w-10 md:h-10 text-blue-600 fill-blue-600 ml-1" />
+                </div>
+                <div className="text-xl md:text-2xl font-display font-bold text-gray-900 whitespace-nowrap">
+                  Create Once{" "}
+                  <span className="text-green-600">→</span> Earn Every Month
+                </div>
+              </motion.div>
+              <div className="h-px w-12 md:w-20 bg-muted-foreground/30"></div>
+            </div>
           </motion.div>
         </div>
       </div>

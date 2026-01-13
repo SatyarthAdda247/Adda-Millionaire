@@ -41,8 +41,8 @@ const Navbar = () => {
             className="flex items-center"
             whileHover={{ scale: 1.02 }}
           >
-            <span className="text-xl font-display font-bold text-foreground">
-              Millionaire's <span className="text-primary">Adda</span>
+            <span className="text-xl font-display font-bold text-gray-900">
+              Millionaire's <span className="text-blue-600">Adda</span>
             </span>
           </motion.a>
 
@@ -50,25 +50,25 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-8">
             <button
               onClick={() => scrollToSection("products")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
               Products
             </button>
             <button
               onClick={() => scrollToSection("journey")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
               How It Works
             </button>
             <button
               onClick={() => scrollToSection("calculator")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
               Calculator
             </button>
             <button
               onClick={() => scrollToSection("faq")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
             >
               FAQ
             </button>
@@ -77,7 +77,7 @@ const Navbar = () => {
           <div className="hidden md:block">
             <Button
               onClick={() => scrollToSection("signup")}
-              className="gradient-cta text-primary-foreground rounded-xl px-6 shadow-glow hover:shadow-elevated transition-all duration-300"
+              className="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-xl px-6 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Join Now
             </Button>
@@ -85,7 +85,7 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 text-foreground"
+            className="md:hidden p-2 text-gray-900"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -102,36 +102,36 @@ const Navbar = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="md:hidden bg-background/95 backdrop-blur-xl rounded-2xl shadow-elevated p-6 mb-4"
+            className="md:hidden bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg border border-gray-200 p-6 mb-4"
           >
             <div className="flex flex-col gap-4">
               <button
                 onClick={() => scrollToSection("products")}
-                className="text-left py-2 text-foreground hover:text-primary transition-colors"
+                className="text-left py-2 text-gray-900 hover:text-blue-600 transition-colors"
               >
                 Products
               </button>
               <button
                 onClick={() => scrollToSection("journey")}
-                className="text-left py-2 text-foreground hover:text-primary transition-colors"
+                className="text-left py-2 text-gray-900 hover:text-blue-600 transition-colors"
               >
                 How It Works
               </button>
               <button
                 onClick={() => scrollToSection("calculator")}
-                className="text-left py-2 text-foreground hover:text-primary transition-colors"
+                className="text-left py-2 text-gray-900 hover:text-blue-600 transition-colors"
               >
                 Calculator
               </button>
               <button
                 onClick={() => scrollToSection("faq")}
-                className="text-left py-2 text-foreground hover:text-primary transition-colors"
+                className="text-left py-2 text-gray-900 hover:text-blue-600 transition-colors"
               >
                 FAQ
               </button>
               <Button
                 onClick={() => scrollToSection("signup")}
-                className="gradient-cta text-primary-foreground rounded-xl w-full mt-2"
+                className="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-xl w-full mt-2"
               >
                 Join Now
               </Button>
