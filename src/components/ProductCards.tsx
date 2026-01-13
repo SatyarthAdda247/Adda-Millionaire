@@ -1,24 +1,91 @@
 import { motion } from "framer-motion";
 import { useInView } from "framer-motion";
-import { useRef } from "react";
-import { GraduationCap, Target } from "lucide-react";
+import { useRef, useState } from "react";
+import { Target } from "lucide-react";
 
 const products = [
   {
-    icon: GraduationCap,
-    name: "Learning Platforms",
-    tagline: "AI-powered learning platforms for skill development",
+    name: "Reevo",
+    logo: "/logos/reevo-logo.png",
+    logoAlt: "Reevo Logo",
+    website: "https://reevo.in/",
+    tagline: "AI-powered learning platform for skill development",
     description: "Perfect for creators who talk about: confidence, personality development, career growth, cracking interviews, dating tips, and more.",
     features: [
       "Interactive learning with AI-powered coaching",
       "Real-time practice with instant feedback",
       "Affordable pricing starting from ₹1 (trial) and ₹199/month",
     ],
-    gradient: "from-primary/10 to-primary/5",
-    iconBg: "bg-primary/10",
-    iconColor: "text-primary",
+    gradient: "from-blue-50 to-blue-100",
+    iconBg: "bg-blue-50",
+    iconColor: "text-blue-600",
+    fallbackLetter: "R",
+  },
+  {
+    name: "Adda247 App",
+    logo: "/logos/adda247-logo.png",
+    logoAlt: "Adda247 Logo",
+    website: "https://www.adda247.com/?srsltid=AfmBOorLMdhC5gL22BtXITQszW8sg5mzDlnNGnt7KnALbdZK-aqXtxI0",
+    tagline: "Comprehensive exam preparation and learning app",
+    description: "Ideal for creators focusing on: competitive exams, government jobs, banking, SSC, railway, teaching exams, and career guidance.",
+    features: [
+      "Live classes and recorded video courses",
+      "Mock tests and practice papers",
+      "Expert faculty and comprehensive study material",
+    ],
+    gradient: "from-green-50 to-green-100",
+    iconBg: "bg-green-50",
+    iconColor: "text-green-600",
+    fallbackLetter: "A",
+  },
+  {
+    name: "Learner's Adda App",
+    logo: "/logos/learners-adda-logo.png",
+    logoAlt: "Learner's Adda Logo",
+    website: "https://play.google.com/store/apps/details?id=com.adda247.gold&hl=en_IN",
+    tagline: "Personalized learning experience for students",
+    description: "Great for creators who discuss: academic excellence, skill building, student success stories, exam strategies, and educational tips.",
+    features: [
+      "Personalized learning paths",
+      "Interactive quizzes and assessments",
+      "Progress tracking and performance analytics",
+    ],
+    gradient: "from-purple-50 to-purple-100",
+    iconBg: "bg-purple-50",
+    iconColor: "text-purple-600",
+    fallbackLetter: "L",
   },
 ];
+
+// Logo component with proper fallback
+const LogoDisplay = ({ logo, alt, name, iconBg, iconColor, fallbackLetter }: {
+  logo: string;
+  alt: string;
+  name: string;
+  iconBg: string;
+  iconColor: string;
+  fallbackLetter: string;
+}) => {
+  const [imageError, setImageError] = useState(false);
+
+  if (imageError) {
+    // Show styled letter fallback matching the design
+    return (
+      <div className={`w-full h-full rounded-full ${iconBg} flex items-center justify-center shadow-sm`}>
+        <span className={`${iconColor} font-bold text-3xl`}>{fallbackLetter}</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={logo}
+      alt={alt}
+      className="w-full h-full object-contain"
+      onError={() => setImageError(true)}
+    />
+  );
+};
 
 const ProductCards = () => {
   const ref = useRef(null);
@@ -41,48 +108,58 @@ const ProductCards = () => {
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-1 gap-8 max-w-3xl mx-auto">
+        <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
           {products.map((product, index) => (
-            <motion.div
+            <motion.a
               key={product.name}
+              href={product.website}
+              target="_blank"
+              rel="noopener noreferrer"
               initial={{ opacity: 0, x: -150 }}
               animate={isInView ? { opacity: 1, x: 0 } : {}}
               transition={{
                 duration: 0.8,
-                delay: index * 0.2,
+                delay: index * 0.15,
                 ease: "easeOut",
               }}
               whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className="bg-white rounded-2xl p-8 md:p-10 shadow-lg border border-gray-200"
+              className="bg-white rounded-2xl p-6 md:p-8 shadow-lg border border-gray-200 flex flex-col cursor-pointer hover:shadow-xl transition-all duration-300 group"
             >
-              <div
-                className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mb-6"
-              >
-                <product.icon className="w-8 h-8 text-blue-600" />
+              <div className="mb-6 flex justify-center">
+                <div className={`w-20 h-20 rounded-full ${product.iconBg} flex items-center justify-center shadow-md`}>
+                  <LogoDisplay 
+                    logo={product.logo} 
+                    alt={product.logoAlt}
+                    name={product.name}
+                    iconBg={product.iconBg}
+                    iconColor={product.iconColor}
+                    fallbackLetter={product.fallbackLetter}
+                  />
+                </div>
               </div>
 
-              <h3 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-6">
+              <h3 className="text-2xl md:text-3xl font-display font-bold text-gray-900 mb-4">
                 {product.name}
               </h3>
 
-              <p className="text-xl text-gray-600 mb-6 leading-relaxed">
+              <p className="text-lg text-gray-600 mb-4 leading-relaxed">
                 {product.tagline}
               </p>
 
-              <p className="text-lg text-gray-700 mb-8 leading-relaxed">
+              <p className="text-base text-gray-700 mb-6 leading-relaxed flex-grow">
                 {product.description}
               </p>
 
-              <div className="space-y-3">
-                <p className="text-base font-semibold text-gray-900 mb-3">What it does:</p>
+              <div className="space-y-3 mt-auto">
+                <p className="text-sm font-semibold text-gray-900 mb-2">What it does:</p>
                 {product.features.map((feature, i) => (
-                  <div key={i} className="flex items-start gap-3 bg-blue-50 rounded-lg p-3 border border-blue-100">
-                    <Target className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-                    <span className="text-base text-gray-700 leading-relaxed">{feature}</span>
+                  <div key={i} className={`flex items-start gap-3 ${product.iconBg} rounded-lg p-3 border ${product.iconBg.replace('bg-', 'border-')}200`}>
+                    <Target className={`w-5 h-5 ${product.iconColor} mt-0.5 shrink-0`} />
+                    <span className="text-sm text-gray-700 leading-relaxed">{feature}</span>
                   </div>
                 ))}
               </div>
-            </motion.div>
+            </motion.a>
           ))}
         </div>
       </div>
