@@ -12,15 +12,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-
-const platforms = [
-  "Instagram",
-  "YouTube",
-  "Telegram",
-  "WhatsApp",
-  "Twitter/X",
-  "Other",
-];
+import SocialHandleInput from "./SocialHandleInput";
 
 const followerRanges = [
   "1K - 5K",
@@ -33,6 +25,16 @@ const followerRanges = [
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+interface SocialHandle {
+  id: string;
+  platform: string;
+  handle: string;
+  verified: boolean;
+  verifiedFollowers?: number;
+  verifiedAt?: string;
+  error?: string;
+}
+
 const SignupForm = () => {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
@@ -41,14 +43,12 @@ const SignupForm = () => {
     name: "",
     email: "",
     phone: "",
-    platform: "",
-    socialHandle: "",
     followerCount: "",
     termsAccepted: false,
   });
 
+  const [socialHandles, setSocialHandles] = useState<SocialHandle[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [trackierLink, setTrackierLink] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,9 +75,13 @@ const SignupForm = () => {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          platform: formData.platform,
-          socialHandle: formData.socialHandle,
           followerCount: formData.followerCount,
+          socialHandles: socialHandles.map(h => ({
+            platform: h.platform,
+            handle: h.handle,
+            verified: h.verified,
+            verifiedFollowers: h.verifiedFollowers,
+          })),
         }),
       });
 
@@ -89,11 +93,10 @@ const SignupForm = () => {
 
       // Success
       setUserId(data.user.id);
-      setTrackierLink(data.user.trackierLink);
       
       toast({
-        title: "Welcome to Millionaire's Adda! 🎉",
-        description: data.message || "Your profile has been created successfully!",
+        title: "Application Submitted! 🎉",
+        description: "Your application has been sent for admin approval. You'll receive an email once approved.",
       });
 
       // Reset form
@@ -101,11 +104,10 @@ const SignupForm = () => {
         name: "",
         email: "",
         phone: "",
-        platform: "",
-        socialHandle: "",
         followerCount: "",
         termsAccepted: false,
       });
+      setSocialHandles([]);
 
     } catch (error) {
       console.error('Registration error:', error);
@@ -196,67 +198,30 @@ const SignupForm = () => {
               />
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Primary Platform
-                </label>
-                <Select
-                  value={formData.platform}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, platform: value })
-                  }
-                >
-                  <SelectTrigger className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50">
-                    <SelectValue placeholder="Select platform" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {platforms.map((platform) => (
-                      <SelectItem key={platform} value={platform}>
-                        {platform}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-base font-medium text-gray-700 mb-3">
-                  Follower Count
-                </label>
-                <Select
-                  value={formData.followerCount}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, followerCount: value })
-                  }
-                >
-                  <SelectTrigger className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50">
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {followerRanges.map((range) => (
-                      <SelectItem key={range} value={range}>
-                        {range}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <div>
               <label className="block text-base font-medium text-gray-700 mb-3">
-                Social Handle
+                Estimated Total Follower Count
               </label>
-              <Input
-                type="text"
-                placeholder="@yourusername"
-                value={formData.socialHandle}
-                onChange={(e) =>
-                  setFormData({ ...formData, socialHandle: e.target.value })
+              <Select
+                value={formData.followerCount}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, followerCount: value })
                 }
-                className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50"
-              />
+              >
+                <SelectTrigger className="rounded-xl border-gray-300 focus:border-blue-600 bg-gray-50">
+                  <SelectValue placeholder="Select range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {followerRanges.map((range) => (
+                    <SelectItem key={range} value={range}>
+                      {range}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
+            <SocialHandleInput handles={socialHandles} onChange={setSocialHandles} />
 
             <div className="flex items-start gap-3 pt-2">
               <Checkbox
@@ -299,34 +264,34 @@ const SignupForm = () => {
             </Button>
           </form>
 
-          {trackierLink && (
+          {userId && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl"
+              className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-xl"
             >
-              <h3 className="font-semibold text-green-900 mb-2">Your Trackier Link:</h3>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-sm text-green-800 bg-white px-3 py-2 rounded border border-green-300 break-all">
-                  {trackierLink}
-                </code>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(trackierLink);
-                    toast({
-                      title: "Copied!",
-                      description: "Trackier link copied to clipboard",
-                    });
-                  }}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                >
-                  Copy
-                </Button>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-blue-900 mb-2">Application Submitted Successfully!</h3>
+                  <p className="text-sm text-blue-800 mb-3">
+                    Your affiliate application has been received and is pending admin approval. 
+                    Once approved, you'll be able to:
+                  </p>
+                  <ul className="text-sm text-blue-700 space-y-1 mb-4 list-disc list-inside">
+                    <li>Access your personalized affiliate dashboard</li>
+                    <li>Get your unique tracking link</li>
+                    <li>View your earnings and statistics</li>
+                    <li>Start promoting and earning commissions</li>
+                  </ul>
+                  <p className="text-xs text-blue-600 mt-4">
+                    We'll notify you via email once your application is reviewed. 
+                    You can also check your status by logging in with your email or phone number.
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-green-700 mt-2">
-                Save this link! Use it in your videos and posts to track your earnings.
-              </p>
             </motion.div>
           )}
 

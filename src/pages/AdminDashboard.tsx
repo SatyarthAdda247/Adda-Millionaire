@@ -23,6 +23,7 @@ import {
   Mail,
   Link as LinkIcon,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
+interface SocialHandle {
+  platform: string;
+  handle: string;
+  verified: boolean;
+  verifiedFollowers?: number;
+  verifiedAt?: string;
+}
+
 interface Affiliate {
   id: string;
   name: string;
@@ -65,6 +74,8 @@ interface Affiliate {
   platform: string;
   socialHandle: string;
   followerCount: string;
+  socialHandles?: SocialHandle[];
+  totalVerifiedFollowers?: number;
   createdAt: string;
   updatedAt?: string;
   approvalStatus?: string;
@@ -94,6 +105,7 @@ const AdminDashboard = () => {
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
   const [overallStats, setOverallStats] = useState({
     totalClicks: 0,
@@ -242,6 +254,39 @@ const AdminDashboard = () => {
   const handleLogout = () => {
     // Temporarily disabled - auth will be configured later
     navigate('/');
+  };
+
+  const handleDelete = async () => {
+    if (!selectedAffiliate) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "User Deleted",
+          description: `${selectedAffiliate.name} has been deleted successfully`,
+        });
+        setDeleteDialogOpen(false);
+        setSelectedAffiliate(null);
+        fetchAffiliates();
+      } else {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete user",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredAffiliates = affiliates.filter((affiliate) => {
@@ -439,16 +484,42 @@ const AdminDashboard = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="space-y-1">
-                              <div className="text-sm">
-                                <span className="text-gray-500">Platform:</span> {affiliate.platform || '-'}
-                              </div>
-                              <div className="text-sm">
-                                <span className="text-gray-500">Handle:</span> {affiliate.socialHandle || '-'}
-                              </div>
-                              <div className="text-sm">
-                                <span className="text-gray-500">Followers:</span> {affiliate.followerCount || '-'}
-                              </div>
+                            <div className="space-y-2">
+                              {affiliate.socialHandles && affiliate.socialHandles.length > 0 ? (
+                                affiliate.socialHandles.map((handle: any, idx: number) => (
+                                  <div key={idx} className="text-sm border-l-2 pl-2 border-blue-200">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-gray-700">{handle.platform}:</span>
+                                      <span className="text-gray-600">{handle.handle}</span>
+                                      {handle.verified && (
+                                        <Badge className="bg-green-600 text-xs">
+                                          ✓ {handle.verifiedFollowers?.toLocaleString() || 0} {handle.platform === 'YouTube' ? 'subs' : 'followers'}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <>
+                                  <div className="text-sm">
+                                    <span className="text-gray-500">Platform:</span> {affiliate.platform || '-'}
+                                  </div>
+                                  <div className="text-sm">
+                                    <span className="text-gray-500">Handle:</span> {affiliate.socialHandle || '-'}
+                                  </div>
+                                  <div className="text-sm">
+                                    <span className="text-gray-500">Followers:</span> {affiliate.followerCount || '-'}
+                                  </div>
+                                  {affiliate.totalVerifiedFollowers > 0 && (
+                                    <div className="text-sm">
+                                      <span className="text-gray-500">Verified Total:</span> 
+                                      <span className="font-semibold text-green-600 ml-1">
+                                        {affiliate.totalVerifiedFollowers.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -541,6 +612,17 @@ const AdminDashboard = () => {
                                   </Button>
                                 </>
                               )}
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setSelectedAffiliate(affiliate);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -580,6 +662,35 @@ const AdminDashboard = () => {
             </Button>
             <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
               Approve
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedAffiliate?.name}? This action cannot be undone.
+              <br />
+              <span className="font-semibold text-red-600 mt-2 block">
+                The user will no longer be able to login after deletion.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDelete}
+              variant="destructive"
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete User
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -666,34 +777,81 @@ const AdminDashboard = () => {
                   <TrendingUp className="w-5 h-5" />
                   Platform Information
                 </h3>
-                <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                  <div>
-                    <label className="text-sm text-gray-500">Primary Platform</label>
-                    <p className="font-medium">{selectedAffiliate.platform || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500">Social Handle</label>
-                    <p className="font-medium">{selectedAffiliate.socialHandle || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500">Follower Count</label>
-                    <p className="font-medium">{selectedAffiliate.followerCount || 'Not specified'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500">Status</label>
-                    <Badge
-                      className={
-                        (selectedAffiliate.approvalStatus || 'pending') === 'approved'
-                          ? 'bg-green-600'
-                          : (selectedAffiliate.approvalStatus || 'pending') === 'rejected'
-                          ? 'bg-red-600'
-                          : 'bg-yellow-600'
-                      }
-                    >
-                      {(selectedAffiliate.approvalStatus || 'pending').charAt(0).toUpperCase() + 
-                       (selectedAffiliate.approvalStatus || 'pending').slice(1)}
-                    </Badge>
-                  </div>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+                  {selectedAffiliate.socialHandles && selectedAffiliate.socialHandles.length > 0 ? (
+                    <>
+                      <div className="grid grid-cols-1 gap-3">
+                        {selectedAffiliate.socialHandles.map((handle: SocialHandle, idx: number) => (
+                          <div key={idx} className="bg-white p-3 rounded border border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-gray-900">{handle.platform}</span>
+                                {handle.verified && (
+                                  <Badge className="bg-green-600">
+                                    <CheckCircle className="w-3 h-3 mr-1" />
+                                    Verified
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-1">
+                              <span className="font-medium">Handle:</span> {handle.handle}
+                            </div>
+                            {handle.verified && handle.verifiedFollowers !== undefined && (
+                              <div className="text-sm">
+                                <span className="text-gray-500">
+                                  {handle.platform === 'YouTube' ? 'Subscribers' : 'Followers'}:
+                                </span>
+                                <span className="font-semibold text-green-600 ml-2">
+                                  {handle.verifiedFollowers.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {selectedAffiliate.totalVerifiedFollowers > 0 && (
+                        <div className="pt-3 border-t border-gray-300">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">Total Verified Followers:</span>
+                            <span className="text-lg font-bold text-green-600">
+                              {selectedAffiliate.totalVerifiedFollowers.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-gray-500">Primary Platform</label>
+                        <p className="font-medium">{selectedAffiliate.platform || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-500">Social Handle</label>
+                        <p className="font-medium">{selectedAffiliate.socialHandle || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-500">Follower Count</label>
+                        <p className="font-medium">{selectedAffiliate.followerCount || 'Not specified'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-500">Status</label>
+                        <Badge
+                          className={
+                            (selectedAffiliate.approvalStatus || 'pending') === 'approved'
+                              ? 'bg-green-600'
+                              : (selectedAffiliate.approvalStatus || 'pending') === 'rejected'
+                              ? 'bg-red-600'
+                              : 'bg-yellow-600'
+                          }
+                        >
+                          {(selectedAffiliate.approvalStatus || 'pending').charAt(0).toUpperCase() + 
+                           (selectedAffiliate.approvalStatus || 'pending').slice(1)}
+                        </Badge>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

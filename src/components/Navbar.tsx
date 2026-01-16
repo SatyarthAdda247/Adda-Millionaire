@@ -2,7 +2,14 @@ import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Shield } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Menu, X, LogIn, Shield, User, ChevronDown } from "lucide-react";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -77,15 +84,42 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <Button
-              onClick={() => navigate('/admin/dashboard')}
-              variant="outline"
-              className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl px-4"
-              size="sm"
-            >
-              <Shield className="w-4 h-4 mr-2" />
-              Admin
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl px-4"
+                  size="sm"
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login
+                  <ChevronDown className="w-3 h-3 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  onClick={() => navigate('/login')}
+                  className="cursor-pointer"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">User Login</span>
+                    <span className="text-xs text-gray-500">View stats & earnings</span>
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => navigate('/admin/login')}
+                  className="cursor-pointer"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">Admin Login</span>
+                    <span className="text-xs text-gray-500">Manage affiliates</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               onClick={() => scrollToSection("signup")}
               className="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-xl px-6 shadow-lg hover:shadow-xl transition-all duration-300"
@@ -140,17 +174,30 @@ const Navbar = () => {
               >
                 FAQ
               </button>
-              <Button
-                onClick={() => {
-                  navigate('/admin/dashboard');
-                  setIsMobileMenuOpen(false);
-                }}
-                variant="outline"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl w-full"
-              >
-                <Shield className="w-4 h-4 mr-2" />
-                Admin Dashboard
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={() => {
+                    navigate('/login');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  variant="outline"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl w-full"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  User Login
+                </Button>
+                <Button
+                  onClick={() => {
+                    navigate('/admin/login');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  variant="outline"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl w-full"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Admin Login
+                </Button>
+              </div>
               <Button
                 onClick={() => scrollToSection("signup")}
                 className="bg-gradient-to-r from-blue-600 to-green-600 text-white rounded-xl w-full mt-2"
