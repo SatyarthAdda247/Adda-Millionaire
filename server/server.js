@@ -1574,6 +1574,14 @@ async function verifyInstagram(handle) {
         timeout: 10000
       });
 
+      // Check if profile exists (404 means not found)
+      if (response.status === 404) {
+        return {
+          verified: false,
+          error: 'Instagram profile not found'
+        };
+      }
+
       // Parse HTML to extract follower count
       const html = response.data;
       
@@ -1600,6 +1608,26 @@ async function verifyInstagram(handle) {
         }
       }
 
+      // Try alternative: window.__additionalDataLoaded
+      const additionalDataMatch = html.match(/window\.__additionalDataLoaded\s*\([^,]+,\s*({.+?})\)/);
+      if (additionalDataMatch) {
+        try {
+          const data = JSON.parse(additionalDataMatch[1]);
+          const user = data?.graphql?.user;
+          if (user) {
+            const followers = parseInt(user.edge_followed_by?.count || 0);
+            return {
+              verified: true,
+              followers: followers,
+              username: username,
+              profileUrl: profileUrl
+            };
+          }
+        } catch (e) {
+          console.error('Error parsing Instagram additionalData:', e.message);
+        }
+      }
+
       // Fallback: Try to extract from meta tags
       const metaMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/);
       if (metaMatch) {
@@ -1616,20 +1644,37 @@ async function verifyInstagram(handle) {
         }
       }
 
+      // Last resort: Try to find in script tags
+      const scriptMatches = html.match(/<script[^>]*>([\s\S]*?)<\/script>/g) || [];
+      for (const script of scriptMatches) {
+        const jsonMatch = script.match(/"edge_followed_by":\s*{\s*"count":\s*(\d+)/);
+        if (jsonMatch) {
+          const followers = parseInt(jsonMatch[1]);
+          return {
+            verified: true,
+            followers: followers,
+            username: username,
+            profileUrl: profileUrl
+          };
+        }
+      }
+
       // If we can't parse, but page loaded, assume verified but no count
       return {
         verified: true,
         followers: 0,
         username: username,
         profileUrl: profileUrl,
-        note: 'Profile found but follower count could not be extracted'
+        note: 'Profile found but follower count could not be extracted. Instagram may have changed their page structure.'
       };
     } catch (scrapeError) {
       // If scraping fails, check if it's a 404 (user doesn't exist)
-      if (scrapeError.response?.status === 404) {
+      if (scrapeError.response?.status === 404 || scrapeError.response?.status === 403) {
         return {
           verified: false,
-          error: 'Instagram profile not found'
+          error: scrapeError.response?.status === 403 
+            ? 'Instagram profile is private or blocked'
+            : 'Instagram profile not found'
         };
       }
       throw scrapeError;
@@ -2093,6 +2138,8 @@ app.post('/api/social/verify', rateLimit(10), async (req, res) => {
       });
     }
 
+    console.log(`Verifying ${platform} handle: ${handle}`);
+    
     const result = await verifySocialMedia(platform, handle);
     
     if (result.verified) {
