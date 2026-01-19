@@ -1994,7 +1994,12 @@ async function verifyTwitter(handle) {
 }
 
 async function verifySocialMedia(platform, handle) {
-  switch (platform.toLowerCase()) {
+  // Normalize platform name (handle case variations and spaces)
+  const normalizedPlatform = platform.toLowerCase().trim().replace(/\s+/g, '');
+  
+  console.log(`Verifying platform: "${platform}" -> normalized: "${normalizedPlatform}"`);
+  
+  switch (normalizedPlatform) {
     case 'instagram':
       return await verifyInstagram(handle);
     case 'youtube':
@@ -2004,6 +2009,7 @@ async function verifySocialMedia(platform, handle) {
     case 'twitter':
     case 'twitter/x':
     case 'x':
+    case 'twitterx':
       return await verifyTwitter(handle);
     case 'telegram':
     case 'tiktok':
@@ -2018,7 +2024,7 @@ async function verifySocialMedia(platform, handle) {
     default:
       return {
         verified: false,
-        error: `Unsupported platform: ${platform}`
+        error: `Unsupported platform: ${platform}. Supported platforms: Instagram, YouTube, Facebook, Twitter/X, Telegram, TikTok, LinkedIn, Other`
       };
   }
 }
