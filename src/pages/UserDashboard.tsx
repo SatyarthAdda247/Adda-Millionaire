@@ -61,7 +61,11 @@ interface UserData {
     totalClicks: number;
     totalConversions: number;
     totalEarnings: number;
+    totalInstalls?: number;
+    totalPurchases?: number;
     conversionRate: number;
+    installRate?: number;
+    purchaseRate?: number;
     lastActivity: string;
   };
 }
@@ -71,6 +75,8 @@ interface AnalyticsData {
   clicks: number;
   conversions: number;
   earnings: number;
+  installs?: number;
+  purchases?: number;
 }
 
 const UserDashboard = () => {
@@ -358,7 +364,7 @@ const UserDashboard = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
             <Card>
               <CardHeader>
-                <CardTitle>Clicks Over Time</CardTitle>
+                <CardTitle>Installs & Purchases Over Time</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -368,7 +374,27 @@ const UserDashboard = () => {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="clicks" stroke="#3b82f6" strokeWidth={2} />
+                    <Line type="monotone" dataKey="installs" stroke="#06b6d4" strokeWidth={2} name="Installs" />
+                    <Line type="monotone" dataKey="purchases" stroke="#10b981" strokeWidth={2} name="Purchases" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Clicks & Conversions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analytics}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="clicks" stroke="#3b82f6" strokeWidth={2} name="Clicks" />
+                    <Line type="monotone" dataKey="conversions" stroke="#8b5cf6" strokeWidth={2} name="Conversions" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -386,7 +412,26 @@ const UserDashboard = () => {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="earnings" fill="#10b981" />
+                    <Bar dataKey="earnings" fill="#10b981" name="Earnings (₹)" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Install & Purchase Funnel</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="installs" fill="#06b6d4" name="Installs" />
+                    <Bar dataKey="purchases" fill="#10b981" name="Purchases" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -395,7 +440,7 @@ const UserDashboard = () => {
         )}
 
         {/* Affiliate Links */}
-        {user.links && user.links.length > 0 && (
+        {isApproved && (
           <Card className="mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -404,43 +449,53 @@ const UserDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {user.links.map((link) => (
-                  <div
-                    key={link.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <a
-                        href={link.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:underline break-all flex items-center gap-2"
-                      >
-                        {link.link}
-                        <ExternalLink className="w-4 h-4 flex-shrink-0" />
-                      </a>
-                      {link.createdAt && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Created: {formatDate(link.createdAt)}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(link.link)}
-                      className="ml-4"
+              {user.links && user.links.length > 0 ? (
+                <div className="space-y-4">
+                  {user.links.map((link) => (
+                    <div
+                      key={link.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border"
                     >
-                      {copiedLink === link.link ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </div>
-                ))}
-              </div>
+                      <div className="flex-1 min-w-0">
+                        <a
+                          href={link.link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:underline break-all flex items-center gap-2"
+                        >
+                          {link.link}
+                          <ExternalLink className="w-4 h-4 flex-shrink-0" />
+                        </a>
+                        {link.createdAt && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Created: {formatDate(link.createdAt)}
+                          </p>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(link.link)}
+                        className="ml-4"
+                      >
+                        {copiedLink === link.link ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <LinkIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                  <p className="font-medium mb-1">No affiliate link yet</p>
+                  <p className="text-sm">
+                    Your unilink is being created. Please check back in a few moments or contact support if this persists.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

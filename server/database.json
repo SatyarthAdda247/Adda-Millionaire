@@ -1,0 +1,13 @@
+{
+  "users": [
+    {
+      "id": "test-user-1768801239857",
+      "name": "Test User",
+      "email": "test@example.com",
+      "phone": "1234567890",
+      "approvalStatus": "approved",
+      "createdAt": "2026-01-19T05:40:39.857Z"
+    }
+  ],
+  "links": []
+}

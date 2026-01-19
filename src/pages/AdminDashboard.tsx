@@ -24,6 +24,8 @@ import {
   Link as LinkIcon,
   RefreshCw,
   Trash2,
+  Plus,
+  BarChart3,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -55,6 +57,18 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -88,7 +102,11 @@ interface Affiliate {
     totalClicks: number;
     totalConversions: number;
     totalEarnings: number;
+    totalInstalls?: number;
+    totalPurchases?: number;
     conversionRate: number;
+    installRate?: number;
+    purchaseRate?: number;
     lastActivity: string;
   };
 }
@@ -100,19 +118,32 @@ const AdminDashboard = () => {
   const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [approvalFilter, setApprovalFilter] = useState<string>("pending");
+  const [approvalFilter, setApprovalFilter] = useState<string>("all");
   const [selectedAffiliate, setSelectedAffiliate] = useState<Affiliate | null>(null);
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [rejectionDialogOpen, setRejectionDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [assignLinkDialogOpen, setAssignLinkDialogOpen] = useState(false);
   const [adminNotes, setAdminNotes] = useState("");
   const [overallStats, setOverallStats] = useState({
     totalClicks: 0,
     totalConversions: 0,
     totalEarnings: 0,
-    conversionRate: 0
+    conversionRate: 0,
+    totalInstalls: 0,
+    totalPurchases: 0,
+    installRate: 0,
+    purchaseRate: 0,
+    averageEarningsPerAffiliate: 0
   });
+  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [availableLinks, setAvailableLinks] = useState<any[]>([]);
+  const [selectedLink, setSelectedLink] = useState<string>("");
+  const [manualUnilink, setManualUnilink] = useState("");
+  const [userAnalytics, setUserAnalytics] = useState<any[]>([]);
 
   useEffect(() => {
     // Temporarily skip auth check - will configure auth later
@@ -125,8 +156,34 @@ const AdminDashboard = () => {
     if (authenticated) {
       fetchAffiliates();
       fetchOverallStats();
+      fetchAnalytics();
+      fetchTemplates();
     }
   }, [authenticated, approvalFilter]);
+
+  useEffect(() => {
+    if (selectedTemplate) {
+      fetchTemplateLinks(selectedTemplate);
+    }
+  }, [selectedTemplate]);
+
+  // Auto-select "Millionaires Adda" template when dialog opens
+  useEffect(() => {
+    if (assignLinkDialogOpen && templates.length > 0) {
+      // Find "Millionaires Adda" template by name or ID
+      const millionairesTemplate = templates.find(
+        (t) => 
+          t.name?.toLowerCase().includes('millionaires') || 
+          t._id === 'wBehUW' || 
+          t.id === 'wBehUW'
+      );
+      
+      if (millionairesTemplate && !selectedTemplate) {
+        const templateId = millionairesTemplate._id || millionairesTemplate.id;
+        setSelectedTemplate(templateId);
+      }
+    }
+  }, [assignLinkDialogOpen, templates]);
 
   const fetchOverallStats = async () => {
     try {
@@ -138,12 +195,213 @@ const AdminDashboard = () => {
             totalClicks: data.overview.totalClicks || 0,
             totalConversions: data.overview.totalConversions || 0,
             totalEarnings: data.overview.totalEarnings || 0,
-            conversionRate: data.overview.conversionRate || 0
+            conversionRate: data.overview.conversionRate || 0,
+            totalInstalls: data.overview.totalInstalls || 0,
+            totalPurchases: data.overview.totalPurchases || 0,
+            installRate: data.overview.installRate || 0,
+            purchaseRate: data.overview.purchaseRate || 0,
+            averageEarningsPerAffiliate: data.overview.averageEarningsPerAffiliate || 0
           });
         }
       }
     } catch (error) {
       console.error('Error fetching overall stats:', error);
+    }
+  };
+
+  const fetchAnalytics = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/dashboard/analytics?days=30`);
+      if (response.ok) {
+        const data = await response.json();
+        setAnalyticsData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/apptrove/templates`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.templates) {
+          setTemplates(data.templates);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
+
+  const fetchTemplateLinks = async (templateId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/apptrove/templates/${templateId}/links`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.links) {
+          setAvailableLinks(data.links);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching template links:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch links from template",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAssignLink = async () => {
+    if (!selectedAffiliate) return;
+
+    let unilink = manualUnilink.trim();
+    let linkId = null;
+    let templateId = selectedTemplate;
+
+    // If a link was selected from template, use its data
+    if (selectedLink) {
+      const link = availableLinks.find(l => l.id === selectedLink);
+      if (link) {
+        unilink = link.shortUrl || link.longUrl;
+        linkId = link.id;
+      }
+    }
+
+    // If template is selected but no link chosen, try to create a new link from template
+    if (!unilink && selectedTemplate) {
+      try {
+        toast({
+          title: "Creating link...",
+          description: "Creating a new unilink from template. Please wait.",
+        });
+
+        // Create a new link from the template
+        const createResponse = await fetch(`${API_BASE_URL}/api/apptrove/templates/${selectedTemplate}/create-link`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: `${selectedAffiliate.name} - Affiliate Link`,
+            userId: selectedAffiliate.id
+          }),
+        });
+
+        const createData = await createResponse.json();
+        
+        if (createResponse.ok && createData.link) {
+          // Link created and assigned successfully
+          toast({
+            title: "✅ Link Created & Assigned",
+            description: `New unilink created and assigned to ${selectedAffiliate.name}`,
+          });
+          
+          setAssignLinkDialogOpen(false);
+          setSelectedLink("");
+          setManualUnilink("");
+          setSelectedTemplate("");
+          setAvailableLinks([]);
+          setSelectedAffiliate(null);
+          fetchAffiliates();
+          return;
+        } else {
+          // If creation failed, show helpful error with solution
+          const errorMsg = createData.error || createData.message || createData.details || 'Failed to create link from template';
+          console.error('Link creation failed:', createData);
+          
+          // Check if this is the "API not available" error
+          if (createData.solution) {
+            toast({
+              title: "Link Creation Not Available via API",
+              description: "AppTrove API doesn't support programmatic link creation. Please create links manually in the AppTrove dashboard.",
+              variant: "destructive",
+              duration: 10000,
+            });
+            
+            // Show detailed instructions in a dialog or alert
+            setTimeout(() => {
+              alert(
+                `AppTrove API does not support creating links programmatically.\n\n` +
+                `To create a link:\n` +
+                `1. Go to https://dashboard.apptrove.com\n` +
+                `2. Navigate to Deep Links > Millionaires Adda template\n` +
+                `3. Click "Add Link" button\n` +
+                `4. Create the link and copy its URL\n` +
+                `5. Come back here and use "Assign Link" with the manual URL option`
+              );
+            }, 500);
+          } else {
+            toast({
+              title: "Link Creation Failed",
+              description: errorMsg,
+              variant: "destructive",
+              duration: 8000,
+            });
+          }
+          return;
+        }
+      } catch (error) {
+        console.error('Error creating link:', error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to create link from template",
+          variant: "destructive",
+          duration: 8000,
+        });
+        return;
+      }
+    }
+
+    // Final validation - must have a unilink URL
+    if (!unilink || !unilink.trim()) {
+      toast({
+        title: "Missing Link",
+        description: "Please enter a unilink URL manually. Create the link in AppTrove dashboard first, then paste the URL here.",
+        variant: "destructive",
+        duration: 8000,
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/assign-link`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          unilink,
+          linkId,
+          templateId
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: `Link assigned to ${selectedAffiliate.name}`,
+        });
+        setAssignLinkDialogOpen(false);
+        setSelectedLink("");
+        setManualUnilink("");
+        setSelectedTemplate("");
+        setAvailableLinks([]);
+        setSelectedAffiliate(null);
+        fetchAffiliates();
+      } else {
+        throw new Error(data.error || 'Failed to assign link');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to assign link",
+        variant: "destructive",
+      });
     }
   };
 
@@ -177,6 +435,12 @@ const AdminDashboard = () => {
 
   const handleApprove = async () => {
     if (!selectedAffiliate) return;
+    
+    // Show loading state
+    toast({
+      title: "Approving affiliate...",
+      description: "Creating unilink template and link. This may take a moment.",
+    });
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/approve`, {
@@ -193,10 +457,26 @@ const AdminDashboard = () => {
       const data = await response.json();
       
       if (response.ok) {
-        toast({
-          title: "Approved",
-          description: `${selectedAffiliate.name} has been approved`,
-        });
+        // Check if unilink was created
+        if (data.unilink) {
+          toast({
+            title: "✅ Approved & UniLink Created",
+            description: `${selectedAffiliate.name} approved. UniLink: ${data.unilink}`,
+            duration: 5000,
+          });
+        } else if (data.warning || data.linkError) {
+          toast({
+            title: "⚠️ Approved (UniLink Failed)",
+            description: `${selectedAffiliate.name} approved but unilink creation failed: ${data.warning || data.linkError}`,
+            variant: "destructive",
+            duration: 7000,
+          });
+        } else {
+          toast({
+            title: "Approved",
+            description: `${selectedAffiliate.name} has been approved`,
+          });
+        }
         setApprovalDialogOpen(false);
         setAdminNotes("");
         setSelectedAffiliate(null);
@@ -329,57 +609,260 @@ const AdminDashboard = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">Pending Approval</CardTitle>
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-yellow-800">Pending Approval</CardTitle>
               <Clock className="w-5 h-5 text-yellow-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
+              <div className="text-3xl font-bold text-yellow-700">{pendingCount}</div>
+              <div className="text-xs text-yellow-600 mt-1">Awaiting review</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">Approved</CardTitle>
+          
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-green-800">Approved</CardTitle>
               <CheckCircle className="w-5 h-5 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">{approvedCount}</div>
+              <div className="text-3xl font-bold text-green-700">{approvedCount}</div>
+              <div className="text-xs text-green-600 mt-1">Active affiliates</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Clicks</CardTitle>
+          
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-blue-800">Total Clicks</CardTitle>
               <MousePointerClick className="w-5 h-5 text-blue-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">{overallStats.totalClicks.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Conversions</CardTitle>
-              <TrendingUp className="w-5 h-5 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">{overallStats.totalConversions.toLocaleString()}</div>
-              <div className="text-xs text-gray-500 mt-1">
-                {overallStats.conversionRate.toFixed(2)}% rate
+              <div className="text-3xl font-bold text-blue-700">{overallStats.totalClicks.toLocaleString()}</div>
+              <div className="text-xs text-blue-600 mt-1">
+                {overallStats.conversionRate > 0 && `${overallStats.conversionRate.toFixed(2)}% conversion`}
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Earnings</CardTitle>
-              <DollarSign className="w-5 h-5 text-green-600" />
+          
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-purple-800">Installs</CardTitle>
+              <TrendingUp className="w-5 h-5 text-purple-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-600">₹{overallStats.totalEarnings.toLocaleString()}</div>
+              <div className="text-3xl font-bold text-purple-700">{overallStats.totalInstalls.toLocaleString()}</div>
+              <div className="text-xs text-purple-600 mt-1">
+                {overallStats.installRate > 0 && `${overallStats.installRate.toFixed(2)}% install rate`}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-emerald-800">Purchases</CardTitle>
+              <BarChart3 className="w-5 h-5 text-emerald-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-emerald-700">{overallStats.totalPurchases.toLocaleString()}</div>
+              <div className="text-xs text-emerald-600 mt-1">
+                {overallStats.purchaseRate > 0 && `${overallStats.purchaseRate.toFixed(2)}% purchase rate`}
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Revenue & Performance Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-300 shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-green-800">Total Earnings</CardTitle>
+              <DollarSign className="w-6 h-6 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-green-700 mb-1">₹{overallStats.totalEarnings.toLocaleString()}</div>
+              <div className="text-sm text-green-600">
+                Avg: ₹{overallStats.averageEarningsPerAffiliate.toLocaleString()}/affiliate
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-300 shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-indigo-800">Conversion Rate</CardTitle>
+              <TrendingUp className="w-6 h-6 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-indigo-700 mb-1">{overallStats.conversionRate.toFixed(2)}%</div>
+              <div className="text-sm text-indigo-600">
+                {overallStats.totalConversions.toLocaleString()} conversions
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-rose-50 to-rose-100 border-rose-300 shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-rose-800">Performance Funnel</CardTitle>
+              <BarChart3 className="w-6 h-6 text-rose-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-rose-700">Clicks → Installs</span>
+                  <span className="font-bold text-rose-700">{overallStats.installRate.toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-rose-700">Installs → Purchases</span>
+                  <span className="font-bold text-rose-700">{overallStats.purchaseRate.toFixed(2)}%</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Analytics Charts Section */}
+        {analyticsData.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <Card className="shadow-lg border-2 border-blue-100">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 border-b">
+                <CardTitle className="text-lg font-bold text-blue-900 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5" />
+                  Clicks & Conversions Over Time
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analyticsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#6b7280"
+                      style={{ fontSize: '12px' }}
+                      tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    />
+                    <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }}
+                      labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="clicks" 
+                      stroke="#3b82f6" 
+                      strokeWidth={3}
+                      dot={{ fill: '#3b82f6', r: 4 }}
+                      name="Clicks"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="conversions" 
+                      stroke="#8b5cf6" 
+                      strokeWidth={3}
+                      dot={{ fill: '#8b5cf6', r: 4 }}
+                      name="Conversions"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg border-2 border-purple-100">
+              <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 border-b">
+                <CardTitle className="text-lg font-bold text-purple-900 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Installs & Purchases Over Time
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analyticsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#6b7280"
+                      style={{ fontSize: '12px' }}
+                      tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    />
+                    <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }}
+                      labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                    />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="installs" 
+                      stroke="#06b6d4" 
+                      strokeWidth={3}
+                      dot={{ fill: '#06b6d4', r: 4 }}
+                      name="Installs"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="purchases" 
+                      stroke="#10b981" 
+                      strokeWidth={3}
+                      dot={{ fill: '#10b981', r: 4 }}
+                      name="Purchases"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2 shadow-lg border-2 border-green-100">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-green-100 border-b">
+                <CardTitle className="text-lg font-bold text-green-900 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Earnings Over Time
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analyticsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#6b7280"
+                      style={{ fontSize: '12px' }}
+                      tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    />
+                    <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                      }}
+                      formatter={(value: any) => [`₹${value.toLocaleString()}`, 'Earnings']}
+                      labelFormatter={(value) => new Date(value).toLocaleDateString()}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey="earnings" 
+                      fill="#10b981" 
+                      radius={[8, 8, 0, 0]}
+                      name="Earnings (₹)"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Filters */}
         <Card className="mb-6">
@@ -411,6 +894,7 @@ const AdminDashboard = () => {
                 onClick={() => {
                   fetchAffiliates();
                   fetchOverallStats();
+                  fetchAnalytics();
                   toast({
                     title: "Refreshed",
                     description: "Data updated successfully",
@@ -427,28 +911,41 @@ const AdminDashboard = () => {
         </Card>
 
         {/* Affiliates Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Affiliate Applications</CardTitle>
+        <Card className="shadow-xl border-2 border-gray-100">
+          <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50 border-b-2 border-gray-200">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <Users className="w-6 h-6 text-blue-600" />
+                Affiliate Applications
+              </CardTitle>
+              <Badge className="bg-blue-100 text-blue-700 px-3 py-1">
+                {filteredAffiliates.length} {filteredAffiliates.length === 1 ? 'affiliate' : 'affiliates'}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {loading ? (
-              <div className="text-center py-12">Loading...</div>
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-500">Loading affiliates...</p>
+              </div>
             ) : filteredAffiliates.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                No affiliates found
+              <div className="text-center py-12">
+                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No affiliates found</p>
+                <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead>Platform Info</TableHead>
-                      <TableHead>Trackier Stats</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
+                    <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
+                      <TableHead className="font-bold text-gray-700 py-4">Name</TableHead>
+                      <TableHead className="font-bold text-gray-700 py-4">Contact</TableHead>
+                      <TableHead className="font-bold text-gray-700 py-4">Platform Info</TableHead>
+                      <TableHead className="font-bold text-gray-700 py-4">Performance</TableHead>
+                      <TableHead className="font-bold text-gray-700 py-4">Status</TableHead>
+                      <TableHead className="font-bold text-gray-700 py-4 text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -462,130 +959,222 @@ const AdminDashboard = () => {
                         lastActivity: affiliate.createdAt
                       };
                       return (
-                        <TableRow key={affiliate.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{affiliate.name}</div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                Joined: {new Date(affiliate.createdAt).toLocaleDateString()}
+                        <TableRow 
+                          key={affiliate.id}
+                          className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-200 border-b border-gray-100"
+                        >
+                          <TableCell className="py-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                                {affiliate.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-semibold text-gray-900 text-base mb-1">{affiliate.name}</div>
+                                <div className="flex items-center gap-1 text-xs text-gray-500">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>Joined {new Date(affiliate.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                </div>
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1 text-sm">
-                                <Mail className="w-3 h-3 text-gray-400" />
-                                <span>{affiliate.email}</span>
+                          <TableCell className="py-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 text-sm group">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                  <Mail className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <span className="text-gray-700 font-medium">{affiliate.email}</span>
                               </div>
-                              <div className="flex items-center gap-1 text-sm text-gray-600">
-                                <Phone className="w-3 h-3 text-gray-400" />
-                                <span>{affiliate.phone}</span>
+                              <div className="flex items-center gap-2 text-sm group">
+                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                                  <Phone className="w-4 h-4 text-green-600" />
+                                </div>
+                                <span className="text-gray-700 font-medium">{affiliate.phone}</span>
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-4">
                             <div className="space-y-2">
                               {affiliate.socialHandles && affiliate.socialHandles.length > 0 ? (
                                 affiliate.socialHandles.map((handle: any, idx: number) => (
-                                  <div key={idx} className="text-sm border-l-2 pl-2 border-blue-200">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium text-gray-700">{handle.platform}:</span>
-                                      <span className="text-gray-600">{handle.handle}</span>
+                                  <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-2 border-l-4 border-purple-400">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-semibold text-purple-700 text-sm">{handle.platform}</span>
+                                      <span className="text-gray-700 text-sm">@{handle.handle}</span>
                                       {handle.verified && (
-                                        <Badge className="bg-green-600 text-xs">
-                                          ✓ {handle.verifiedFollowers?.toLocaleString() || 0} {handle.platform === 'YouTube' ? 'subs' : 'followers'}
+                                        <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs shadow-sm">
+                                          <CheckCircle className="w-3 h-3 mr-1" />
+                                          {handle.verifiedFollowers?.toLocaleString() || 0} {handle.platform === 'YouTube' ? 'subs' : 'followers'}
                                         </Badge>
                                       )}
                                     </div>
                                   </div>
                                 ))
                               ) : (
-                                <>
-                                  <div className="text-sm">
-                                    <span className="text-gray-500">Platform:</span> {affiliate.platform || '-'}
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-gray-500 font-medium min-w-[70px]">Platform:</span>
+                                    <Badge variant="outline" className="border-purple-300 text-purple-700">
+                                      {affiliate.platform || '-'}
+                                    </Badge>
                                   </div>
-                                  <div className="text-sm">
-                                    <span className="text-gray-500">Handle:</span> {affiliate.socialHandle || '-'}
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-gray-500 font-medium min-w-[70px]">Handle:</span>
+                                    <span className="text-gray-700 font-medium">@{affiliate.socialHandle || '-'}</span>
                                   </div>
-                                  <div className="text-sm">
-                                    <span className="text-gray-500">Followers:</span> {affiliate.followerCount || '-'}
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-gray-500 font-medium min-w-[70px]">Followers:</span>
+                                    <span className="text-gray-700 font-semibold">{affiliate.followerCount || '-'}</span>
                                   </div>
                                   {affiliate.totalVerifiedFollowers > 0 && (
-                                    <div className="text-sm">
-                                      <span className="text-gray-500">Verified Total:</span> 
-                                      <span className="font-semibold text-green-600 ml-1">
-                                        {affiliate.totalVerifiedFollowers.toLocaleString()}
-                                      </span>
+                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500">Verified Total:</span>
+                                        <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs">
+                                          {affiliate.totalVerifiedFollowers.toLocaleString()}
+                                        </Badge>
+                                      </div>
                                     </div>
                                   )}
-                                </>
+                                </div>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-4">
                             {affiliate.links && affiliate.links.length > 0 ? (
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-xs">
-                                  <MousePointerClick className="w-3 h-3 text-blue-600" />
-                                  <span className="text-gray-600">Clicks:</span>
-                                  <span className="font-semibold">{stats.totalClicks.toLocaleString()}</span>
+                              <div className="space-y-3">
+                                {affiliate.links[0]?.link && (
+                                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-3 border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <LinkIcon className="w-4 h-4 text-blue-600" />
+                                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">UniLink</span>
+                                    </div>
+                                    <a 
+                                      href={affiliate.links[0].link} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-600 hover:text-blue-800 break-all flex items-start gap-1 group"
+                                    >
+                                      <span className="flex-1">{affiliate.links[0].link}</span>
+                                      <ExternalLink className="w-3 h-3 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </a>
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <MousePointerClick className="w-3.5 h-3.5 text-blue-600" />
+                                      <span className="text-xs text-gray-600 font-medium">Clicks</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-blue-700">{stats.totalClicks.toLocaleString()}</div>
+                                  </div>
+                                  <div className="bg-purple-50 rounded-lg p-2 border border-purple-200">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <TrendingUp className="w-3.5 h-3.5 text-purple-600" />
+                                      <span className="text-xs text-gray-600 font-medium">Conversions</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-purple-700">{stats.totalConversions.toLocaleString()}</div>
+                                  </div>
+                                  <div className="bg-green-50 rounded-lg p-2 border border-green-200">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <DollarSign className="w-3.5 h-3.5 text-green-600" />
+                                      <span className="text-xs text-gray-600 font-medium">Earnings</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-green-700">₹{stats.totalEarnings.toLocaleString()}</div>
+                                  </div>
+                                  <div className="bg-orange-50 rounded-lg p-2 border border-orange-200">
+                                    <div className="flex items-center gap-1.5 mb-1">
+                                      <BarChart3 className="w-3.5 h-3.5 text-orange-600" />
+                                      <span className="text-xs text-gray-600 font-medium">Rate</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-orange-700">{stats.conversionRate.toFixed(2)}%</div>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <TrendingUp className="w-3 h-3 text-green-600" />
-                                  <span className="text-gray-600">Conversions:</span>
-                                  <span className="font-semibold">{stats.totalConversions.toLocaleString()}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs">
-                                  <DollarSign className="w-3 h-3 text-green-600" />
-                                  <span className="text-gray-600">Earnings:</span>
-                                  <span className="font-semibold">₹{stats.totalEarnings.toLocaleString()}</span>
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  Rate: {stats.conversionRate.toFixed(2)}%
-                                </div>
+                              </div>
+                            ) : status === 'approved' ? (
+                              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                                <div className="text-xs text-orange-600 font-medium">UniLink pending creation</div>
                               </div>
                             ) : (
-                              <div className="text-xs text-gray-400">No link created</div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                status === 'approved'
-                                  ? 'default'
-                                  : status === 'rejected'
-                                  ? 'destructive'
-                                  : 'secondary'
-                              }
-                              className={
-                                status === 'approved'
-                                  ? 'bg-green-600'
-                                  : status === 'rejected'
-                                  ? 'bg-red-600'
-                                  : 'bg-yellow-600'
-                              }
-                            >
-                              {status.charAt(0).toUpperCase() + status.slice(1)}
-                            </Badge>
-                            {affiliate.approvedAt && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                {new Date(affiliate.approvedAt).toLocaleDateString()}
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                                <div className="text-xs text-gray-400 font-medium">No link created</div>
                               </div>
                             )}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
+                          <TableCell className="py-4">
+                            <div className="flex flex-col items-start gap-2">
+                              <Badge
+                                variant={
+                                  status === 'approved'
+                                    ? 'default'
+                                    : status === 'rejected'
+                                    ? 'destructive'
+                                    : 'secondary'
+                                }
+                                className={
+                                  status === 'approved'
+                                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md px-3 py-1 text-sm font-semibold'
+                                    : status === 'rejected'
+                                    ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-md px-3 py-1 text-sm font-semibold'
+                                    : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md px-3 py-1 text-sm font-semibold'
+                                }
+                              >
+                                {status === 'approved' && <CheckCircle className="w-3 h-3 mr-1 inline" />}
+                                {status === 'rejected' && <XCircle className="w-3 h-3 mr-1 inline" />}
+                                {status === 'pending' && <Clock className="w-3 h-3 mr-1 inline" />}
+                                {status.charAt(0).toUpperCase() + status.slice(1)}
+                              </Badge>
+                              {affiliate.approvedAt && (
+                                <div className="flex items-center gap-1 text-xs text-gray-500">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>{new Date(affiliate.approvedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4">
+                            <div className="flex gap-2 flex-wrap">
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => {
+                                onClick={async () => {
                                   setSelectedAffiliate(affiliate);
+                                  if (affiliate.id) {
+                                    try {
+                                      const response = await fetch(`${API_BASE_URL}/api/users/${affiliate.id}/analytics?days=30`);
+                                      if (response.ok) {
+                                        const data = await response.json();
+                                        setUserAnalytics(data);
+                                      }
+                                    } catch (error) {
+                                      console.error('Error fetching user analytics:', error);
+                                    }
+                                  }
                                   setDetailDialogOpen(true);
                                 }}
-                                className="border-gray-300"
+                                className="border-gray-300 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm"
+                                title="View Details"
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
+                              {status === 'approved' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 transition-all shadow-sm"
+                                  onClick={async () => {
+                                    setSelectedAffiliate(affiliate);
+                                    if (templates.length === 0) {
+                                      await fetchTemplates();
+                                    }
+                                    setAssignLinkDialogOpen(true);
+                                  }}
+                                  title="Assign Link"
+                                >
+                                  <Plus className="w-4 h-4 mr-1" />
+                                  Link
+                                </Button>
+                              )}
                               {status === 'pending' && (
                                 <>
                                   <Button
@@ -595,7 +1184,8 @@ const AdminDashboard = () => {
                                       setAdminNotes(affiliate.adminNotes || '');
                                       setApprovalDialogOpen(true);
                                     }}
-                                    className="bg-green-600 hover:bg-green-700"
+                                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-md transition-all"
+                                    title="Approve"
                                   >
                                     <Check className="w-4 h-4" />
                                   </Button>
@@ -607,6 +1197,8 @@ const AdminDashboard = () => {
                                       setAdminNotes(affiliate.adminNotes || '');
                                       setRejectionDialogOpen(true);
                                     }}
+                                    className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-md transition-all"
+                                    title="Reject"
                                   >
                                     <X className="w-4 h-4" />
                                   </Button>
@@ -619,7 +1211,8 @@ const AdminDashboard = () => {
                                   setSelectedAffiliate(affiliate);
                                   setDeleteDialogOpen(true);
                                 }}
-                                className="bg-red-600 hover:bg-red-700"
+                                className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-md transition-all"
+                                title="Delete"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -887,14 +1480,14 @@ const AdminDashboard = () => {
                 </div>
               )}
 
-              {/* Trackier Analytics */}
+              {/* Performance Stats */}
               {selectedAffiliate.stats && (
                 <div>
                   <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                    <MousePointerClick className="w-5 h-5" />
-                    Trackier Analytics
+                    <TrendingUp className="w-5 h-5" />
+                    Performance Statistics
                   </h3>
-                  <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg mb-4">
                     <div className="bg-white p-3 rounded border">
                       <label className="text-sm text-gray-500">Total Clicks</label>
                       <p className="text-2xl font-bold text-blue-600">
@@ -902,8 +1495,20 @@ const AdminDashboard = () => {
                       </p>
                     </div>
                     <div className="bg-white p-3 rounded border">
+                      <label className="text-sm text-gray-500">App Installs</label>
+                      <p className="text-2xl font-bold text-cyan-600">
+                        {(selectedAffiliate.stats.totalInstalls || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded border">
+                      <label className="text-sm text-gray-500">Purchases</label>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {(selectedAffiliate.stats.totalPurchases || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded border">
                       <label className="text-sm text-gray-500">Total Conversions</label>
-                      <p className="text-2xl font-bold text-green-600">
+                      <p className="text-2xl font-bold text-purple-600">
                         {selectedAffiliate.stats.totalConversions.toLocaleString()}
                       </p>
                     </div>
@@ -919,13 +1524,92 @@ const AdminDashboard = () => {
                         {selectedAffiliate.stats.conversionRate.toFixed(2)}%
                       </p>
                     </div>
-                    <div className="col-span-2 bg-white p-3 rounded border">
+                    <div className="bg-white p-3 rounded border">
+                      <label className="text-sm text-gray-500">Install Rate</label>
+                      <p className="text-2xl font-bold text-cyan-600">
+                        {selectedAffiliate.stats.installRate ? `${selectedAffiliate.stats.installRate}%` : '0%'}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded border">
+                      <label className="text-sm text-gray-500">Purchase Rate</label>
+                      <p className="text-2xl font-bold text-emerald-600">
+                        {selectedAffiliate.stats.purchaseRate ? `${selectedAffiliate.stats.purchaseRate}%` : '0%'}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded border">
                       <label className="text-sm text-gray-500">Last Activity</label>
-                      <p className="font-medium">
+                      <p className="font-medium text-sm">
                         {new Date(selectedAffiliate.stats.lastActivity).toLocaleString()}
                       </p>
                     </div>
                   </div>
+
+                  {/* Conversion Graphs */}
+                  {userAnalytics.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5" />
+                        Conversion Analytics (Last 30 Days)
+                      </h3>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Installs & Purchases</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <LineChart data={userAnalytics}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Line type="monotone" dataKey="installs" stroke="#06b6d4" strokeWidth={2} name="Installs" />
+                                <Line type="monotone" dataKey="purchases" stroke="#10b981" strokeWidth={2} name="Purchases" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Clicks & Conversions</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <LineChart data={userAnalytics}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Line type="monotone" dataKey="clicks" stroke="#3b82f6" strokeWidth={2} name="Clicks" />
+                                <Line type="monotone" dataKey="conversions" stroke="#8b5cf6" strokeWidth={2} name="Conversions" />
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="lg:col-span-2">
+                          <CardHeader>
+                            <CardTitle className="text-sm">Earnings Over Time</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <BarChart data={userAnalytics}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="earnings" fill="#10b981" name="Earnings (₹)" />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -954,6 +1638,107 @@ const AdminDashboard = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Link Dialog */}
+      <Dialog open={assignLinkDialogOpen} onOpenChange={setAssignLinkDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Assign Link to {selectedAffiliate?.name}</DialogTitle>
+            <DialogDescription>
+              Create a link in AppTrove dashboard, then paste the URL here to assign it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Alert>
+              <AlertDescription>
+                <strong>Auto-Create:</strong> If you select the "Millionaires Adda" template and don't choose an existing link, a new link will be automatically created when you click "Assign Link".
+              </AlertDescription>
+            </Alert>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Select Template (Optional - to view existing links)
+              </label>
+              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a template to view existing links" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template._id || template.id} value={template._id || template.id}>
+                      {template.name} ({template.domain})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedTemplate && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Select Existing Link from Template {availableLinks.length > 0 && `(${availableLinks.length} available)`}
+                </label>
+                {availableLinks.length > 0 ? (
+                  <Select value={selectedLink} onValueChange={setSelectedLink}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an existing link" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableLinks.map((link) => (
+                        <SelectItem key={link.id} value={link.id}>
+                          {link.name} - {link.shortUrl || link.longUrl}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded border">
+                    No existing links found. Please create a link in AppTrove dashboard and paste the URL below.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                UniLink URL
+                <span className="text-red-500 ml-1">*</span>
+              </label>
+              <Input
+                placeholder="https://applink.reevo.in/d/... or https://applink.adda247.com/d/..."
+                value={manualUnilink}
+                onChange={(e) => setManualUnilink(e.target.value)}
+                required
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {selectedLink 
+                  ? 'Selected link will override this entry.' 
+                  : 'Paste the unilink URL from AppTrove dashboard here. You can find it after creating a link in the "Millionaires Adda" template.'}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setAssignLinkDialogOpen(false);
+              setSelectedLink("");
+              setManualUnilink("");
+              setSelectedTemplate("");
+              setAvailableLinks([]);
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAssignLink} 
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={!selectedTemplate && !manualUnilink.trim() && !selectedLink}
+            >
+              <LinkIcon className="w-4 h-4 mr-2" />
+              {selectedTemplate && !selectedLink ? "Create & Assign Link" : "Assign Link"}
             </Button>
           </DialogFooter>
         </DialogContent>
