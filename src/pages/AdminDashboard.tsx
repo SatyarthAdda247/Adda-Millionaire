@@ -167,19 +167,19 @@ const AdminDashboard = () => {
     }
   }, [selectedTemplate]);
 
-  // Auto-select "Millionaires Adda" template when dialog opens
+  // Auto-select "EduRise" template when dialog opens
   useEffect(() => {
     if (assignLinkDialogOpen && templates.length > 0) {
-      // Find "Millionaires Adda" template by name or ID
-      const millionairesTemplate = templates.find(
+      // Find "EduRise" template by name or ID
+      const eduriseTemplate = templates.find(
         (t) => 
-          t.name?.toLowerCase().includes('millionaires') || 
+          t.name?.toLowerCase().includes('edurise') || 
           t._id === 'wBehUW' || 
           t.id === 'wBehUW'
       );
       
-      if (millionairesTemplate && !selectedTemplate) {
-        const templateId = millionairesTemplate._id || millionairesTemplate.id;
+      if (eduriseTemplate && !selectedTemplate) {
+        const templateId = eduriseTemplate._id || eduriseTemplate.id;
         setSelectedTemplate(templateId);
       }
     }
@@ -327,7 +327,7 @@ const AdminDashboard = () => {
                 `AppTrove API does not support creating links programmatically.\n\n` +
                 `To create a link:\n` +
                 `1. Go to https://dashboard.apptrove.com\n` +
-                `2. Navigate to Deep Links > Millionaires Adda template\n` +
+                `2. Navigate to Deep Links > EduRise template\n` +
                 `3. Click "Add Link" button\n` +
                 `4. Create the link and copy its URL\n` +
                 `5. Come back here and use "Assign Link" with the manual URL option`
@@ -1655,7 +1655,7 @@ const AdminDashboard = () => {
           <div className="space-y-4 py-4">
             <Alert>
               <AlertDescription>
-                <strong>Auto-Create:</strong> If you select the "Millionaires Adda" template and don't choose an existing link, a new link will be automatically created when you click "Assign Link".
+                <strong>Auto-Create:</strong> If you select the "EduRise" template and don't choose an existing link, a new link will be automatically created when you click "Assign Link".
               </AlertDescription>
             </Alert>
 
@@ -1718,7 +1718,7 @@ const AdminDashboard = () => {
               <p className="text-xs text-gray-500 mt-1">
                 {selectedLink 
                   ? 'Selected link will override this entry.' 
-                  : 'Paste the unilink URL from AppTrove dashboard here. You can find it after creating a link in the "Millionaires Adda" template.'}
+                  : 'Paste the unilink URL from AppTrove dashboard here. You can find it after creating a link in the "EduRise" template.'}
               </p>
             </div>
           </div>

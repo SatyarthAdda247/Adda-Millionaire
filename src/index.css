@@ -4,7 +4,7 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
-/* Millionaire's Adda Design System - Trustworthy Blue Theme */
+/* EduRise Design System - Trustworthy Blue Theme */
 
 @layer base {
   :root {
@@ -26,7 +26,6 @@
     --secondary: 210 60% 95%;
     --secondary-foreground: 220 45% 25%;
 
-    /* Muted - Light Blue Gray - Calming and neutral */
     --muted: 210 25% 95%;
     --muted-foreground: 220 15% 45%;
 

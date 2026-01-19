@@ -51,7 +51,7 @@ const Navbar = () => {
             whileHover={{ scale: 1.02 }}
           >
             <span className="text-xl font-display font-bold text-gray-900">
-              Millionaire's <span className="text-blue-600">Adda</span>
+              Edu<span className="text-blue-600">Rise</span>
             </span>
           </motion.a>
 

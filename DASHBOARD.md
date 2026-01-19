@@ -1,6 +1,6 @@
 # Affiliate Management Dashboard
 
-A comprehensive dashboard for managing and tracking all affiliates in the Millionaire's Adda program.
+A comprehensive dashboard for managing and tracking all affiliates in the EduRise program.
 
 ## Features
 

@@ -1,6 +1,6 @@
 # Backend API Server
 
-This is the backend API server for the Millionaire's Adda affiliate program.
+This is the backend API server for the EduRise affiliate program.
 
 ## Setup
 

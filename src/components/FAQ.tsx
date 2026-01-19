@@ -9,14 +9,14 @@ import {
 
 const faqs = [
   {
-    question: "Who can join the Millionaire's Adda program?",
+    question: "Who can join the EduRise program?",
     answer:
       "Anyone with an engaged audience on social media can join. Whether you're on Instagram, YouTube, Telegram, WhatsApp, or any other platform, if you create content that helps students or learners, you're a great fit for our program.",
   },
   {
     question: "Is it free to join?",
     answer:
-      "Yes, absolutely! Joining the Millionaire's Adda program is completely free. There are no signup fees, hidden charges, or minimum requirements to get started.",
+      "Yes, absolutely! Joining the EduRise program is completely free. There are no signup fees, hidden charges, or minimum requirements to get started.",
   },
   {
     question: "How do payouts work?",

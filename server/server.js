@@ -842,11 +842,11 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
           '1. Verify APPTROVE_SECRET_ID and APPTROVE_SECRET_KEY are correct in .env',
           '2. Set APPTROVE_ANDROID_APP_ID in .env (from template)',
           '3. Or manually create link at https://dashboard.apptrove.com',
-          '4. Navigate to Deep Links > Millionaires Adda template',
+          '4. Navigate to Deep Links > EduRise template',
           '5. Click "Add Link" button and create the link'
         ],
         templateId: templateId,
-        templateName: template?.name || 'Millionaires Adda',
+        templateName: template?.name || 'EduRise',
         dashboardUrl: 'https://dashboard.apptrove.com',
         secretId: APPTROVE_SECRET_ID,
         hasSecretKey: !!APPTROVE_SECRET_KEY
@@ -2549,13 +2549,13 @@ app.post('/api/users/:id/approve', isAdmin, async (req, res) => {
     
     if (APPTROVE_API_KEY) {
       try {
-        // Use the "Millionaires Adda" template (ID: wBehUW) for all new users
-        const MILLIONAIRES_TEMPLATE_ID = process.env.APPTROVE_TEMPLATE_ID || 'wBehUW';
+        // Use the "EduRise" template (ID: wBehUW) for all new users
+        const EDURISE_TEMPLATE_ID = process.env.APPTROVE_TEMPLATE_ID || 'wBehUW';
         
-        console.log(`Using Millionaires Adda template (${MILLIONAIRES_TEMPLATE_ID}) for user ${user.id} (${user.name})`);
-        templateId = MILLIONAIRES_TEMPLATE_ID;
+        console.log(`Using EduRise template (${EDURISE_TEMPLATE_ID}) for user ${user.id} (${user.name})`);
+        templateId = EDURISE_TEMPLATE_ID;
 
-        // Create a unilink from the Millionaires Adda template
+        // Create a unilink from the EduRise template
         const linkName = `${user.name} - Affiliate Link`;
         console.log(`Creating UniLink from template ${templateId}`);
         const linkResult = await createUniLinkFromTemplate(templateId, linkName, {

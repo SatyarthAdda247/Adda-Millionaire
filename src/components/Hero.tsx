@@ -58,8 +58,8 @@ const Hero = () => {
             transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
             className="text-5xl md:text-7xl lg:text-8xl font-display font-bold text-gray-900 leading-[1.1] mb-10"
           >
-            Join Millionaire's{" "}
-            <span className="text-blue-600">Adda Affiliate Program</span>
+            Join <span className="text-gray-900">Edu</span><span className="text-blue-600">Rise</span>{" "}
+            <span className="text-blue-600">Affiliate Program</span>
           </motion.h1>
 
           <motion.p

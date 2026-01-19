@@ -1,4 +1,4 @@
-# Millionaire's Adda Affiliate Program
+# EduRise Affiliate Program
 
 Affiliate program landing page for AddaEducation.
 
