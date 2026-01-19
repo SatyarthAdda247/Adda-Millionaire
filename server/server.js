@@ -1667,32 +1667,154 @@ async function verifyInstagram(handle) {
         }
       }
 
-      // If we can't parse, but page loaded, assume verified but no count
+      // If we can't parse, try Puppeteer as fallback
+      console.log('HTML scraping failed to extract count, trying Puppeteer...');
+      return await verifyInstagramWithPuppeteer(username, profileUrl);
+    } catch (scrapeError) {
+      // If scraping fails, try Puppeteer as fallback
+      if (scrapeError.response?.status === 404) {
+        return {
+          verified: false,
+          error: 'Instagram profile not found'
+        };
+      }
+      if (scrapeError.response?.status === 403) {
+        // Try Puppeteer even for 403
+        console.log('Got 403, trying Puppeteer...');
+        return await verifyInstagramWithPuppeteer(username, profileUrl);
+      }
+      // Try Puppeteer as last resort
+      console.log('Axios scraping failed, trying Puppeteer...');
+      return await verifyInstagramWithPuppeteer(username, profileUrl);
+    }
+  } catch (error) {
+    console.error('Instagram verification error:', error.message);
+    // Last resort: Try Puppeteer
+    try {
+      return await verifyInstagramWithPuppeteer(username, profileUrl);
+    } catch (puppeteerError) {
+      return {
+        verified: false,
+        error: error.response?.status === 404 ? 'Profile not found' : 'Failed to verify Instagram profile'
+      };
+    }
+  }
+}
+
+// Instagram verification using Puppeteer (fallback method)
+async function verifyInstagramWithPuppeteer(username, profileUrl) {
+  let browser = null;
+  try {
+    console.log(`Using Puppeteer to scrape Instagram: ${username}`);
+    
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu',
+        '--window-size=1920x1080'
+      ]
+    });
+
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1920, height: 1080 });
+    
+    // Navigate to profile
+    await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+    
+    // Wait for content to load
+    await page.waitForTimeout(3000);
+    
+    let followers = 0;
+    let found = false;
+    
+    // Method 1: Try to extract from meta tag
+    try {
+      const metaDescription = await page.$eval('meta[property="og:description"]', el => el.content).catch(() => null);
+      if (metaDescription) {
+        const match = metaDescription.match(/([\d,]+)\s+Followers/i);
+        if (match) {
+          followers = parseInt(match[1].replace(/,/g, ''));
+          found = true;
+        }
+      }
+    } catch (e) {}
+    
+    // Method 2: Try to extract from page content/scripts
+    if (!found) {
+      try {
+        const pageContent = await page.content();
+        
+        // Look for JSON data patterns
+        const jsonMatches = [
+          /"edge_followed_by":\s*{\s*"count":\s*(\d+)/,
+          /"follower_count":\s*(\d+)/,
+          /"followers":\s*(\d+)/,
+          /"edge_followed_by":\s*{\s*"count":\s*"(\d+)"/,
+        ];
+        
+        for (const regex of jsonMatches) {
+          const match = pageContent.match(regex);
+          if (match) {
+            followers = parseInt(match[1]);
+            found = true;
+            break;
+          }
+        }
+      } catch (e) {}
+    }
+    
+    // Method 3: Try to find follower count in visible text
+    if (!found) {
+      try {
+        const followerText = await page.evaluate(() => {
+          const elements = Array.from(document.querySelectorAll('*'));
+          for (const el of elements) {
+            const text = el.textContent || '';
+            const match = text.match(/([\d,]+)\s+Followers?/i);
+            if (match) {
+              return match[1];
+            }
+          }
+          return null;
+        });
+        
+        if (followerText) {
+          followers = parseInt(followerText.replace(/,/g, ''));
+          found = true;
+        }
+      } catch (e) {}
+    }
+    
+    await browser.close();
+    
+    if (found && followers > 0) {
+      return {
+        verified: true,
+        followers: followers,
+        username: username,
+        profileUrl: profileUrl
+      };
+    } else {
+      // Profile exists but count not found
       return {
         verified: true,
         followers: 0,
         username: username,
         profileUrl: profileUrl,
-        note: 'Profile found but follower count could not be extracted. Instagram may have changed their page structure.'
+        note: 'Profile found but follower count could not be extracted'
       };
-    } catch (scrapeError) {
-      // If scraping fails, check if it's a 404 (user doesn't exist)
-      if (scrapeError.response?.status === 404 || scrapeError.response?.status === 403) {
-        return {
-          verified: false,
-          error: scrapeError.response?.status === 403 
-            ? 'Instagram profile is private or blocked'
-            : 'Instagram profile not found'
-        };
-      }
-      throw scrapeError;
     }
   } catch (error) {
-    console.error('Instagram verification error:', error.message);
-    return {
-      verified: false,
-      error: error.response?.status === 404 ? 'Profile not found' : 'Failed to verify Instagram profile'
-    };
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
+    console.error('Puppeteer Instagram verification error:', error.message);
+    throw error;
   }
 }
 
@@ -1904,94 +2026,121 @@ async function verifyTwitter(handle) {
       .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(String(v))}"`)
       .join(', ');
 
-    try {
-      // Try Twitter API v2 first
-      const response = await axios.get(baseUrl, {
-        headers: {
-          'Authorization': authHeader,
-          'Accept': 'application/json'
-        },
-        params: queryParams,
-        timeout: 10000
-      });
-
-      if (response.data?.data) {
-        const user = response.data.data;
-        const followers = user.public_metrics?.followers_count || 0;
-        return {
-          verified: true,
-          followers: followers,
-          username: username,
-          profileUrl: `https://twitter.com/${username}`,
-          userId: user.id,
-          name: user.name
-        };
-      } else {
-        return {
-          verified: false,
-          error: 'User not found'
-        };
-      }
-    } catch (apiError) {
-      console.error('Twitter API v2 error:', apiError.response?.data || apiError.message);
-      
-      // Fallback: Try v1.1 API
+    // Retry logic for Twitter API
+    let lastError = null;
+    const maxRetries = 2;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const v1Url = `https://api.twitter.com/1.1/users/show.json`;
-        const v1Params = { screen_name: username };
-        
-        // Recreate signature for v1.1
-        const v1OauthParams = {
-          oauth_consumer_key: TWITTER_CONSUMER_KEY,
-          oauth_token: TWITTER_ACCESS_TOKEN,
-          oauth_signature_method: 'HMAC-SHA1',
-          oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-          oauth_nonce: crypto.randomBytes(16).toString('hex'),
-          oauth_version: '1.0'
-        };
-        
-        const v1AllParams = { ...v1OauthParams, ...v1Params };
-        const v1ParamString = Object.entries(v1AllParams)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-          .join('&');
-        
-        const v1SignatureBaseString = `GET&${encodeURIComponent(v1Url)}&${encodeURIComponent(v1ParamString)}`;
-        const v1Signature = crypto.createHmac('sha1', signingKey).update(v1SignatureBaseString).digest('base64');
-        v1OauthParams.oauth_signature = v1Signature;
-        
-        const v1AuthHeader = 'OAuth ' + Object.entries(v1OauthParams)
-          .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(String(v))}"`)
-          .join(', ');
-
-        const v1Response = await axios.get(v1Url, {
+        // Try Twitter API v2 first
+        const response = await axios.get(baseUrl, {
           headers: {
-            'Authorization': v1AuthHeader,
+            'Authorization': authHeader,
             'Accept': 'application/json'
           },
-          params: v1Params,
-          timeout: 10000
+          params: queryParams,
+          timeout: 15000
         });
 
-        if (v1Response.data) {
+        if (response.data?.data) {
+          const user = response.data.data;
+          const followers = user.public_metrics?.followers_count || 0;
           return {
             verified: true,
-            followers: v1Response.data.followers_count || 0,
+            followers: followers,
             username: username,
             profileUrl: `https://twitter.com/${username}`,
-            name: v1Response.data.name
+            userId: user.id,
+            name: user.name
+          };
+        } else {
+          return {
+            verified: false,
+            error: 'User not found'
           };
         }
-      } catch (v1Error) {
-        console.error('Twitter API v1.1 error:', v1Error.response?.data || v1Error.message);
+      } catch (apiError) {
+        lastError = apiError;
+        console.error(`Twitter API v2 attempt ${attempt + 1} error:`, apiError.response?.data || apiError.message);
+        
+        // If it's a rate limit or temporary error, wait and retry
+        if (attempt < maxRetries && (apiError.response?.status === 429 || apiError.response?.status >= 500)) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          // Regenerate OAuth signature for retry
+          oauthParams.oauth_timestamp = Math.floor(Date.now() / 1000).toString();
+          oauthParams.oauth_nonce = crypto.randomBytes(16).toString('hex');
+          const retryParamString = Object.entries({ ...oauthParams, ...queryParams })
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+            .join('&');
+          const retrySignatureBaseString = `GET&${encodeURIComponent(baseUrl)}&${encodeURIComponent(retryParamString)}`;
+          oauthParams.oauth_signature = crypto.createHmac('sha1', signingKey).update(retrySignatureBaseString).digest('base64');
+          authHeader = 'OAuth ' + Object.entries(oauthParams)
+            .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(String(v))}"`)
+            .join(', ');
+          continue;
+        }
+        
+        // If v2 fails after retries, try v1.1 API
+        if (attempt === maxRetries) {
+          try {
+            const v1Url = `https://api.twitter.com/1.1/users/show.json`;
+            const v1Params = { screen_name: username };
+            
+            // Recreate signature for v1.1
+            const v1OauthParams = {
+              oauth_consumer_key: TWITTER_CONSUMER_KEY,
+              oauth_token: TWITTER_ACCESS_TOKEN,
+              oauth_signature_method: 'HMAC-SHA1',
+              oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+              oauth_nonce: crypto.randomBytes(16).toString('hex'),
+              oauth_version: '1.0'
+            };
+            
+            const v1AllParams = { ...v1OauthParams, ...v1Params };
+            const v1ParamString = Object.entries(v1AllParams)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+              .join('&');
+            
+            const v1SignatureBaseString = `GET&${encodeURIComponent(v1Url)}&${encodeURIComponent(v1ParamString)}`;
+            const v1Signature = crypto.createHmac('sha1', signingKey).update(v1SignatureBaseString).digest('base64');
+            v1OauthParams.oauth_signature = v1Signature;
+            
+            const v1AuthHeader = 'OAuth ' + Object.entries(v1OauthParams)
+              .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(String(v))}"`)
+              .join(', ');
+
+            const v1Response = await axios.get(v1Url, {
+              headers: {
+                'Authorization': v1AuthHeader,
+                'Accept': 'application/json'
+              },
+              params: v1Params,
+              timeout: 15000
+            });
+
+            if (v1Response.data) {
+              return {
+                verified: true,
+                followers: v1Response.data.followers_count || 0,
+                username: username,
+                profileUrl: `https://twitter.com/${username}`,
+                name: v1Response.data.name
+              };
+            }
+          } catch (v1Error) {
+            console.error('Twitter API v1.1 error:', v1Error.response?.data || v1Error.message);
+          }
+        }
       }
-      
-      // If both fail, return error
-      return {
-        verified: false,
-        error: apiError.response?.data?.detail || apiError.response?.data?.title || apiError.message || 'Failed to verify Twitter/X account'
-      };
     }
+    
+    // If all attempts fail, return error
+    return {
+      verified: false,
+      error: lastError?.response?.data?.detail || lastError?.response?.data?.title || lastError?.message || 'Failed to verify Twitter/X account'
+    };
   } catch (error) {
     console.error('Twitter verification error:', error.message);
     return {
