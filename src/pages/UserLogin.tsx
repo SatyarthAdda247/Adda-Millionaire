@@ -8,7 +8,7 @@ import { AlertCircle, Mail, Phone, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 const UserLogin = () => {
   const [email, setEmail] = useState("");

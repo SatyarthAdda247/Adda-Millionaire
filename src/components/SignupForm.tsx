@@ -23,16 +23,12 @@ const followerRanges = [
   "500K+",
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 interface SocialHandle {
   id: string;
   platform: string;
   handle: string;
-  verified: boolean;
-  verifiedFollowers?: number;
-  verifiedAt?: string;
-  error?: string;
 }
 
 const SignupForm = () => {
@@ -81,8 +77,6 @@ const SignupForm = () => {
             socialHandles: socialHandles.map(h => ({
               platform: h.platform,
               handle: h.handle,
-              verified: h.verified,
-              verifiedFollowers: h.verifiedFollowers,
             })),
           }),
         });

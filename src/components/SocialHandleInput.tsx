@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -8,20 +7,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { X, CheckCircle, Loader2, AlertCircle, Plus } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { X, Plus } from "lucide-react";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 interface SocialHandle {
   id: string;
   platform: string;
   handle: string;
-  verified: boolean;
-  verifiedFollowers?: number;
-  verifiedAt?: string;
-  error?: string;
 }
 
 interface SocialHandleInputProps {
@@ -41,14 +34,11 @@ const platforms = [
 ];
 
 export default function SocialHandleInput({ handles, onChange }: SocialHandleInputProps) {
-  const [verifying, setVerifying] = useState<string | null>(null);
-
   const addHandle = () => {
     const newHandle: SocialHandle = {
       id: Date.now().toString(),
       platform: "",
       handle: "",
-      verified: false,
     };
     onChange([...handles, newHandle]);
   };
@@ -59,77 +49,8 @@ export default function SocialHandleInput({ handles, onChange }: SocialHandleInp
 
   const updateHandle = (id: string, updates: Partial<SocialHandle>) => {
     onChange(
-      handles.map((h) => (h.id === id ? { ...h, ...updates, verified: false } : h))
+      handles.map((h) => (h.id === id ? { ...h, ...updates } : h))
     );
-  };
-
-  const verifyHandle = async (handle: SocialHandle) => {
-    if (!handle.platform || !handle.handle.trim()) {
-      toast({
-        title: "Missing Information",
-        description: "Please select a platform and enter a handle/URL",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setVerifying(handle.id);
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/social/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          platform: handle.platform,
-          handle: handle.handle.trim(),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.verified) {
-        updateHandle(handle.id, {
-          verified: true,
-          verifiedFollowers: data.followers || data.subscribers || 0,
-          verifiedAt: new Date().toISOString(),
-          error: undefined,
-        });
-        toast({
-          title: "Verified! ✅",
-          description: `${handle.platform} profile verified with ${formatNumber(data.followers || data.subscribers || 0)} ${handle.platform === 'YouTube' ? 'subscribers' : 'followers'}`,
-        });
-      } else {
-        updateHandle(handle.id, {
-          verified: false,
-          error: data.error || "Verification failed",
-        });
-        toast({
-          title: "Verification Failed",
-          description: data.error || "Could not verify this profile. Please check the handle/URL.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      updateHandle(handle.id, {
-        verified: false,
-        error: "Network error. Please try again.",
-      });
-      toast({
-        title: "Verification Error",
-        description: "Failed to verify profile. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setVerifying(null);
-    }
-  };
-
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
   };
 
   return (
@@ -203,48 +124,6 @@ export default function SocialHandleInput({ handles, onChange }: SocialHandleInp
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {handle.verified ? (
-                <>
-                  <Badge className="bg-green-600">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    Verified
-                  </Badge>
-                  {handle.verifiedFollowers !== undefined && (
-                    <span className="text-sm text-gray-600">
-                      {formatNumber(handle.verifiedFollowers)}{" "}
-                      {handle.platform === "YouTube" ? "subscribers" : "followers"}
-                    </span>
-                  )}
-                </>
-              ) : handle.error ? (
-                <Badge variant="destructive">
-                  <AlertCircle className="w-3 h-3 mr-1" />
-                  {handle.error}
-                </Badge>
-              ) : null}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => verifyHandle(handle)}
-              disabled={!handle.platform || !handle.handle.trim() || verifying === handle.id}
-              className="flex items-center gap-2"
-            >
-              {verifying === handle.id ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Verifying...
-                </>
-              ) : (
-                <>
-                  {handle.verified ? "Re-verify" : "Verify"}
-                </>
-              )}
-            </Button>
-          </div>
         </div>
       ))}
     </div>

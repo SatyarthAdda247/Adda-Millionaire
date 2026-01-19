@@ -70,14 +70,61 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { API_BASE_URL } from "@/lib/apiConfig";
 
 interface SocialHandle {
   platform: string;
   handle: string;
-  verified: boolean;
-  verifiedFollowers?: number;
-  verifiedAt?: string;
+}
+
+// Helper function to convert handle to clickable URL
+function getSocialMediaUrl(platform: string, handle: string): string {
+  const cleanHandle = handle.trim().replace(/^@/, '').replace(/^https?:\/\//, '');
+  
+  switch (platform.toLowerCase()) {
+    case 'instagram':
+      if (handle.includes('instagram.com/')) {
+        return handle.startsWith('http') ? handle : `https://${handle}`;
+      }
+      return `https://www.instagram.com/${cleanHandle}`;
+    case 'youtube':
+      if (handle.includes('youtube.com/') || handle.includes('youtu.be/')) {
+        return handle.startsWith('http') ? handle : `https://${handle}`;
+      }
+      return `https://www.youtube.com/@${cleanHandle}`;
+    case 'facebook':
+      if (handle.includes('facebook.com/')) {
+        return handle.startsWith('http') ? handle : `https://${handle}`;
+      }
+      return `https://www.facebook.com/${cleanHandle}`;
+    case 'twitter/x':
+    case 'twitter':
+    case 'x':
+      if (handle.includes('twitter.com/') || handle.includes('x.com/')) {
+        return handle.startsWith('http') ? handle : `https://${handle}`;
+      }
+      return `https://twitter.com/${cleanHandle}`;
+    case 'telegram':
+      if (handle.includes('t.me/')) {
+        return handle.startsWith('http') ? handle : `https://${handle}`;
+      }
+      return `https://t.me/${cleanHandle}`;
+    case 'tiktok':
+      if (handle.includes('tiktok.com/@')) {
+        return handle.startsWith('http') ? handle : `https://${handle}`;
+      }
+      return `https://www.tiktok.com/@${cleanHandle}`;
+    case 'linkedin':
+      if (handle.includes('linkedin.com/in/') || handle.includes('linkedin.com/company/')) {
+        return handle.startsWith('http') ? handle : `https://${handle}`;
+      }
+      return `https://www.linkedin.com/in/${cleanHandle}`;
+    default:
+      if (handle.startsWith('http://') || handle.startsWith('https://')) {
+        return handle;
+      }
+      return `https://${cleanHandle}`;
+  }
 }
 
 interface Affiliate {
@@ -996,20 +1043,25 @@ const AdminDashboard = () => {
                           <TableCell className="py-4">
                             <div className="space-y-2">
                               {affiliate.socialHandles && affiliate.socialHandles.length > 0 ? (
-                                affiliate.socialHandles.map((handle: any, idx: number) => (
-                                  <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-2 border-l-4 border-purple-400">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="font-semibold text-purple-700 text-sm">{handle.platform}</span>
-                                      <span className="text-gray-700 text-sm">@{handle.handle}</span>
-                                      {handle.verified && (
-                                        <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs shadow-sm">
-                                          <CheckCircle className="w-3 h-3 mr-1" />
-                                          {handle.verifiedFollowers?.toLocaleString() || 0} {handle.platform === 'YouTube' ? 'subs' : 'followers'}
-                                        </Badge>
-                                      )}
+                                affiliate.socialHandles.map((handle: any, idx: number) => {
+                                  const url = getSocialMediaUrl(handle.platform, handle.handle);
+                                  return (
+                                    <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-2 border-l-4 border-purple-400">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-semibold text-purple-700 text-sm">{handle.platform}</span>
+                                        <a
+                                          href={url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:text-blue-800 hover:underline text-sm flex items-center gap-1"
+                                        >
+                                          {handle.handle}
+                                          <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                      </div>
                                     </div>
-                                  </div>
-                                ))
+                                  );
+                                })
                               ) : (
                                 <div className="space-y-2">
                                   <div className="flex items-center gap-2 text-sm">
@@ -1020,74 +1072,85 @@ const AdminDashboard = () => {
                                   </div>
                                   <div className="flex items-center gap-2 text-sm">
                                     <span className="text-gray-500 font-medium min-w-[70px]">Handle:</span>
-                                    <span className="text-gray-700 font-medium">@{affiliate.socialHandle || '-'}</span>
+                                    {affiliate.socialHandle ? (
+                                      <a
+                                        href={getSocialMediaUrl(affiliate.platform || 'Other', affiliate.socialHandle)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center gap-1"
+                                      >
+                                        {affiliate.socialHandle}
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    ) : (
+                                      <span className="text-gray-700 font-medium">-</span>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2 text-sm">
                                     <span className="text-gray-500 font-medium min-w-[70px]">Followers:</span>
                                     <span className="text-gray-700 font-semibold">{affiliate.followerCount || '-'}</span>
                                   </div>
-                                  {affiliate.totalVerifiedFollowers > 0 && (
-                                    <div className="mt-2 pt-2 border-t border-gray-200">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-500">Verified Total:</span>
-                                        <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs">
-                                          {affiliate.totalVerifiedFollowers.toLocaleString()}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
                               )}
                             </div>
                           </TableCell>
                           <TableCell className="py-4">
                             {affiliate.links && affiliate.links.length > 0 ? (
-                              <div className="space-y-3">
-                                {affiliate.links[0]?.link && (
-                                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-3 border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+                                <div className="flex items-start justify-between gap-4 mb-4">
+                                  {/* UNILINK Section */}
+                                  <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <LinkIcon className="w-4 h-4 text-blue-600" />
-                                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">UniLink</span>
+                                      <LinkIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">UNILINK</span>
                                     </div>
                                     <a 
                                       href={affiliate.links[0].link} 
                                       target="_blank" 
                                       rel="noopener noreferrer"
-                                      className="text-xs text-blue-600 hover:text-blue-800 break-all flex items-start gap-1 group"
+                                      className="text-xs text-blue-600 hover:text-blue-800 break-all block leading-relaxed"
                                     >
-                                      <span className="flex-1">{affiliate.links[0].link}</span>
-                                      <ExternalLink className="w-3 h-3 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      {affiliate.links[0].link}
                                     </a>
                                   </div>
-                                )}
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <MousePointerClick className="w-3.5 h-3.5 text-blue-600" />
-                                      <span className="text-xs text-gray-600 font-medium">Clicks</span>
-                                    </div>
-                                    <div className="text-lg font-bold text-blue-700">{stats.totalClicks.toLocaleString()}</div>
+                                  
+                                  {/* Status and Date */}
+                                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                                    {status === 'approved' && (
+                                      <Badge className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-full flex items-center gap-1.5">
+                                        <CheckCircle className="w-3 h-3" />
+                                        Approved
+                                      </Badge>
+                                    )}
+                                    {affiliate.links[0]?.createdAt && (
+                                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                        <Calendar className="w-3 h-3" />
+                                        {new Date(affiliate.links[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                      </div>
+                                    )}
                                   </div>
-                                  <div className="bg-purple-50 rounded-lg p-2 border border-purple-200">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <TrendingUp className="w-3.5 h-3.5 text-purple-600" />
-                                      <span className="text-xs text-gray-600 font-medium">Conversions</span>
-                                    </div>
-                                    <div className="text-lg font-bold text-purple-700">{stats.totalConversions.toLocaleString()}</div>
+                                </div>
+                                
+                                {/* Metrics Grid */}
+                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                                    <div className="text-xs text-gray-600 font-medium mb-1.5">Clicks</div>
+                                    <div className="text-xl font-bold text-blue-700">{stats.totalClicks.toLocaleString()}</div>
                                   </div>
-                                  <div className="bg-green-50 rounded-lg p-2 border border-green-200">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <DollarSign className="w-3.5 h-3.5 text-green-600" />
-                                      <span className="text-xs text-gray-600 font-medium">Earnings</span>
-                                    </div>
-                                    <div className="text-lg font-bold text-green-700">₹{stats.totalEarnings.toLocaleString()}</div>
+                                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                                    <div className="text-xs text-gray-600 font-medium mb-1.5">Conversions</div>
+                                    <div className="text-xl font-bold text-purple-700">{stats.totalConversions.toLocaleString()}</div>
                                   </div>
-                                  <div className="bg-orange-50 rounded-lg p-2 border border-orange-200">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <BarChart3 className="w-3.5 h-3.5 text-orange-600" />
-                                      <span className="text-xs text-gray-600 font-medium">Rate</span>
+                                  <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                                    <div className="text-xs text-gray-600 font-medium mb-1.5">Earnings</div>
+                                    <div className="text-xl font-bold text-green-700">₹{stats.totalEarnings.toLocaleString()}</div>
+                                  </div>
+                                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium mb-1.5">
+                                      <BarChart3 className="w-3 h-3" />
+                                      Rate
                                     </div>
-                                    <div className="text-lg font-bold text-orange-700">{stats.conversionRate.toFixed(2)}%</div>
+                                    <div className="text-xl font-bold text-orange-700">{stats.conversionRate.toFixed(2)}%</div>
                                   </div>
                                 </div>
                               </div>
@@ -1374,45 +1437,31 @@ const AdminDashboard = () => {
                   {selectedAffiliate.socialHandles && selectedAffiliate.socialHandles.length > 0 ? (
                     <>
                       <div className="grid grid-cols-1 gap-3">
-                        {selectedAffiliate.socialHandles.map((handle: SocialHandle, idx: number) => (
-                          <div key={idx} className="bg-white p-3 rounded border border-gray-200">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-gray-900">{handle.platform}</span>
-                                {handle.verified && (
-                                  <Badge className="bg-green-600">
-                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                    Verified
-                                  </Badge>
-                                )}
+                        {selectedAffiliate.socialHandles.map((handle: SocialHandle, idx: number) => {
+                          const url = getSocialMediaUrl(handle.platform, handle.handle);
+                          return (
+                            <div key={idx} className="bg-white p-3 rounded border border-gray-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-gray-900">{handle.platform}</span>
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                <span className="font-medium">Handle: </span>
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 inline-flex"
+                                >
+                                  {handle.handle}
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
                               </div>
                             </div>
-                            <div className="text-sm text-gray-600 mb-1">
-                              <span className="font-medium">Handle:</span> {handle.handle}
-                            </div>
-                            {handle.verified && handle.verifiedFollowers !== undefined && (
-                              <div className="text-sm">
-                                <span className="text-gray-500">
-                                  {handle.platform === 'YouTube' ? 'Subscribers' : 'Followers'}:
-                                </span>
-                                <span className="font-semibold text-green-600 ml-2">
-                                  {handle.verifiedFollowers.toLocaleString()}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
-                      {selectedAffiliate.totalVerifiedFollowers > 0 && (
-                        <div className="pt-3 border-t border-gray-300">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Total Verified Followers:</span>
-                            <span className="text-lg font-bold text-green-600">
-                              {selectedAffiliate.totalVerifiedFollowers.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                      )}
                     </>
                   ) : (
                     <div className="grid grid-cols-2 gap-4">
