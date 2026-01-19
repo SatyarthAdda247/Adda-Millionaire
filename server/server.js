@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import session from 'express-session';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -22,6 +23,13 @@ const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY;
 const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
 const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
 const APPTROVE_API_URL = process.env.APPTROVE_API_URL || 'https://api.apptrove.com';
+
+// Social Media API Credentials
+const TWITTER_CONSUMER_KEY = process.env.TWITTER_CONSUMER_KEY || 'zNKYcm6JKwmN1Be4M7YZrxsT8';
+const TWITTER_CONSUMER_SECRET = process.env.TWITTER_CONSUMER_SECRET || '28STLDRe55AueZlcS49PNlN6UkkaVUOEVizFFr5mNjEpNbIP35';
+const TWITTER_ACCESS_TOKEN = process.env.TWITTER_ACCESS_TOKEN || '2013220357508145152-gaQPjp7WveivtucICLaw9XQTZplpsg';
+const TWITTER_ACCESS_TOKEN_SECRET = process.env.TWITTER_ACCESS_TOKEN_SECRET || '2013220357508145152-gaQPjp7WveivtucICLaw9XQTZplpsg';
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || 'AIzaSyCUlIAIeZAUgVRaZuhnyd-icYJQv7U3UMY';
 
 // Admin configuration
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
@@ -1551,28 +1559,86 @@ async function verifyInstagram(handle) {
     }
     username = username.replace('@', '').trim();
 
-    // Note: Instagram Basic Display API requires OAuth, so we'll use a simpler approach
-    // For production, you'd need to use Instagram Graph API with proper authentication
-    // This is a placeholder that checks if the profile URL is accessible
-    
-    // Try to fetch profile page (this may be blocked by Instagram, but we'll try)
     const profileUrl = `https://www.instagram.com/${username}/`;
     
-    // In a real implementation, you'd use Instagram Graph API
-    // For now, we'll return a mock response structure
-    // You'll need to implement actual API calls with proper authentication
-    
-    return {
-      verified: true, // Set to false if you want to require actual API verification
-      followers: 0, // Will be fetched from actual API
-      username: username,
-      profileUrl: profileUrl,
-      note: 'Instagram verification requires API setup. Please configure Instagram Graph API credentials.'
-    };
+    // Scrape Instagram public profile page
+    try {
+      const response = await axios.get(profileUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate',
+          'Connection': 'keep-alive',
+        },
+        timeout: 10000
+      });
+
+      // Parse HTML to extract follower count
+      const html = response.data;
+      
+      // Try to find follower count in JSON-LD or meta tags
+      // Instagram stores data in window._sharedData
+      const sharedDataMatch = html.match(/window\._sharedData\s*=\s*({.+?});/);
+      if (sharedDataMatch) {
+        try {
+          const sharedData = JSON.parse(sharedDataMatch[1]);
+          const user = sharedData?.entry_data?.ProfilePage?.[0]?.graphql?.user;
+          if (user) {
+            const followers = parseInt(user.edge_followed_by?.count || 0);
+            return {
+              verified: true,
+              followers: followers,
+              username: username,
+              profileUrl: profileUrl,
+              profilePic: user.profile_pic_url,
+              fullName: user.full_name
+            };
+          }
+        } catch (e) {
+          console.error('Error parsing Instagram sharedData:', e.message);
+        }
+      }
+
+      // Fallback: Try to extract from meta tags
+      const metaMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/);
+      if (metaMatch) {
+        const description = metaMatch[1];
+        const followerMatch = description.match(/([\d,]+)\s+Followers/);
+        if (followerMatch) {
+          const followers = parseInt(followerMatch[1].replace(/,/g, ''));
+          return {
+            verified: true,
+            followers: followers,
+            username: username,
+            profileUrl: profileUrl
+          };
+        }
+      }
+
+      // If we can't parse, but page loaded, assume verified but no count
+      return {
+        verified: true,
+        followers: 0,
+        username: username,
+        profileUrl: profileUrl,
+        note: 'Profile found but follower count could not be extracted'
+      };
+    } catch (scrapeError) {
+      // If scraping fails, check if it's a 404 (user doesn't exist)
+      if (scrapeError.response?.status === 404) {
+        return {
+          verified: false,
+          error: 'Instagram profile not found'
+        };
+      }
+      throw scrapeError;
+    }
   } catch (error) {
+    console.error('Instagram verification error:', error.message);
     return {
       verified: false,
-      error: error.message
+      error: error.response?.status === 404 ? 'Profile not found' : 'Failed to verify Instagram profile'
     };
   }
 }
@@ -1593,10 +1659,7 @@ async function verifyYouTube(handle) {
       username = handle.replace('@', '').trim();
     }
 
-    // Note: YouTube Data API v3 requires an API key
-    // You'll need to set YOUTUBE_API_KEY in environment variables
-    const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
-    
+    // Use YouTube Data API v3 with provided API key
     if (!YOUTUBE_API_KEY) {
       return {
         verified: false,
@@ -1696,6 +1759,154 @@ async function verifyFacebook(handle) {
   }
 }
 
+async function verifyTwitter(handle) {
+  try {
+    // Extract username from URL or handle
+    let username = handle.trim();
+    if (username.includes('twitter.com/') || username.includes('x.com/')) {
+      const domain = username.includes('twitter.com/') ? 'twitter.com/' : 'x.com/';
+      username = username.split(domain)[1].split('/')[0].split('?')[0];
+    }
+    username = username.replace('@', '').trim();
+
+    if (!username) {
+      return {
+        verified: false,
+        error: 'Invalid Twitter/X handle format'
+      };
+    }
+
+    // Twitter API v2 - Get user by username
+    // Using OAuth 1.0a for authentication
+    
+    // Generate OAuth signature
+    const oauthParams = {
+      oauth_consumer_key: TWITTER_CONSUMER_KEY,
+      oauth_token: TWITTER_ACCESS_TOKEN,
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+      oauth_nonce: crypto.randomBytes(16).toString('hex'),
+      oauth_version: '1.0'
+    };
+
+    const baseUrl = `https://api.twitter.com/2/users/by/username/${username}`;
+    const queryParams = { 'user.fields': 'public_metrics' };
+    
+    // Create parameter string for signature (include query params)
+    const allParams = { ...oauthParams, ...queryParams };
+    const paramString = Object.entries(allParams)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join('&');
+
+    const signatureBaseString = `GET&${encodeURIComponent(baseUrl)}&${encodeURIComponent(paramString)}`;
+    const signingKey = `${encodeURIComponent(TWITTER_CONSUMER_SECRET)}&${encodeURIComponent(TWITTER_ACCESS_TOKEN_SECRET)}`;
+    const signature = crypto.createHmac('sha1', signingKey).update(signatureBaseString).digest('base64');
+
+    oauthParams.oauth_signature = signature;
+
+    // Create Authorization header
+    const authHeader = 'OAuth ' + Object.entries(oauthParams)
+      .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(String(v))}"`)
+      .join(', ');
+
+    try {
+      // Try Twitter API v2 first
+      const response = await axios.get(baseUrl, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'application/json'
+        },
+        params: queryParams,
+        timeout: 10000
+      });
+
+      if (response.data?.data) {
+        const user = response.data.data;
+        const followers = user.public_metrics?.followers_count || 0;
+        return {
+          verified: true,
+          followers: followers,
+          username: username,
+          profileUrl: `https://twitter.com/${username}`,
+          userId: user.id,
+          name: user.name
+        };
+      } else {
+        return {
+          verified: false,
+          error: 'User not found'
+        };
+      }
+    } catch (apiError) {
+      console.error('Twitter API v2 error:', apiError.response?.data || apiError.message);
+      
+      // Fallback: Try v1.1 API
+      try {
+        const v1Url = `https://api.twitter.com/1.1/users/show.json`;
+        const v1Params = { screen_name: username };
+        
+        // Recreate signature for v1.1
+        const v1OauthParams = {
+          oauth_consumer_key: TWITTER_CONSUMER_KEY,
+          oauth_token: TWITTER_ACCESS_TOKEN,
+          oauth_signature_method: 'HMAC-SHA1',
+          oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+          oauth_nonce: crypto.randomBytes(16).toString('hex'),
+          oauth_version: '1.0'
+        };
+        
+        const v1AllParams = { ...v1OauthParams, ...v1Params };
+        const v1ParamString = Object.entries(v1AllParams)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+          .join('&');
+        
+        const v1SignatureBaseString = `GET&${encodeURIComponent(v1Url)}&${encodeURIComponent(v1ParamString)}`;
+        const v1Signature = crypto.createHmac('sha1', signingKey).update(v1SignatureBaseString).digest('base64');
+        v1OauthParams.oauth_signature = v1Signature;
+        
+        const v1AuthHeader = 'OAuth ' + Object.entries(v1OauthParams)
+          .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(String(v))}"`)
+          .join(', ');
+
+        const v1Response = await axios.get(v1Url, {
+          headers: {
+            'Authorization': v1AuthHeader,
+            'Accept': 'application/json'
+          },
+          params: v1Params,
+          timeout: 10000
+        });
+
+        if (v1Response.data) {
+          return {
+            verified: true,
+            followers: v1Response.data.followers_count || 0,
+            username: username,
+            profileUrl: `https://twitter.com/${username}`,
+            name: v1Response.data.name
+          };
+        }
+      } catch (v1Error) {
+        console.error('Twitter API v1.1 error:', v1Error.response?.data || v1Error.message);
+      }
+      
+      // If both fail, return error
+      return {
+        verified: false,
+        error: apiError.response?.data?.detail || apiError.response?.data?.title || apiError.message || 'Failed to verify Twitter/X account'
+      };
+    }
+  } catch (error) {
+    console.error('Twitter verification error:', error.message);
+    return {
+      verified: false,
+      error: error.message || 'Failed to verify Twitter/X account'
+    };
+  }
+}
+
 async function verifySocialMedia(platform, handle) {
   switch (platform.toLowerCase()) {
     case 'instagram':
@@ -1704,7 +1915,10 @@ async function verifySocialMedia(platform, handle) {
       return await verifyYouTube(handle);
     case 'facebook':
       return await verifyFacebook(handle);
+    case 'twitter':
     case 'twitter/x':
+    case 'x':
+      return await verifyTwitter(handle);
     case 'telegram':
     case 'tiktok':
     case 'linkedin':
