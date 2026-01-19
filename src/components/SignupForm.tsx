@@ -89,11 +89,18 @@ const SignupForm = () => {
       } catch (fetchError: any) {
         // Handle network errors (server not running, CORS, blocked by client, etc.)
         console.error('Network error:', fetchError);
-        const errorMessage = fetchError.message?.includes('Failed to fetch') || 
-                            fetchError.message?.includes('ERR_BLOCKED_BY_CLIENT') ||
-                            fetchError.name === 'TypeError'
-          ? 'Unable to connect to server. Please ensure the backend server is running on port 3001.'
-          : `Network error: ${fetchError.message || 'Unknown error'}`;
+        const errorMsg = fetchError?.message || String(fetchError) || 'Unknown error';
+        const isNetworkError = 
+          errorMsg.includes('Failed to fetch') || 
+          errorMsg.includes('ERR_BLOCKED_BY_CLIENT') ||
+          errorMsg.includes('ERR_CONNECTION_REFUSED') ||
+          errorMsg.includes('NetworkError') ||
+          fetchError?.name === 'TypeError' ||
+          fetchError?.name === 'NetworkError';
+        
+        const errorMessage = isNetworkError
+          ? `Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend server is running. Start it with: cd server && npm start`
+          : `Network error: ${errorMsg}`;
         throw new Error(errorMessage);
       }
 
@@ -132,10 +139,19 @@ const SignupForm = () => {
 
     } catch (error) {
       console.error('Registration error:', error);
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       toast({
         title: "Registration Failed",
-        description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
+        description: errorMessage,
         variant: "destructive",
+        duration: 10000, // Show longer for connection errors
       });
     } finally {
       setIsSubmitting(false);
