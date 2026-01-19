@@ -147,9 +147,11 @@ app.use(secureHeaders);
 // Security: Apply input sanitization
 app.use(sanitizeInput);
 
-// CORS with security - Allow multiple origins for development
+// CORS with security - Allow multiple origins for development and production
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'https://adda-millionaire.vercel.app',
+  'https://edurise.vercel.app',
   'http://localhost:5173',
   'http://localhost:8080',
   'http://localhost:3000',
@@ -158,21 +160,24 @@ const allowedOrigins = [
   'http://127.0.0.1:3000'
 ].filter(Boolean); // Remove undefined values
 
+// Allow any Vercel preview deployments (must be defined before CORS middleware)
+const vercelPreviewPattern = /^https:\/\/.*\.vercel\.app$/;
+
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // In production, only allow specific origins
+    // In production, allow specific origins and Vercel deployments
     if (process.env.NODE_ENV === 'production') {
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      if (allowedOrigins.indexOf(origin) !== -1 || vercelPreviewPattern.test(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
       }
     } else {
-      // In development, allow all localhost and 127.0.0.1 origins
-      if (origin.includes('localhost') || origin.includes('127.0.0.1') || allowedOrigins.indexOf(origin) !== -1) {
+      // In development, allow all localhost, 127.0.0.1, and Vercel preview origins
+      if (origin.includes('localhost') || origin.includes('127.0.0.1') || allowedOrigins.indexOf(origin) !== -1 || vercelPreviewPattern.test(origin)) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
