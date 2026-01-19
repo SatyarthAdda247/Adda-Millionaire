@@ -66,30 +66,51 @@ const SignupForm = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          followerCount: formData.followerCount,
-          socialHandles: socialHandles.map(h => ({
-            platform: h.platform,
-            handle: h.handle,
-            verified: h.verified,
-            verifiedFollowers: h.verifiedFollowers,
-          })),
-        }),
-      });
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/api/users/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name,
+            email: formData.email,
+            phone: formData.phone,
+            followerCount: formData.followerCount,
+            socialHandles: socialHandles.map(h => ({
+              platform: h.platform,
+              handle: h.handle,
+              verified: h.verified,
+              verifiedFollowers: h.verifiedFollowers,
+            })),
+          }),
+        });
+      } catch (fetchError: any) {
+        // Handle network errors (server not running, CORS, blocked by client, etc.)
+        console.error('Network error:', fetchError);
+        const errorMessage = fetchError.message?.includes('Failed to fetch') || 
+                            fetchError.message?.includes('ERR_BLOCKED_BY_CLIENT') ||
+                            fetchError.name === 'TypeError'
+          ? 'Unable to connect to server. Please ensure the backend server is running on port 3001.'
+          : `Network error: ${fetchError.message || 'Unknown error'}`;
+        throw new Error(errorMessage);
+      }
+
+      // Check if response is ok before parsing JSON
+      if (!response.ok) {
+        let errorMessage = 'Registration failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          // If JSON parsing fails, use status text
+          errorMessage = response.statusText || `Server returned ${response.status}`;
+        }
+        throw new Error(errorMessage);
+      }
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
-      }
 
       // Success
       setUserId(data.user.id);
