@@ -1716,12 +1716,29 @@ async function verifyYouTube(handle) {
     if (channelId) {
       apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${channelId}&key=${YOUTUBE_API_KEY}`;
     } else if (username) {
-      // Try to get channel by username (forCustomUrl)
-      apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&forUsername=${username}&key=${YOUTUBE_API_KEY}`;
+      // For @username format, we need to search first, then get channel details
+      // YouTube API doesn't directly support @username lookup
+      try {
+        // First, search for the channel by handle
+        const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(username)}&key=${YOUTUBE_API_KEY}&maxResults=1`;
+        const searchResponse = await axios.get(searchUrl, { timeout: 10000 });
+        
+        if (searchResponse.data.items && searchResponse.data.items.length > 0) {
+          // Found channel via search, now get full details
+          const foundChannelId = searchResponse.data.items[0].id.channelId;
+          apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&id=${foundChannelId}&key=${YOUTUBE_API_KEY}`;
+        } else {
+          // Try forUsername (deprecated but might work for some channels)
+          apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&forUsername=${username}&key=${YOUTUBE_API_KEY}`;
+        }
+      } catch (searchError) {
+        // If search fails, try forUsername directly
+        apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics,snippet&forUsername=${username}&key=${YOUTUBE_API_KEY}`;
+      }
     } else {
       return {
         verified: false,
-        error: 'Invalid YouTube URL or handle format'
+        error: 'Invalid YouTube URL or handle format. Please provide a full YouTube URL or channel ID.'
       };
     }
 
@@ -1739,14 +1756,38 @@ async function verifyYouTube(handle) {
     } else {
       return {
         verified: false,
-        error: 'Channel not found'
+        error: 'Channel not found. Please provide a full YouTube channel URL (e.g., https://www.youtube.com/@channelname or https://www.youtube.com/channel/CHANNEL_ID)'
       };
     }
   } catch (error) {
-    console.error('YouTube verification error:', error.message);
+    console.error('YouTube verification error:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    
+    let errorMessage = 'Failed to verify YouTube channel';
+    if (error.response?.data?.error) {
+      const apiError = error.response.data.error;
+      if (apiError.message) {
+        errorMessage = apiError.message;
+      } else if (apiError.errors && apiError.errors.length > 0) {
+        errorMessage = apiError.errors[0].message || errorMessage;
+      }
+      
+      // Handle specific API errors
+      if (apiError.code === 403) {
+        errorMessage = 'YouTube API quota exceeded or access denied. Please check your API key.';
+      } else if (apiError.code === 400) {
+        errorMessage = 'Invalid YouTube channel format. Please provide a full URL or channel ID.';
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     return {
       verified: false,
-      error: error.response?.data?.error?.message || error.message || 'Failed to verify YouTube channel'
+      error: errorMessage
     };
   }
 }
