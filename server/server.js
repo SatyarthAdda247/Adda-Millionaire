@@ -1593,78 +1593,140 @@ async function verifyInstagram(handle) {
       // Parse HTML to extract follower count
       const html = response.data;
       
-      // Try to find follower count in JSON-LD or meta tags
-      // Instagram stores data in window._sharedData
+      let followers = 0;
+      let found = false;
+      
+      // Method 1: Try window._sharedData (most reliable)
       const sharedDataMatch = html.match(/window\._sharedData\s*=\s*({.+?});/);
       if (sharedDataMatch) {
         try {
           const sharedData = JSON.parse(sharedDataMatch[1]);
           const user = sharedData?.entry_data?.ProfilePage?.[0]?.graphql?.user;
-          if (user) {
-            const followers = parseInt(user.edge_followed_by?.count || 0);
-            return {
-              verified: true,
-              followers: followers,
-              username: username,
-              profileUrl: profileUrl,
-              profilePic: user.profile_pic_url,
-              fullName: user.full_name
-            };
+          if (user && user.edge_followed_by?.count) {
+            followers = parseInt(user.edge_followed_by.count);
+            found = true;
+            console.log(`Found followers via _sharedData: ${followers}`);
           }
         } catch (e) {
           console.error('Error parsing Instagram sharedData:', e.message);
         }
       }
 
-      // Try alternative: window.__additionalDataLoaded
-      const additionalDataMatch = html.match(/window\.__additionalDataLoaded\s*\([^,]+,\s*({.+?})\)/);
-      if (additionalDataMatch) {
-        try {
-          const data = JSON.parse(additionalDataMatch[1]);
-          const user = data?.graphql?.user;
-          if (user) {
-            const followers = parseInt(user.edge_followed_by?.count || 0);
-            return {
-              verified: true,
-              followers: followers,
-              username: username,
-              profileUrl: profileUrl
-            };
+      // Method 2: Try window.__additionalDataLoaded
+      if (!found) {
+        const additionalDataMatch = html.match(/window\.__additionalDataLoaded\s*\([^,]+,\s*({.+?})\)/);
+        if (additionalDataMatch) {
+          try {
+            const data = JSON.parse(additionalDataMatch[1]);
+            const user = data?.graphql?.user;
+            if (user && user.edge_followed_by?.count) {
+              followers = parseInt(user.edge_followed_by.count);
+              found = true;
+              console.log(`Found followers via __additionalDataLoaded: ${followers}`);
+            }
+          } catch (e) {
+            console.error('Error parsing Instagram additionalData:', e.message);
           }
-        } catch (e) {
-          console.error('Error parsing Instagram additionalData:', e.message);
         }
       }
 
-      // Fallback: Try to extract from meta tags
-      const metaMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/);
-      if (metaMatch) {
-        const description = metaMatch[1];
-        const followerMatch = description.match(/([\d,]+)\s+Followers/);
-        if (followerMatch) {
-          const followers = parseInt(followerMatch[1].replace(/,/g, ''));
-          return {
-            verified: true,
-            followers: followers,
-            username: username,
-            profileUrl: profileUrl
-          };
+      // Method 3: Try to extract from all script tags (look for JSON-LD or embedded JSON)
+      if (!found) {
+        const scriptMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi) || [];
+        for (const script of scriptMatches) {
+          try {
+            const jsonMatch = script.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+            if (jsonMatch) {
+              const jsonData = JSON.parse(jsonMatch[1]);
+              // Look for follower count in various structures
+              if (jsonData.interactionStatistic) {
+                for (const stat of jsonData.interactionStatistic) {
+                  if (stat.interactionType === 'https://schema.org/FollowAction' || stat.name === 'followers') {
+                    followers = parseInt(stat.userInteractionCount || 0);
+                    if (followers > 0) {
+                      found = true;
+                      console.log(`Found followers via JSON-LD: ${followers}`);
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {}
         }
       }
 
-      // Last resort: Try to find in script tags
-      const scriptMatches = html.match(/<script[^>]*>([\s\S]*?)<\/script>/g) || [];
-      for (const script of scriptMatches) {
-        const jsonMatch = script.match(/"edge_followed_by":\s*{\s*"count":\s*(\d+)/);
-        if (jsonMatch) {
-          const followers = parseInt(jsonMatch[1]);
-          return {
-            verified: true,
-            followers: followers,
-            username: username,
-            profileUrl: profileUrl
-          };
+      // Method 4: Try to find in any script tag with edge_followed_by pattern
+      if (!found) {
+        const scriptMatches = html.match(/<script[^>]*>([\s\S]*?)<\/script>/g) || [];
+        for (const script of scriptMatches) {
+          // Try multiple patterns
+          const patterns = [
+            /"edge_followed_by":\s*{\s*"count":\s*(\d+)/,
+            /"edge_followed_by":\s*{\s*"count":\s*"(\d+)"/,
+            /"follower_count":\s*(\d+)/,
+            /"followers":\s*(\d+)/,
+            /"edge_followed_by":\s*{\s*"count":\s*(\d+)/m,
+          ];
+          
+          for (const pattern of patterns) {
+            const match = script.match(pattern);
+            if (match) {
+              followers = parseInt(match[1]);
+              if (followers > 0) {
+                found = true;
+                console.log(`Found followers via script pattern: ${followers}`);
+                break;
+              }
+            }
+          }
+          if (found) break;
         }
+      }
+
+      // Method 5: Try to extract from meta tags
+      if (!found) {
+        const metaMatch = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+        if (metaMatch) {
+          const description = metaMatch[1];
+          const followerMatch = description.match(/([\d,]+)\s+Followers?/i);
+          if (followerMatch) {
+            followers = parseInt(followerMatch[1].replace(/,/g, ''));
+            found = true;
+            console.log(`Found followers via meta tag: ${followers}`);
+          }
+        }
+      }
+
+      // Method 6: Try to find in HTML content directly (for newer Instagram structure)
+      if (!found) {
+        const contentPatterns = [
+          /<span[^>]*>([\d,]+)\s*Followers?<\/span>/i,
+          /"([\d,]+)\s*Followers?"/i,
+          /followers["']?\s*:\s*["']?([\d,]+)/i,
+        ];
+        
+        for (const pattern of contentPatterns) {
+          const match = html.match(pattern);
+          if (match) {
+            followers = parseInt(match[1].replace(/,/g, ''));
+            if (followers > 0) {
+              found = true;
+              console.log(`Found followers via content pattern: ${followers}`);
+              break;
+            }
+          }
+        }
+      }
+
+      // If we found followers, return success
+      if (found && followers > 0) {
+        return {
+          verified: true,
+          followers: followers,
+          username: username,
+          profileUrl: profileUrl
+        };
       }
 
       // If we can't parse, try Puppeteer as fallback
@@ -1732,62 +1794,126 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
     let followers = 0;
     let found = false;
     
-    // Method 1: Try to extract from meta tag
+    // Method 1: Try to extract from page evaluation (most reliable with Puppeteer)
     try {
-      const metaDescription = await page.$eval('meta[property="og:description"]', el => el.content).catch(() => null);
-      if (metaDescription) {
-        const match = metaDescription.match(/([\d,]+)\s+Followers/i);
-        if (match) {
-          followers = parseInt(match[1].replace(/,/g, ''));
-          found = true;
+      const pageData = await page.evaluate(() => {
+        // Try to access window._sharedData
+        if (window._sharedData) {
+          try {
+            const user = window._sharedData?.entry_data?.ProfilePage?.[0]?.graphql?.user;
+            if (user && user.edge_followed_by?.count) {
+              return { followers: user.edge_followed_by.count, method: '_sharedData' };
+            }
+          } catch (e) {}
         }
+        
+        // Try to find in meta tags
+        const metaDesc = document.querySelector('meta[property="og:description"]');
+        if (metaDesc) {
+          const match = metaDesc.content.match(/([\d,]+)\s+Followers?/i);
+          if (match) {
+            return { followers: match[1].replace(/,/g, ''), method: 'meta' };
+          }
+        }
+        
+        // Try to find in visible text
+        const allText = document.body.innerText || document.body.textContent || '';
+        const textMatch = allText.match(/([\d,]+)\s+Followers?/i);
+        if (textMatch) {
+          return { followers: textMatch[1].replace(/,/g, ''), method: 'text' };
+        }
+        
+        return null;
+      });
+      
+      if (pageData && pageData.followers) {
+        followers = parseInt(pageData.followers);
+        found = true;
+        console.log(`Found followers via Puppeteer ${pageData.method}: ${followers}`);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Puppeteer evaluate error:', e.message);
+    }
     
     // Method 2: Try to extract from page content/scripts
     if (!found) {
       try {
         const pageContent = await page.content();
         
-        // Look for JSON data patterns
+        // Look for JSON data patterns (more comprehensive)
         const jsonMatches = [
           /"edge_followed_by":\s*{\s*"count":\s*(\d+)/,
+          /"edge_followed_by":\s*{\s*"count":\s*"(\d+)"/,
           /"follower_count":\s*(\d+)/,
           /"followers":\s*(\d+)/,
-          /"edge_followed_by":\s*{\s*"count":\s*"(\d+)"/,
+          /"edge_followed_by":\s*{\s*"count":\s*(\d+)/m,
+          /followers["']?\s*:\s*["']?(\d+)/i,
         ];
         
         for (const regex of jsonMatches) {
           const match = pageContent.match(regex);
           if (match) {
             followers = parseInt(match[1]);
-            found = true;
-            break;
+            if (followers > 0) {
+              found = true;
+              console.log(`Found followers via Puppeteer content pattern: ${followers}`);
+              break;
+            }
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Puppeteer content extraction error:', e.message);
+      }
     }
     
-    // Method 3: Try to find follower count in visible text
+    // Method 3: Try to find follower count in visible text elements
     if (!found) {
       try {
         const followerText = await page.evaluate(() => {
-          const elements = Array.from(document.querySelectorAll('*'));
-          for (const el of elements) {
-            const text = el.textContent || '';
+          // Look for specific selectors that might contain follower count
+          const selectors = [
+            'a[href*="/followers/"] span',
+            'span:contains("followers")',
+            '[data-testid="followers"]',
+            'header section ul li span',
+          ];
+          
+          for (const selector of selectors) {
+            try {
+              const elements = document.querySelectorAll(selector);
+              for (const el of elements) {
+                const text = el.textContent || el.innerText || '';
+                const match = text.match(/([\d,]+)\s*Followers?/i);
+                if (match) {
+                  return match[1];
+                }
+              }
+            } catch (e) {}
+          }
+          
+          // Fallback: search all elements
+          const allElements = Array.from(document.querySelectorAll('*'));
+          for (const el of allElements) {
+            const text = el.textContent || el.innerText || '';
             const match = text.match(/([\d,]+)\s+Followers?/i);
-            if (match) {
+            if (match && parseInt(match[1].replace(/,/g, '')) > 0) {
               return match[1];
             }
           }
+          
           return null;
         });
         
         if (followerText) {
           followers = parseInt(followerText.replace(/,/g, ''));
-          found = true;
+          if (followers > 0) {
+            found = true;
+            console.log(`Found followers via Puppeteer text extraction: ${followers}`);
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Puppeteer text extraction error:', e.message);
+      }
     }
     
     await browser.close();
