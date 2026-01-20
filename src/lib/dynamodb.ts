@@ -16,6 +16,10 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 
 // AWS Configuration from environment variables
+// These should be set in Vercel environment variables:
+// - VITE_AWS_REGION
+// - VITE_AWS_ACCESS_KEY_ID
+// - VITE_AWS_SECRET_ACCESS_KEY
 const AWS_REGION = import.meta.env.VITE_AWS_REGION || 'ap-south-1';
 const AWS_ACCESS_KEY_ID = import.meta.env.VITE_AWS_ACCESS_KEY_ID;
 const AWS_SECRET_ACCESS_KEY = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY;
@@ -125,7 +129,22 @@ export async function getUserById(userId: string) {
 
 // Check if DynamoDB is configured
 export function isDynamoDBConfigured(): boolean {
-  return !!(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
+  const configured = !!(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
+  
+  // Log configuration status in development
+  if (typeof window !== 'undefined' && (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))) {
+    if (configured) {
+      console.log('✅ DynamoDB configured:', {
+        region: AWS_REGION,
+        accessKeyId: AWS_ACCESS_KEY_ID ? `${AWS_ACCESS_KEY_ID.substring(0, 8)}...` : 'not set',
+        secretAccessKey: AWS_SECRET_ACCESS_KEY ? 'set' : 'not set'
+      });
+    } else {
+      console.warn('⚠️ DynamoDB not configured. Set VITE_AWS_ACCESS_KEY_ID and VITE_AWS_SECRET_ACCESS_KEY in environment variables.');
+    }
+  }
+  
+  return configured;
 }
 
 // Export table names

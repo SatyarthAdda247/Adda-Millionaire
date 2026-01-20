@@ -5,9 +5,28 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // AWS Configuration
+// These should be set in environment variables (.env file or deployment platform):
+// - AWS_REGION
+// - AWS_ACCESS_KEY_ID
+// - AWS_SECRET_ACCESS_KEY
 const AWS_REGION = process.env.AWS_REGION || 'ap-south-1';
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
 const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+
+// Log configuration status on server startup
+if (AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY) {
+  console.log('✅ DynamoDB configured:', {
+    region: AWS_REGION,
+    accessKeyId: `${AWS_ACCESS_KEY_ID.substring(0, 8)}...`,
+    tables: {
+      users: process.env.DYNAMODB_USERS_TABLE || 'edurise-users',
+      links: process.env.DYNAMODB_LINKS_TABLE || 'edurise-links',
+      analytics: process.env.DYNAMODB_ANALYTICS_TABLE || 'edurise-analytics'
+    }
+  });
+} else {
+  console.warn('⚠️ DynamoDB credentials not found. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in environment variables.');
+}
 
 // Table names
 const USERS_TABLE = process.env.DYNAMODB_USERS_TABLE || 'edurise-users';
