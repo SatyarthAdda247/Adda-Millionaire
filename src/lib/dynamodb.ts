@@ -131,16 +131,33 @@ export async function getUserById(userId: string) {
 export function isDynamoDBConfigured(): boolean {
   const configured = !!(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
   
-  // Log configuration status in development
-  if (typeof window !== 'undefined' && (window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1'))) {
+  // Log configuration status (always log on Vercel to help debug)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const isProduction = hostname.includes('vercel.app') || hostname.includes('adda-millionaire');
+    const isDevelopment = hostname.includes('localhost') || hostname.includes('127.0.0.1');
+    
     if (configured) {
       console.log('✅ DynamoDB configured:', {
         region: AWS_REGION,
         accessKeyId: AWS_ACCESS_KEY_ID ? `${AWS_ACCESS_KEY_ID.substring(0, 8)}...` : 'not set',
-        secretAccessKey: AWS_SECRET_ACCESS_KEY ? 'set' : 'not set'
+        secretAccessKey: AWS_SECRET_ACCESS_KEY ? 'set' : 'not set',
+        tables: {
+          users: USERS_TABLE,
+          links: LINKS_TABLE,
+          analytics: ANALYTICS_TABLE
+        }
       });
     } else {
-      console.warn('⚠️ DynamoDB not configured. Set VITE_AWS_ACCESS_KEY_ID and VITE_AWS_SECRET_ACCESS_KEY in environment variables.');
+      if (isProduction) {
+        console.error('❌ DynamoDB NOT configured! Form will use backend API.');
+        console.error('Set these in Vercel environment variables:');
+        console.error('  - VITE_AWS_REGION');
+        console.error('  - VITE_AWS_ACCESS_KEY_ID');
+        console.error('  - VITE_AWS_SECRET_ACCESS_KEY');
+      } else if (isDevelopment) {
+        console.warn('⚠️ DynamoDB not configured. Set VITE_AWS_ACCESS_KEY_ID and VITE_AWS_SECRET_ACCESS_KEY in .env.local');
+      }
     }
   }
   

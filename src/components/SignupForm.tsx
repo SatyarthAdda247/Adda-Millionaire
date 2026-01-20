@@ -67,6 +67,11 @@ const SignupForm = () => {
       // Check if DynamoDB is configured (direct frontend access)
       const useDirectDynamoDB = isDynamoDBConfigured();
       
+      // Log which method is being used
+      if (typeof window !== 'undefined') {
+        console.log('📝 Form submission:', useDirectDynamoDB ? 'Using DynamoDB directly' : 'Using backend API');
+      }
+      
       let data;
       
       if (useDirectDynamoDB) {
@@ -106,7 +111,9 @@ const SignupForm = () => {
         };
 
         // Save directly to DynamoDB
+        console.log('💾 Saving to DynamoDB...', { email: sanitizedEmail, name: newUser.name });
         const result = await saveUser(newUser);
+        console.log('✅ Saved to DynamoDB:', result);
         data = {
           success: true,
           user: {
