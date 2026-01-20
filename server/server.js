@@ -11,6 +11,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import crypto from 'crypto';
 import puppeteer from 'puppeteer';
+import * as dynamodb from './dynamodb.js';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DB_PATH = process.env.DB_PATH || join(__dirname, 'data', 'database.json');
+const USE_DYNAMODB = process.env.USE_DYNAMODB !== 'false'; // Default to true, set to 'false' to use JSON file
 const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY;
 const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
 const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
@@ -280,17 +282,26 @@ async function ensureDataDir() {
 }
 
 // Database helper functions
+// Legacy JSON file functions (fallback if DynamoDB not enabled)
 async function readDB() {
+  if (USE_DYNAMODB) {
+    // Return empty structure for compatibility, but data will come from DynamoDB
+    return { users: [], links: [], analytics: [] };
+  }
   try {
     const data = await fs.readFile(DB_PATH, 'utf-8');
     return JSON.parse(data);
   } catch (error) {
     console.error('Error reading database:', error);
-    return { users: [], links: [] };
+    return { users: [], links: [], analytics: [] };
   }
 }
 
 async function writeDB(data) {
+  if (USE_DYNAMODB) {
+    // No-op when using DynamoDB
+    return true;
+  }
   try {
     await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
     return true;
@@ -2536,16 +2547,30 @@ app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res)
     const sanitizedEmail = email.trim().toLowerCase().substring(0, 255);
     const sanitizedPhone = phone.trim().substring(0, 20);
 
-    const db = await readDB();
-
     // Check if user already exists
-    const existingUser = db.users.find(u => u.email === sanitizedEmail);
+    let existingUser = null;
+    let existingLink = null;
+    
+    if (USE_DYNAMODB) {
+      existingUser = await dynamodb.getUserByEmail(sanitizedEmail);
+      if (existingUser) {
+        const links = await dynamodb.getLinksByUserId(existingUser.id);
+        existingLink = links.length > 0 ? links[0] : null;
+      }
+    } else {
+      const db = await readDB();
+      existingUser = db.users.find(u => u.email === sanitizedEmail);
+      if (existingUser) {
+        existingLink = db.links.find(l => l.userId === existingUser.id);
+      }
+    }
+    
     if (existingUser) {
       return res.status(409).json({ 
         error: 'User already exists',
         details: 'A user with this email already exists',
         userId: existingUser.id,
-        trackierLink: db.links.find(l => l.userId === existingUser.id)?.link || null
+        trackierLink: existingLink?.link || null
       });
     }
 
@@ -2588,8 +2613,13 @@ app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res)
     };
 
     // Save user to database (link will be created after approval)
-    db.users.push(newUser);
-    await writeDB(db);
+    if (USE_DYNAMODB) {
+      await dynamodb.saveUser(newUser);
+    } else {
+      const db = await readDB();
+      db.users.push(newUser);
+      await writeDB(db);
+    }
 
     res.status(201).json({
       success: true,
@@ -2611,18 +2641,24 @@ app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res)
 // Get user by ID (with stats from AppTrove)
 app.get('/api/users/:id', async (req, res) => {
   try {
-    const db = await readDB();
-    const user = db.users.find(u => u.id === req.params.id);
+    let user, userLinks, userAnalytics;
     
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    if (USE_DYNAMODB) {
+      user = await dynamodb.getUserById(req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      userLinks = await dynamodb.getLinksByUserId(user.id);
+      userAnalytics = await dynamodb.getAnalyticsByUserId(user.id);
+    } else {
+      const db = await readDB();
+      user = db.users.find(u => u.id === req.params.id);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      userLinks = db.links.filter(l => l.userId === user.id);
+      userAnalytics = db.analytics.filter(a => a.userId === user.id);
     }
-
-    // Get user's links
-    const userLinks = db.links.filter(l => l.userId === user.id);
-    
-    // Calculate stats from local analytics
-    const userAnalytics = db.analytics.filter(a => a.userId === user.id);
     const totalClicks = userAnalytics.reduce((sum, a) => sum + (a.clicks || 0), 0);
     const totalConversions = userAnalytics.reduce((sum, a) => sum + (a.conversions || 0), 0);
     const totalEarnings = userAnalytics.reduce((sum, a) => sum + (a.earnings || 0), 0);
@@ -2724,20 +2760,27 @@ app.get('/api/users/email/:email', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, r
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    const db = await readDB();
-    const user = db.users.find(u => u.email === email);
+    let user, userLinks;
     
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    if (USE_DYNAMODB) {
+      user = await dynamodb.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      userLinks = await dynamodb.getLinksByUserId(user.id);
+    } else {
+      const db = await readDB();
+      user = db.users.find(u => u.email === email);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      userLinks = db.links.filter(l => l.userId === user.id);
     }
 
     // Check if user is deleted
     if (user.status === 'deleted' || user.approvalStatus === 'deleted') {
       return res.status(403).json({ error: 'User account has been deleted' });
     }
-
-    // Get user's links
-    const userLinks = db.links.filter(l => l.userId === user.id);
 
     res.json({
       ...user,
@@ -2760,24 +2803,31 @@ app.get('/api/users/phone/:phone', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, r
       return res.status(400).json({ error: 'Invalid phone number format' });
     }
 
-    const db = await readDB();
-    // Normalize phone numbers for comparison (remove non-digits)
-    const user = db.users.find(u => {
-      const userPhoneDigits = u.phone.replace(/\D/g, '');
-      return userPhoneDigits === phoneDigits || userPhoneDigits.endsWith(phoneDigits) || phoneDigits.endsWith(userPhoneDigits);
-    });
+    let user, userLinks;
     
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    if (USE_DYNAMODB) {
+      user = await dynamodb.getUserByPhone(phone);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      userLinks = await dynamodb.getLinksByUserId(user.id);
+    } else {
+      const db = await readDB();
+      // Normalize phone numbers for comparison (remove non-digits)
+      user = db.users.find(u => {
+        const userPhoneDigits = u.phone.replace(/\D/g, '');
+        return userPhoneDigits === phoneDigits || userPhoneDigits.endsWith(phoneDigits) || phoneDigits.endsWith(userPhoneDigits);
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      userLinks = db.links.filter(l => l.userId === user.id);
     }
 
     // Check if user is deleted
     if (user.status === 'deleted' || user.approvalStatus === 'deleted') {
       return res.status(403).json({ error: 'User account has been deleted' });
     }
-
-    // Get user's links
-    const userLinks = db.links.filter(l => l.userId === user.id);
 
     res.json({
       ...user,
@@ -2791,12 +2841,24 @@ app.get('/api/users/phone/:phone', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, r
 // Get all users (admin endpoint) with analytics
 app.get('/api/users', isAdmin, async (req, res) => {
   try {
-    const db = await readDB();
     const { search, platform, status, approvalStatus, sortBy, sortOrder } = req.query;
     
-    let users = db.users.map(user => {
-      const userLinks = db.links.filter(l => l.userId === user.id);
-      const userAnalytics = db.analytics.filter(a => a.userId === user.id);
+    let users, allLinks, allAnalytics;
+    
+    if (USE_DYNAMODB) {
+      users = await dynamodb.getAllUsers({ search, platform, status, approvalStatus });
+      allLinks = await dynamodb.getAllLinks();
+      allAnalytics = await dynamodb.getAllAnalytics();
+    } else {
+      const db = await readDB();
+      users = db.users;
+      allLinks = db.links;
+      allAnalytics = db.analytics;
+    }
+    
+    let processedUsers = users.map(user => {
+      const userLinks = allLinks.filter(l => l.userId === user.id);
+      const userAnalytics = allAnalytics.filter(a => a.userId === user.id);
       
       // Calculate totals
       const totalClicks = userAnalytics.reduce((sum, a) => sum + (a.clicks || 0), 0);
@@ -2822,35 +2884,35 @@ app.get('/api/users', isAdmin, async (req, res) => {
     // Filter out deleted users by default (unless explicitly requested)
     const includeDeleted = req.query.includeDeleted === 'true';
     if (!includeDeleted) {
-      users = users.filter(u => u.status !== 'deleted' && u.approvalStatus !== 'deleted');
+      processedUsers = processedUsers.filter(u => u.status !== 'deleted' && u.approvalStatus !== 'deleted');
     }
     
-    // Apply filters
-    if (search) {
+    // Apply filters (if not already applied by DynamoDB)
+    if (search && !USE_DYNAMODB) {
       const searchLower = search.toLowerCase();
-      users = users.filter(u => 
+      processedUsers = processedUsers.filter(u => 
         u.name.toLowerCase().includes(searchLower) ||
         u.email.toLowerCase().includes(searchLower) ||
         (u.socialHandle && u.socialHandle.toLowerCase().includes(searchLower))
       );
     }
     
-    if (platform) {
-      users = users.filter(u => u.platform === platform);
+    if (platform && !USE_DYNAMODB) {
+      processedUsers = processedUsers.filter(u => u.platform === platform);
     }
     
-    if (approvalStatus) {
-      users = users.filter(u => (u.approvalStatus || 'pending') === approvalStatus);
+    if (approvalStatus && !USE_DYNAMODB) {
+      processedUsers = processedUsers.filter(u => (u.approvalStatus || 'pending') === approvalStatus);
     }
     
-    if (status) {
-      users = users.filter(u => (u.status || 'active') === status);
+    if (status && !USE_DYNAMODB) {
+      processedUsers = processedUsers.filter(u => (u.status || 'active') === status);
     }
     
     // Apply sorting
     if (sortBy) {
       const order = sortOrder === 'desc' ? -1 : 1;
-      users.sort((a, b) => {
+      processedUsers.sort((a, b) => {
         if (sortBy === 'name') {
           return a.name.localeCompare(b.name) * order;
         } else if (sortBy === 'createdAt') {
@@ -2866,7 +2928,7 @@ app.get('/api/users', isAdmin, async (req, res) => {
       });
     }
     
-    res.json(users);
+    res.json(processedUsers);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch users', details: error.message });
   }
@@ -3829,7 +3891,12 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log('\n🚀 Server started successfully!');
       console.log(`📍 URL: http://localhost:${PORT}`);
-      console.log(`📊 Database: ${DB_PATH}`);
+      if (USE_DYNAMODB) {
+        console.log(`📊 Database: DynamoDB (${process.env.AWS_REGION || 'ap-south-1'})`);
+        console.log(`   Tables: edurise-users, edurise-links, edurise-analytics`);
+      } else {
+        console.log(`📊 Database: JSON File (${DB_PATH})`);
+      }
       console.log(`🔑 AppTrove API: ${APPTROVE_API_KEY ? '✅ Configured' : '⚠️  Not configured (using placeholder links)'}`);
       console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
       console.log(`\n📝 Available endpoints:`);

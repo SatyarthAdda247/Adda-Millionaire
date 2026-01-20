@@ -24,6 +24,8 @@ const followerRanges = [
 ];
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { saveUser, getUserByEmail, isDynamoDBConfigured } from "@/lib/dynamodb";
+import { v4 as uuidv4 } from "uuid";
 
 interface SocialHandle {
   id: string;
@@ -62,56 +64,120 @@ const SignupForm = () => {
     setIsSubmitting(true);
 
     try {
-      let response;
-      try {
-        response = await fetch(`${API_BASE_URL}/api/users/register`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            followerCount: formData.followerCount,
-            socialHandles: socialHandles.map(h => ({
-              platform: h.platform,
-              handle: h.handle,
-            })),
-          }),
-        });
-      } catch (fetchError: any) {
-        // Handle network errors (server not running, CORS, blocked by client, etc.)
-        console.error('Network error:', fetchError);
-        const errorMsg = fetchError?.message || String(fetchError) || 'Unknown error';
-        const isNetworkError = 
-          errorMsg.includes('Failed to fetch') || 
-          errorMsg.includes('ERR_BLOCKED_BY_CLIENT') ||
-          errorMsg.includes('ERR_CONNECTION_REFUSED') ||
-          errorMsg.includes('NetworkError') ||
-          fetchError?.name === 'TypeError' ||
-          fetchError?.name === 'NetworkError';
+      // Check if DynamoDB is configured (direct frontend access)
+      const useDirectDynamoDB = isDynamoDBConfigured();
+      
+      let data;
+      
+      if (useDirectDynamoDB) {
+        // Direct DynamoDB access from frontend
+        const sanitizedEmail = formData.email.trim().toLowerCase();
         
-        const errorMessage = isNetworkError
-          ? `Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend server is running. Start it with: cd server && npm start`
-          : `Network error: ${errorMsg}`;
-        throw new Error(errorMessage);
-      }
-
-      // Check if response is ok before parsing JSON
-      if (!response.ok) {
-        let errorMessage = 'Registration failed';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch {
-          // If JSON parsing fails, use status text
-          errorMessage = response.statusText || `Server returned ${response.status}`;
+        // Check if user already exists
+        const existingUser = await getUserByEmail(sanitizedEmail);
+        if (existingUser) {
+          throw new Error('A user with this email already exists');
         }
-        throw new Error(errorMessage);
-      }
 
-      const data = await response.json();
+        // Process social handles
+        const processedHandles = socialHandles.map(h => ({
+          platform: (h.platform || '').trim(),
+          handle: (h.handle || '').trim(),
+        })).filter(h => h.platform && h.handle);
+
+        // Create new user
+        const newUser = {
+          id: uuidv4(),
+          name: formData.name.trim(),
+          email: sanitizedEmail,
+          phone: formData.phone.trim(),
+          platform: processedHandles[0]?.platform || '',
+          socialHandle: processedHandles[0]?.handle || '',
+          followerCount: formData.followerCount,
+          socialHandles: processedHandles,
+          totalVerifiedFollowers: 0,
+          status: 'pending',
+          approvalStatus: 'pending',
+          adminNotes: '',
+          approvedBy: null,
+          approvedAt: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        // Save directly to DynamoDB
+        const result = await saveUser(newUser);
+        data = {
+          success: true,
+          user: {
+            id: result.user.id,
+            name: result.user.name,
+            email: result.user.email,
+            approvalStatus: 'pending'
+          },
+          message: 'Your application has been submitted successfully. It is pending admin approval. You will receive an email once approved.'
+        };
+      } else {
+        // Fallback to backend API
+        let response;
+        try {
+          response = await fetch(`${API_BASE_URL}/api/users/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone,
+              followerCount: formData.followerCount,
+              socialHandles: socialHandles.map(h => ({
+                platform: h.platform,
+                handle: h.handle,
+              })),
+            }),
+          });
+        } catch (fetchError: any) {
+          // Handle network errors (server not running, CORS, blocked by client, etc.)
+          console.error('Network error:', fetchError);
+          const errorMsg = fetchError?.message || String(fetchError) || 'Unknown error';
+          const isNetworkError = 
+            errorMsg.includes('Failed to fetch') || 
+            errorMsg.includes('ERR_BLOCKED_BY_CLIENT') ||
+            errorMsg.includes('ERR_CONNECTION_REFUSED') ||
+            errorMsg.includes('NetworkError') ||
+            errorMsg.includes('Network request failed') ||
+            fetchError?.name === 'TypeError' ||
+            fetchError?.name === 'NetworkError';
+          
+          // Check if we're on Vercel production
+          const isProduction = typeof window !== 'undefined' && 
+            (window.location.hostname.includes('vercel.app') || 
+             window.location.hostname.includes('adda-millionaire'));
+          
+          const errorMessage = isNetworkError
+            ? isProduction
+              ? `Unable to connect to backend server. Please check that VITE_API_URL is set correctly in Vercel environment variables and the backend server is running.`
+              : `Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend server is running. Start it with: cd server && npm start`
+            : `Network error: ${errorMsg}`;
+          throw new Error(errorMessage);
+        }
+
+        // Check if response is ok before parsing JSON
+        if (!response.ok) {
+          let errorMessage = 'Registration failed';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch {
+            // If JSON parsing fails, use status text
+            errorMessage = response.statusText || `Server returned ${response.status}`;
+          }
+          throw new Error(errorMessage);
+        }
+
+        data = await response.json();
+      }
 
       // Success
       setUserId(data.user.id);
