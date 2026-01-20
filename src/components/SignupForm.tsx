@@ -205,11 +205,17 @@ const SignupForm = () => {
       setSocialHandles([]);
 
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('❌ Registration error:', error);
       let errorMessage = "An unexpected error occurred. Please try again.";
       
       if (error instanceof Error) {
         errorMessage = error.message;
+        // Provide helpful error messages
+        if (errorMessage.includes('AWS credentials not configured')) {
+          errorMessage = 'DynamoDB credentials not found. Please check Vercel environment variables (VITE_AWS_ACCESS_KEY_ID, VITE_AWS_SECRET_ACCESS_KEY).';
+        } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('CORS')) {
+          errorMessage = 'Unable to connect to server. If using DynamoDB directly, check that credentials are set correctly.';
+        }
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
