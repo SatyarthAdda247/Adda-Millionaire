@@ -51,14 +51,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const affiliateName = affiliateData?.name || linkData?.name || '';
     const affiliateEmail = affiliateData?.email || linkData?.email || '';
     
-    // Build comprehensive payload with tracking metadata
-    const payload: any = {
+    // Build payload variations - AppTrove might expect different formats
+    const basePayload = {
       name: linkData?.name || `${affiliateName} - Affiliate Link` || 'Affiliate Link',
       campaign: campaign,
       deepLinking: linkData?.deepLink || '',
       status: linkData?.status || 'active',
+    };
+
+    // Payload variation 1: With templateId in body
+    const payloadWithTemplateId: any = {
+      ...basePayload,
       templateId: templateId,
-      // Include all tracking parameters
+      template_id: templateId, // Some APIs use snake_case
       metadata: {
         affiliateId: affiliateId,
         affiliateName: affiliateName,
@@ -68,20 +73,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         source: 'admin_dashboard',
         ...linkData?.metadata,
       },
-      // Additional tracking fields that AppTrove might expect
       ...(linkData?.utm_source && { utm_source: linkData.utm_source }),
       ...(linkData?.utm_medium && { utm_medium: linkData.utm_medium }),
       ...(linkData?.utm_campaign && { utm_campaign: linkData.utm_campaign }),
       ...(linkData?.utm_term && { utm_term: linkData.utm_term }),
       ...(linkData?.utm_content && { utm_content: linkData.utm_content }),
-      // Include any other linkData fields
       ...linkData,
     };
 
-    // Remove duplicate templateId if it was in linkData
-    if (payload.templateId !== templateId) {
-      payload.templateId = templateId;
-    }
+    // Payload variation 2: Minimal payload (some endpoints might reject extra fields)
+    const payloadMinimal: any = {
+      name: basePayload.name,
+      campaign: basePayload.campaign,
+      templateId: templateId,
+    };
 
     // Try multiple endpoints and auth methods (comprehensive fallback)
     const endpoints: Array<{ url: string; auth: 'api-key' | 'sdk-key' | 'secret' | 'basic'; headers: Record<string, string> }> = [];
@@ -104,13 +109,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         };
 
         // Set authentication headers based on method
-        if (authMethod === 'api-key' && APPTROVE_API_KEY) {
-          headers['api-key'] = APPTROVE_API_KEY;
-          headers['X-API-Key'] = APPTROVE_API_KEY;
-        } else if (authMethod === 'sdk-key' && APPTROVE_SDK_KEY) {
+        // SDK Key is tried first since it's hardcoded and most likely to work
+        if (authMethod === 'sdk-key' && APPTROVE_SDK_KEY) {
           headers['api-key'] = APPTROVE_SDK_KEY;
           headers['X-SDK-Key'] = APPTROVE_SDK_KEY;
           headers['x-sdk-key'] = APPTROVE_SDK_KEY; // lowercase variant
+          headers['X-API-Key'] = APPTROVE_SDK_KEY; // Some endpoints use this
+          headers['Authorization'] = `Bearer ${APPTROVE_SDK_KEY}`; // Some endpoints use Bearer
+        } else if (authMethod === 'api-key' && APPTROVE_API_KEY) {
+          headers['api-key'] = APPTROVE_API_KEY;
+          headers['X-API-Key'] = APPTROVE_API_KEY;
+          headers['Authorization'] = `Bearer ${APPTROVE_API_KEY}`;
         } else if (authMethod === 'secret' && APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
           headers['secret-id'] = APPTROVE_SECRET_ID;
           headers['secret-key'] = APPTROVE_SECRET_KEY;
@@ -134,16 +143,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let lastError: any = null;
     let lastResponse: any = null;
 
-    // Try each endpoint
+    // Try each endpoint with different payload variations
+    const payloadVariations = [
+      { payload: payloadWithTemplateId, label: 'full' },
+      { payload: payloadMinimal, label: 'minimal' },
+    ];
+
     for (const endpoint of endpoints) {
-      try {
-        console.log(`[AppTrove] Trying endpoint: ${endpoint.url} with auth: ${endpoint.auth}`);
-        
-        const response = await fetch(endpoint.url, {
-          method: 'POST',
-          headers: endpoint.headers,
-          body: JSON.stringify(payload),
-        });
+      for (const payloadVar of payloadVariations) {
+        try {
+          console.log(`[AppTrove] Trying endpoint: ${endpoint.url} with auth: ${endpoint.auth}, payload: ${payloadVar.label}`);
+          
+          const response = await fetch(endpoint.url, {
+            method: 'POST',
+            headers: endpoint.headers,
+            body: JSON.stringify(payloadVar.payload),
+          });
 
         const responseText = await response.text();
         let data: any = null;
@@ -207,13 +222,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
-        // If not successful, log and try next endpoint
-        lastError = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
-        console.log(`[AppTrove] Endpoint failed: ${endpoint.url} - ${lastError}`);
-      } catch (error: any) {
-        lastError = error.message || 'Network error';
-        console.error(`[AppTrove] Endpoint error: ${endpoint.url}`, error);
-        continue; // Try next endpoint
+          // If not successful, log and try next payload variation or endpoint
+          const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
+          if (response.status !== 404) {
+            // 404 means endpoint doesn't exist, try next
+            // Other errors might mean auth/payload issue, try next payload variation
+            lastError = errorMsg;
+            console.log(`[AppTrove] Endpoint failed: ${endpoint.url} (${payloadVar.label}) - ${errorMsg}`);
+          }
+        } catch (error: any) {
+          lastError = error.message || 'Network error';
+          console.error(`[AppTrove] Endpoint error: ${endpoint.url} (${payloadVar.label})`, error);
+          continue; // Try next payload variation or endpoint
+        }
       }
     }
 
