@@ -8,16 +8,17 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  try {
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
 
-  const { templateId, linkData } = req.body;
+    const { templateId, linkData } = req.body;
 
-  if (!templateId) {
-    return res.status(400).json({ error: 'Template ID is required' });
-  }
+    if (!templateId) {
+      return res.status(400).json({ error: 'Template ID is required' });
+    }
 
   // Get AppTrove credentials from environment variables
   // Vercel serverless functions can access env vars with or without VITE_ prefix
@@ -141,10 +142,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // All endpoints failed
-  return res.status(500).json({
-    success: false,
-    error: `Failed to create link in template ${templateId}`,
-    details: lastError || 'All AppTrove API endpoints failed',
-  });
+    // All endpoints failed
+    return res.status(500).json({
+      success: false,
+      error: `Failed to create link in template ${templateId}`,
+      details: lastError || 'All AppTrove API endpoints failed',
+    });
+  } catch (error: any) {
+    console.error('Serverless function error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message || 'Unknown error occurred',
+    });
+  }
 }

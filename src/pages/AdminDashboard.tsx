@@ -732,80 +732,93 @@ const AdminDashboard = () => {
         let templateId = null;
         let linkError = null;
         
-        // Try to automatically create a unilink
+        // Try to automatically create a unilink (silently fail if it doesn't work)
         try {
           // Always use the hardcoded template ID: "Millionaires Adda" (wBehUW)
           const templateIdToUse = "wBehUW";
           
+          // Only try if AppTrove is configured (SDK Key is hardcoded, so this should always be true)
           if (isAppTroveConfigured()) {
             templateId = templateIdToUse;
             
             console.log(`🔗 Creating unilink in template ${templateIdToUse} for ${selectedAffiliate.name}...`);
             
-            // Create a new link from the template
-            const createData = await createLink(templateIdToUse, {
-              name: `${selectedAffiliate.name} - Affiliate Link`,
-              userId: selectedAffiliate.id,
-              campaign: `${selectedAffiliate.name}-affiliate`.toLowerCase().replace(/\s+/g, '-').substring(0, 50),
-              status: 'active'
-            });
-            
-            if (createData.success && createData.unilink) {
-              unilink = createData.unilink;
-              linkId = createData.link?.id || uuidv4();
-              
-              console.log(`✅ UniLink created: ${unilink}`);
-              
-              // Save link to DynamoDB
-              const linkData = {
-                id: linkId,
+            try {
+              // Create a new link from the template
+              const createData = await createLink(templateIdToUse, {
+                name: `${selectedAffiliate.name} - Affiliate Link`,
                 userId: selectedAffiliate.id,
-                unilink,
-                templateId: templateIdToUse,
-                createdAt: new Date().toISOString(),
-              };
-              
-              await saveLink(linkData);
-              
-              // Update user with assigned link
-              await updateUser(selectedAffiliate.id, {
-                approvalStatus: 'approved',
-                approvedAt: new Date().toISOString(),
-                approvedBy: user?.email || 'admin',
-                adminNotes: adminNotes || undefined,
-                assignedLink: unilink,
-                linkId: linkId,
-                templateId: templateIdToUse,
+                campaign: `${selectedAffiliate.name}-affiliate`.toLowerCase().replace(/\s+/g, '-').substring(0, 50),
+                status: 'active'
               });
-            } else {
-              linkError = createData.error || 'Failed to create unilink - AppTrove API may not support programmatic link creation from browser';
-              console.error('❌ Link creation failed:', linkError);
               
-              // Still approve the user even if link creation fails
-              await updateUser(selectedAffiliate.id, {
-                approvalStatus: 'approved',
-                approvedAt: new Date().toISOString(),
-                approvedBy: user?.email || 'admin',
-                adminNotes: adminNotes || undefined,
-              });
+              if (createData.success && createData.unilink) {
+                unilink = createData.unilink;
+                linkId = createData.link?.id || uuidv4();
+                
+                console.log(`✅ UniLink created: ${unilink}`);
+                
+                // Save link to DynamoDB
+                const linkData = {
+                  id: linkId,
+                  userId: selectedAffiliate.id,
+                  unilink,
+                  templateId: templateIdToUse,
+                  createdAt: new Date().toISOString(),
+                };
+                
+                await saveLink(linkData);
+                
+                // Update user with assigned link
+                await updateUser(selectedAffiliate.id, {
+                  approvalStatus: 'approved',
+                  approvedAt: new Date().toISOString(),
+                  approvedBy: user?.email || 'admin',
+                  adminNotes: adminNotes || undefined,
+                  assignedLink: unilink,
+                  linkId: linkId,
+                  templateId: templateIdToUse,
+                });
+                
+                // Success - exit early
+                toast({
+                  title: "✅ Approved & UniLink Created",
+                  description: `${selectedAffiliate.name} approved. UniLink: ${unilink}`,
+                  duration: 5000,
+                });
+                
+                setApprovalDialogOpen(false);
+                setAdminNotes("");
+                setSelectedAffiliate(null);
+                fetchAffiliates();
+                return; // Exit early on success
+              } else {
+                // Link creation failed, but don't show error - just approve silently
+                linkError = createData.error || 'UniLink creation unavailable';
+                console.warn('⚠️ Link creation failed (non-critical):', linkError);
+              }
+            } catch (linkApiError) {
+              // API call failed - don't crash, just log
+              linkError = linkApiError instanceof Error ? linkApiError.message : 'UniLink creation unavailable';
+              console.warn('⚠️ Link creation API error (non-critical):', linkApiError);
             }
-          } else {
-            // AppTrove not configured
-            linkError = 'AppTrove API not configured. Please set VITE_APPTROVE_API_KEY or VITE_APPTROVE_SECRET_ID + VITE_APPTROVE_SECRET_KEY in Vercel environment variables.';
-            
-            // Still approve the user
-            await updateUser(selectedAffiliate.id, {
-              approvalStatus: 'approved',
-              approvedAt: new Date().toISOString(),
-              approvedBy: user?.email || 'admin',
-              adminNotes: adminNotes || undefined,
-            });
           }
-        } catch (linkCreationError) {
-          console.error('Error creating unilink:', linkCreationError);
-          linkError = linkCreationError instanceof Error ? linkCreationError.message : 'Failed to create unilink';
           
-          // Still approve the user even if link creation fails
+          // If we get here, link creation failed or wasn't attempted
+          // Still approve the user (this is the main action)
+          await updateUser(selectedAffiliate.id, {
+            approvalStatus: 'approved',
+            approvedAt: new Date().toISOString(),
+            approvedBy: user?.email || 'admin',
+            adminNotes: adminNotes || undefined,
+          });
+          
+        } catch (linkCreationError) {
+          // Catch any unexpected errors - don't crash, just approve the user
+          console.error('⚠️ Unexpected error during link creation (non-critical):', linkCreationError);
+          linkError = 'UniLink creation unavailable';
+          
+          // Still approve the user (this is the main action)
           await updateUser(selectedAffiliate.id, {
             approvalStatus: 'approved',
             approvedAt: new Date().toISOString(),
@@ -814,24 +827,12 @@ const AdminDashboard = () => {
           });
         }
         
-        // Show appropriate toast message
-        if (unilink) {
-          toast({
-            title: "✅ Approved & UniLink Created",
-            description: `${selectedAffiliate.name} approved. UniLink: ${unilink}`,
-            duration: 5000,
-          });
-        } else if (linkError) {
-          toast({
-            title: "⚠️ Approved (UniLink Failed)",
-            description: `${selectedAffiliate.name} approved but unilink creation failed: ${linkError}. You can assign a link manually.`,
-            variant: "destructive",
-            duration: 7000,
-          });
-        } else {
+        // Show appropriate toast message (only if we didn't already show one)
+        if (!unilink) {
+          // Link creation failed or wasn't attempted - show simple approval message
           toast({
             title: "✅ Approved",
-            description: `${selectedAffiliate.name} has been approved. You can now assign a link.`,
+            description: `${selectedAffiliate.name} has been approved. ${linkError ? 'You can assign a link manually.' : 'You can assign a link if needed.'}`,
             duration: 5000,
           });
         }
