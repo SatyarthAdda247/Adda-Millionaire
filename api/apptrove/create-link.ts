@@ -41,7 +41,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const APPTROVE_SDK_KEY = process.env.VITE_APPTROVE_SDK_KEY || process.env.APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
     const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID;
     const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY;
-    const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
+    // Try multiple API base URLs - AppTrove might use different domains
+    const APPTROVE_API_BASE_URLS = [
+      process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com',
+      'https://api.apptrove.io',
+      'https://apptrove.com/api',
+      'https://apptrove.io/api',
+    ].filter(Boolean).map(url => url.replace(/\/$/, ''));
+    
+    const APPTROVE_API_URL = APPTROVE_API_BASE_URLS[0]; // Use first as primary
 
     // Build comprehensive payload with all tracking parameters
     const campaign = linkData?.campaign || (linkData?.name || 'Affiliate Link').replace(/\s+/g, '-').toLowerCase().substring(0, 50);
@@ -133,7 +141,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         endpoints.push({
-          url: `${APPTROVE_API_URL}${config.path}`,
+          url: `${config.baseUrl || APPTROVE_API_URL}${config.path}`,
           auth: authMethod as any,
           headers,
         });
