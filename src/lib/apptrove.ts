@@ -119,29 +119,52 @@ export async function getTemplateLinks(templateId: string) {
 
 /**
  * Create UniLink within a template.
- * NOTE: AppTrove has historically been inconsistent here; we try multiple endpoints like the backend.
+ * Mirrors backend createUniLinkFromTemplate() - tries multiple endpoints and auth methods.
  */
 export async function createLink(templateId: string, linkData: { name?: string; [key: string]: any }) {
-  const endpoints: Array<{ url: string; auth: "api-key" | "secret" }> = [
-    { url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(templateId)}/link`, auth: "api-key" },
-    { url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(templateId)}/link`, auth: "secret" },
-    { url: `${APPTROVE_API_URL}/internal/link-template/link`, auth: "api-key" },
-    { url: `${APPTROVE_API_URL}/internal/unilink`, auth: "api-key" },
-  ];
-
+  // Build payload matching backend format
+  const campaign = linkData.campaign || (linkData.name || "Affiliate Link").replace(/\s+/g, '-').toLowerCase().substring(0, 50);
   const payload = {
     name: linkData.name || "Affiliate Link",
+    campaign: campaign,
+    deepLinking: linkData.deepLink || '',
+    status: linkData.status || 'active',
     ...linkData,
-    templateId,
+    templateId: templateId, // Include templateId in payload for some endpoints
   };
+
+  // Try multiple endpoints and auth methods (same as backend)
+  const endpoints: Array<{ url: string; auth: "api-key" | "secret" | "basic" }> = [
+    // Primary endpoint with template ID in path
+    { url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(templateId)}/link`, auth: "api-key" },
+    { url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(templateId)}/link`, auth: "secret" },
+    { url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(templateId)}/link`, auth: "basic" },
+    // Alternative endpoints
+    { url: `${APPTROVE_API_URL}/internal/link-template/link`, auth: "api-key" },
+    { url: `${APPTROVE_API_URL}/internal/link-template/link`, auth: "secret" },
+    { url: `${APPTROVE_API_URL}/internal/unilink`, auth: "api-key" },
+    { url: `${APPTROVE_API_URL}/internal/unilink`, auth: "secret" },
+    // V2 API
+    { url: `${APPTROVE_API_URL}/v2/link-template/${encodeURIComponent(templateId)}/link`, auth: "api-key" },
+    { url: `${APPTROVE_API_URL}/v2/link-template/${encodeURIComponent(templateId)}/link`, auth: "secret" },
+  ];
 
   let lastErr: any = null;
 
   for (const ep of endpoints) {
     try {
-      const headers = ep.auth === "api-key"
-        ? (APPTROVE_API_KEY ? apiKeyHeaders() : null)
-        : (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY ? secretHeaders() : null);
+      let headers: Record<string, string> | null = null;
+      
+      if (ep.auth === "api-key" && APPTROVE_API_KEY) {
+        headers = apiKeyHeaders();
+      } else if (ep.auth === "secret" && APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
+        headers = secretHeaders();
+      } else if (ep.auth === "basic" && APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
+        // Basic Auth: secret ID as username, secret key as password
+        const authString = btoa(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`);
+        headers = { ...baseHeaders(), Authorization: `Basic ${authString}` };
+      }
+      
       if (!headers) continue;
 
       const res = await fetch(ep.url, {
@@ -149,29 +172,56 @@ export async function createLink(templateId: string, linkData: { name?: string; 
         headers,
         body: JSON.stringify(payload),
       });
+      
       const data = await safeJson(res);
-      if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}: ${res.statusText}`);
+      
+      // Check for success (200-299)
+      if (res.ok || res.status === 200 || res.status === 201) {
+        // Extract unilink from various response formats
+        const unilink =
+          data?.data?.unilink ??
+          data?.unilink ??
+          data?.data?.link?.link ??
+          data?.data?.link?.unilink ??
+          data?.link?.link ??
+          data?.link?.unilink ??
+          data?.url ??
+          null;
 
-      const unilink =
-        data?.data?.unilink ??
-        data?.unilink ??
-        data?.data?.link?.link ??
-        data?.data?.link?.unilink ??
-        data?.link?.link ??
-        data?.link?.unilink ??
-        data?.url ??
-        null;
+        // If we got a successful response but no unilink, try to construct it
+        if (!unilink && data?.data?.link) {
+          // Sometimes AppTrove returns link data but not the full URL
+          // We can construct it if we have the domain and link ID
+          const linkId = data?.data?.link?.id || data?.data?.link?._id;
+          if (linkId) {
+            // Try common AppTrove URL patterns
+            const domain = data?.data?.link?.domain || 'applink.reevo.in';
+            return { 
+              success: true, 
+              link: data?.data?.link || data?.link || data, 
+              unilink: `https://${domain}/d/${linkId}` 
+            };
+          }
+        }
 
-      return { success: true, link: data?.data?.link || data?.link || data, unilink };
-    } catch (e) {
+        return { success: true, link: data?.data?.link || data?.link || data, unilink };
+      }
+      
+      // If not successful, throw to try next endpoint
+      throw new Error(data?.message || data?.error || `HTTP ${res.status}: ${res.statusText}`);
+    } catch (e: any) {
       lastErr = e;
+      // Continue to next endpoint
+      continue;
     }
   }
 
-  throw new Error(
-    `Failed to create link in template ${templateId}. ` +
-    `${lastErr?.message || "AppTrove API may block browser requests or not support programmatic link creation."}`
-  );
+  // If all endpoints failed, return error (don't throw - let caller handle)
+  return { 
+    success: false, 
+    error: `Failed to create link in template ${templateId}. ${lastErr?.message || "AppTrove API may block browser requests (CORS) or not support programmatic link creation from frontend."}`,
+    unilink: null 
+  };
 }
 
 /** Stats (best-effort; endpoint may differ) */
