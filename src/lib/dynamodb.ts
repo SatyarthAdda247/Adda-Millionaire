@@ -71,7 +71,19 @@ export async function saveUser(user: any) {
     return { success: true, user };
   } catch (error: any) {
     console.error('Error saving user to DynamoDB:', error);
-    throw new Error(`Failed to save user: ${error.message}`);
+    
+    // Provide helpful error messages for common AWS errors
+    if (error.name === 'AccessDeniedException' || error.name === 'UnauthorizedOperation') {
+      throw new Error('AWS Access Denied: Check that your AWS credentials have DynamoDB permissions (PutItem, GetItem, Scan, Query)');
+    } else if (error.name === 'ResourceNotFoundException') {
+      throw new Error(`DynamoDB table "${USERS_TABLE}" not found. Run: node server/setup-dynamodb.js to create tables.`);
+    } else if (error.name === 'ValidationException') {
+      throw new Error(`Invalid DynamoDB request: ${error.message}`);
+    } else if (error.$metadata?.httpStatusCode === 403) {
+      throw new Error('AWS returned 403 Forbidden. Check IAM permissions for DynamoDB access.');
+    }
+    
+    throw new Error(`Failed to save user: ${error.message || error.name || 'Unknown error'}`);
   }
 }
 
@@ -89,7 +101,14 @@ export async function getUserByEmail(email: string) {
     return result.Items && result.Items.length > 0 ? result.Items[0] : null;
   } catch (error: any) {
     console.error('Error getting user by email:', error);
-    throw new Error(`Failed to get user: ${error.message}`);
+    
+    if (error.name === 'AccessDeniedException' || error.$metadata?.httpStatusCode === 403) {
+      throw new Error('AWS Access Denied: Check DynamoDB permissions (Scan, GetItem)');
+    } else if (error.name === 'ResourceNotFoundException') {
+      throw new Error(`DynamoDB table "${USERS_TABLE}" not found. Create tables first.`);
+    }
+    
+    throw new Error(`Failed to get user: ${error.message || error.name || 'Unknown error'}`);
   }
 }
 
@@ -181,7 +200,14 @@ export async function getAllUsers(filters: {
     return result.Items || [];
   } catch (error: any) {
     console.error('Error getting all users from DynamoDB:', error);
-    throw new Error(`Failed to get users: ${error.message}`);
+    
+    if (error.name === 'AccessDeniedException' || error.$metadata?.httpStatusCode === 403) {
+      throw new Error('AWS Access Denied: Check DynamoDB permissions (Scan, GetItem). Your IAM user needs: dynamodb:Scan, dynamodb:GetItem, dynamodb:PutItem');
+    } else if (error.name === 'ResourceNotFoundException') {
+      throw new Error(`DynamoDB table "${USERS_TABLE}" not found. Run: node server/setup-dynamodb.js`);
+    }
+    
+    throw new Error(`Failed to get users: ${error.message || error.name || 'Unknown error'}`);
   }
 }
 
