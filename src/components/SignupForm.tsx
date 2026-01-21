@@ -10,9 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, X, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import SocialHandleInput from "./SocialHandleInput";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const followerRanges = [
   "1K - 5K",
@@ -48,14 +55,27 @@ const SignupForm = () => {
   const [socialHandles, setSocialHandles] = useState<SocialHandle[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate terms acceptance
     if (!formData.termsAccepted) {
       toast({
         title: "Please accept the terms",
         description: "You need to accept the terms and conditions to proceed.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate at least one social handle is required
+    const validHandles = socialHandles.filter(h => h.platform && h.handle.trim());
+    if (validHandles.length === 0) {
+      toast({
+        title: "Social Handle Required",
+        description: "Please add at least one social media handle to proceed.",
         variant: "destructive",
       });
       return;
@@ -191,11 +211,6 @@ const SignupForm = () => {
       // Success
       setUserId(data.user.id);
       
-      toast({
-        title: "Application Submitted! 🎉",
-        description: "Your application has been sent for admin approval. You'll receive an email once approved.",
-      });
-
       // Reset form
       setFormData({
         name: "",
@@ -205,6 +220,9 @@ const SignupForm = () => {
         termsAccepted: false,
       });
       setSocialHandles([]);
+      
+      // Show success dialog
+      setShowSuccessDialog(true);
 
     } catch (error) {
       console.error('❌ Registration error:', error);
@@ -376,36 +394,46 @@ const SignupForm = () => {
             </Button>
           </form>
 
-          {userId && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-6 p-6 bg-blue-50 border border-blue-200 rounded-xl"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-blue-600" />
+          {/* Success Dialog */}
+          <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <CheckCircle2 className="w-6 h-6 text-green-600" />
+                    Application Submitted Successfully!
+                  </DialogTitle>
+                  <button
+                    onClick={() => setShowSuccessDialog(false)}
+                    className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+                  >
+                    <X className="h-5 w-5 text-gray-500 hover:text-gray-900" />
+                    <span className="sr-only">Close</span>
+                  </button>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-blue-900 mb-2">Application Submitted Successfully!</h3>
-                  <p className="text-sm text-blue-800 mb-3">
-                    Your affiliate application has been received and is pending admin approval. 
-                    Once approved, you'll be able to:
-                  </p>
-                  <ul className="text-sm text-blue-700 space-y-1 mb-4 list-disc list-inside">
-                    <li>Access your personalized affiliate dashboard</li>
-                    <li>Get your unique tracking link</li>
-                    <li>View your earnings and statistics</li>
-                    <li>Start promoting and earning commissions</li>
-                  </ul>
-                  <p className="text-xs text-blue-600 mt-4">
-                    We'll notify you via email once your application is reviewed. 
+                <DialogDescription className="pt-4 text-base text-gray-600">
+                  Your affiliate application has been received and is pending admin approval.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <p className="text-sm text-gray-700 mb-4">
+                  Once approved, you'll be able to:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-2 mb-4 list-disc list-inside">
+                  <li>Access your personalized affiliate dashboard</li>
+                  <li>Get your unique tracking link</li>
+                  <li>View your earnings and statistics</li>
+                  <li>Start promoting and earning commissions</li>
+                </ul>
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-800">
+                    <strong>Next Steps:</strong> We'll notify you via email once your application is reviewed. 
                     You can also check your status by logging in with your email or phone number.
                   </p>
                 </div>
               </div>
-            </motion.div>
-          )}
+            </DialogContent>
+          </Dialog>
 
           <p className="text-center text-sm text-gray-500 mt-6 flex items-center justify-center gap-2">
             <Sparkles className="w-4 h-4 text-blue-600" />
