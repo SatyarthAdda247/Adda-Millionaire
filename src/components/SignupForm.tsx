@@ -144,31 +144,33 @@ const SignupForm = () => {
               })),
             }),
           });
-        } catch (fetchError: any) {
-          // Handle network errors (server not running, CORS, blocked by client, etc.)
-          console.error('Network error:', fetchError);
-          const errorMsg = fetchError?.message || String(fetchError) || 'Unknown error';
-          const isNetworkError = 
-            errorMsg.includes('Failed to fetch') || 
-            errorMsg.includes('ERR_BLOCKED_BY_CLIENT') ||
-            errorMsg.includes('ERR_CONNECTION_REFUSED') ||
-            errorMsg.includes('NetworkError') ||
-            errorMsg.includes('Network request failed') ||
-            fetchError?.name === 'TypeError' ||
-            fetchError?.name === 'NetworkError';
-          
-          // Check if we're on Vercel production
-          const isProduction = typeof window !== 'undefined' && 
-            (window.location.hostname.includes('vercel.app') || 
-             window.location.hostname.includes('adda-millionaire'));
-          
-          const errorMessage = isNetworkError
-            ? isProduction
-              ? `Unable to connect to backend server. Please check that VITE_API_URL is set correctly in Vercel environment variables and the backend server is running.`
-              : `Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend server is running. Start it with: cd server && npm start`
-            : `Network error: ${errorMsg}`;
-          throw new Error(errorMessage);
-        }
+      } catch (fetchError: any) {
+        // Handle network errors (server not running, CORS, blocked by client, etc.)
+        console.error('Network error:', fetchError);
+        const errorMsg = fetchError?.message || String(fetchError) || 'Unknown error';
+        const isNetworkError = 
+          errorMsg.includes('Failed to fetch') || 
+          errorMsg.includes('ERR_BLOCKED_BY_CLIENT') ||
+          errorMsg.includes('ERR_CONNECTION_REFUSED') ||
+          errorMsg.includes('NetworkError') ||
+          errorMsg.includes('Network request failed') ||
+          errorMsg.includes('CORS') ||
+          fetchError?.name === 'TypeError' ||
+          fetchError?.name === 'NetworkError';
+        
+        // Check if we're on Vercel production
+        const isProduction = typeof window !== 'undefined' && 
+          (window.location.hostname.includes('vercel.app') || 
+           window.location.hostname.includes('adda-millionaire') ||
+           window.location.hostname.includes('partners-adda'));
+        
+        const errorMessage = isNetworkError
+          ? isProduction
+            ? `Unable to connect to backend server. If using DynamoDB, check AWS credentials. If using backend API, ensure VITE_API_URL is set correctly in Vercel and backend server is running.`
+            : `Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend server is running. Start it with: cd server && npm start`
+          : `Network error: ${errorMsg}`;
+        throw new Error(errorMessage);
+      }
 
         // Check if response is ok before parsing JSON
         if (!response.ok) {

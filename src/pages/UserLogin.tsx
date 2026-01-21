@@ -79,7 +79,16 @@ const UserLogin = () => {
       } else {
         // Fallback to backend API
         if (email) {
-          const response = await fetch(`${API_BASE_URL}/api/users/email/${encodeURIComponent(email.trim().toLowerCase())}`);
+          let response;
+          try {
+            response = await fetch(`${API_BASE_URL}/api/users/email/${encodeURIComponent(email.trim().toLowerCase())}`);
+          } catch (fetchError: any) {
+            console.error('Network error:', fetchError);
+            setError("Unable to connect to server. Please check your internet connection or try again later.");
+            setLoading(false);
+            return;
+          }
+          
           if (response.ok) {
             user = await response.json();
           } else if (response.status === 404) {
@@ -87,8 +96,15 @@ const UserLogin = () => {
             setLoading(false);
             return;
           } else if (response.status === 403) {
-            const errorData = await response.json();
+            const errorData = await response.json().catch(() => ({}));
             setError(errorData.error || "Access denied. Your account may have been deleted.");
+            setLoading(false);
+            return;
+          } else if (!response.ok) {
+            // Handle other errors
+            const errorText = await response.text().catch(() => 'Unknown error');
+            console.error('Backend API error:', response.status, errorText);
+            setError("Unable to connect to server. Please try again later.");
             setLoading(false);
             return;
           }
@@ -105,12 +121,20 @@ const UserLogin = () => {
             setError(errorData.error || "Access denied. Your account may have been deleted.");
             setLoading(false);
             return;
+          } else if (!response.ok) {
+            // Handle other errors (network, CORS, etc.)
+            const errorText = await response.text();
+            console.error('Backend API error:', response.status, errorText);
+            setError("Unable to connect to server. Please try again later.");
+            setLoading(false);
+            return;
           }
         }
       }
 
       if (!user) {
-        setError("User not found. Please register first.");
+        // This should have been caught above, but just in case
+        setError(email ? "User not found. Please check your email or register first." : "User not found. Please check your phone number or register first.");
         setLoading(false);
         return;
       }
