@@ -260,27 +260,79 @@ const AdminDashboard = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/dashboard/analytics?days=30`);
-      if (response.ok) {
-        const data = await response.json();
-        setAnalyticsData(data);
+      const useDynamoDB = isDynamoDBConfigured();
+      
+      if (useDynamoDB) {
+        // Fetch analytics from DynamoDB
+        console.log('📈 Fetching analytics from DynamoDB...');
+        const allUsers = await getAllUsers();
+        const allAnalytics = await Promise.all(
+          allUsers.map(user => getAnalyticsByUserId(user.id))
+        ).then(results => results.flat());
+        
+        // Group by date for chart
+        const analyticsByDate: Record<string, any> = {};
+        allAnalytics.forEach(a => {
+          const date = a.date || a.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0];
+          if (!analyticsByDate[date]) {
+            analyticsByDate[date] = { date, clicks: 0, conversions: 0, earnings: 0, installs: 0, purchases: 0 };
+          }
+          analyticsByDate[date].clicks += a.clicks || 0;
+          analyticsByDate[date].conversions += a.conversions || 0;
+          analyticsByDate[date].earnings += a.earnings || 0;
+          analyticsByDate[date].installs += a.installs || 0;
+          analyticsByDate[date].purchases += a.purchases || 0;
+        });
+        
+        const analyticsArray = Object.values(analyticsByDate).sort((a: any, b: any) => 
+          new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        
+        setAnalyticsData(analyticsArray);
+        console.log('✅ Fetched analytics from DynamoDB:', analyticsArray.length);
+      } else {
+        // Fallback to backend API
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/dashboard/analytics?days=30`);
+          if (response.ok) {
+            const data = await response.json();
+            setAnalyticsData(data);
+          }
+        } catch (apiError) {
+          console.warn('Backend API not available, using empty analytics');
+          setAnalyticsData([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
+      setAnalyticsData([]);
     }
   };
 
   const fetchTemplates = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/apptrove/templates`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.templates) {
-          setTemplates(data.templates);
+      // Templates are only available from backend API (AppTrove)
+      // If backend is not available, use empty array
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/apptrove/templates`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.templates) {
+            setTemplates(data.templates);
+          } else {
+            setTemplates([]);
+          }
+        } else {
+          console.warn('Templates API not available');
+          setTemplates([]);
         }
+      } catch (apiError) {
+        console.warn('Backend API not available for templates. Link assignment will use manual URL entry.');
+        setTemplates([]);
       }
     } catch (error) {
       console.error('Error fetching templates:', error);
+      setTemplates([]);
     }
   };
 
@@ -467,9 +519,8 @@ const AdminDashboard = () => {
         // Fetch from DynamoDB directly
         console.log('📊 Fetching affiliates from DynamoDB...');
         const filters: any = {};
-        if (searchFilter) filters.search = searchFilter;
-        if (platformFilter) filters.platform = platformFilter;
-        if (statusFilter) filters.status = statusFilter;
+        // Note: searchQuery is used for client-side filtering after fetch
+        // approvalFilter is the only server-side filter we need
         if (approvalFilter !== "all") filters.approvalStatus = approvalFilter;
         
         const users = await getAllUsers(filters);
