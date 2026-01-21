@@ -56,8 +56,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...linkData,
     };
 
-    // Try to get template info first to find template ID variants (oid, _id)
+    // Try to get template info first to find template ID variants (oid, _id) and domain
     let templateIdVariants = [templateId];
+    let template: any = null;
     try {
       const templateResponse = await fetch(
         `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`,
@@ -75,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (templateResponse.ok) {
         const templateData = await templateResponse.json().catch(() => null);
         const templates = templateData?.data?.linkTemplateList || templateData?.linkTemplateList || [];
-        const template = templates.find((t: any) => 
+        template = templates.find((t: any) => 
           t._id === templateId || t.id === templateId || t.oid === templateId
         );
         
@@ -307,7 +308,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // All endpoints failed
+    // All endpoints failed - try URL construction fallback (like old backend)
+    console.log('[AppTrove] All API endpoints failed, trying URL construction fallback...');
+    
+    // Get template domain and Android App ID for URL construction
+    const domain = template?.domain || process.env.APPTROVE_DOMAIN || 'applink.reevo.in';
+    const androidAppID = template?.androidAppID || process.env.APPTROVE_ANDROID_APP_ID;
+    
+    // Generate unique link ID
+    const generateLinkId = () => {
+      return `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    };
+    
+    if (androidAppID) {
+      // Construct tracking URL using AppTrove's format (works for tracking even if not in dashboard)
+      const linkId = generateLinkId();
+      const mediaSource = basePayload.campaign || 'affiliate';
+      const params = new URLSearchParams({
+        pid: mediaSource,
+        campaign: basePayload.campaign,
+        templateId: templateId
+      });
+      
+      if (basePayload.deepLinking) {
+        params.append('dlv', basePayload.deepLinking);
+      }
+      
+      const trackingUrl = `https://click.trackier.io/c/${androidAppID}?${params.toString()}`;
+      
+      console.log('[AppTrove] ✅ Using URL construction fallback');
+      console.log('[AppTrove] Constructed URL:', trackingUrl);
+      
+      return res.status(200).json({
+        success: true,
+        link: { id: linkId, url: trackingUrl },
+        unilink: trackingUrl,
+        linkId: linkId,
+        tracking: {
+          affiliateId: affiliateData?.id || linkData?.userId,
+          campaign: basePayload.campaign,
+          templateId,
+        },
+        note: 'Link constructed using URL format - functional for tracking. API endpoints were not available.',
+        createdVia: 'url-construction-fallback',
+      });
+    }
+    
+    // If URL construction also fails, return error
     const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'All endpoints failed');
     console.error('[AppTrove] All endpoints failed:', errorMsg);
     console.error('[AppTrove] Last response:', JSON.stringify(lastResponse, null, 2));
@@ -321,7 +368,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lastResponse: lastResponse,
       attemptedEndpoints: endpoints.length,
       templateIdVariants: templateIdVariants,
-      suggestion: 'All API endpoints returned errors. Link creation may require manual setup in AppTrove dashboard, or API access may not be enabled for your account.',
+      suggestion: 'All API endpoints returned 404. AppTrove may not support programmatic link creation. Please create links manually in the AppTrove dashboard, or ensure APPTROVE_ANDROID_APP_ID is set for URL construction fallback.',
     });
   } catch (error: any) {
     console.error('[AppTrove] Serverless function error:', error);
