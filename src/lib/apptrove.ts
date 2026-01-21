@@ -57,8 +57,42 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return qs ? `?${qs}` : "";
 }
 
-/** Templates (Link Templates) */
+/** Templates (Link Templates) - Uses Vercel serverless function to bypass CORS */
 export async function getTemplates() {
+  // Use Vercel serverless function to bypass CORS
+  try {
+    const response = await fetch('/api/apptrove/templates', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        templates: data.templates || [],
+      };
+    }
+
+    return {
+      success: false,
+      templates: [],
+      error: data.error || 'Failed to fetch templates',
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      templates: [],
+      error: error.message || 'Network error',
+    };
+  }
+}
+
+/** OLD METHOD - Direct API calls (blocked by CORS, kept for reference) */
+export async function getTemplatesDirect() {
   // Mirrors backend `getLinkTemplates()` logic
   const url = `${APPTROVE_API_URL}/internal/link-template${buildQuery({ status: "active", limit: 100 })}`;
 
@@ -119,9 +153,58 @@ export async function getTemplateLinks(templateId: string) {
 
 /**
  * Create UniLink within a template.
- * Mirrors backend createUniLinkFromTemplate() - tries multiple endpoints and auth methods.
+ * Uses Vercel serverless function to bypass CORS restrictions.
  */
 export async function createLink(templateId: string, linkData: { name?: string; [key: string]: any }) {
+  // Use Vercel serverless function to bypass CORS
+  try {
+    const response = await fetch('/api/apptrove/create-link', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        templateId,
+        linkData: {
+          name: linkData.name || 'Affiliate Link',
+          campaign: linkData.campaign || (linkData.name || 'Affiliate Link').replace(/\s+/g, '-').toLowerCase().substring(0, 50),
+          deepLinking: linkData.deepLink || '',
+          status: linkData.status || 'active',
+          ...linkData,
+        },
+      }),
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        link: data.link,
+        unilink: data.unilink,
+      };
+    }
+
+    return {
+      success: false,
+      error: data.error || data.details || 'Failed to create link',
+      unilink: null,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Network error',
+      unilink: null,
+    };
+  }
+}
+
+/**
+ * OLD METHOD - Direct API calls (blocked by CORS, kept for reference)
+ * Create UniLink within a template.
+ * Mirrors backend createUniLinkFromTemplate() - tries multiple endpoints and auth methods.
+ */
+export async function createLinkDirect(templateId: string, linkData: { name?: string; [key: string]: any }) {
   // Build payload matching backend format
   const campaign = linkData.campaign || (linkData.name || "Affiliate Link").replace(/\s+/g, '-').toLowerCase().substring(0, 50);
   const payload = {
