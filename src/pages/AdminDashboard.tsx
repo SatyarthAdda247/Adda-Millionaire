@@ -197,11 +197,20 @@ const AdminDashboard = () => {
   const [userAnalytics, setUserAnalytics] = useState<any[]>([]);
 
   useEffect(() => {
-    // Temporarily skip auth check - will configure auth later
+    // Check authentication from sessionStorage
+    const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
+    
+    if (!isAuthenticated) {
+      // Redirect to login if not authenticated
+      navigate('/admin/login');
+      return;
+    }
+    
+    // Set authenticated state
     setAuthenticated(true);
-    setUser({ email: 'admin@example.com', name: 'Admin' });
+    setUser({ email: 'admin@edurise.com', name: 'Admin' });
     fetchAffiliates();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (authenticated) {
