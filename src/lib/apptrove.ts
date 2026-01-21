@@ -131,18 +131,29 @@ export async function getTemplatesDirect() {
 
 /** Links within a template - Uses Vercel serverless function to bypass CORS */
 export async function getTemplateLinks(templateId: string) {
-  // Use Vercel serverless function to bypass CORS
+  // Use Vercel serverless function to bypass CORS - NEVER call AppTrove API directly
   try {
+    console.log(`[AppTrove] Fetching template links via serverless function for template: ${templateId}`);
+    
     const response = await fetch(`/api/apptrove/template-links?templateId=${encodeURIComponent(templateId)}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
+        'Content-Type': 'application/json',
       },
     });
 
-    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      console.error(`[AppTrove] Serverless function returned ${response.status}`);
+    }
 
-    if (response.ok && data.success) {
+    const data = await response.json().catch((e) => {
+      console.error('[AppTrove] Failed to parse response:', e);
+      return null;
+    });
+
+    if (response.ok && data && data.success) {
+      console.log(`[AppTrove] Successfully fetched ${data.links?.length || 0} template links`);
       return {
         success: true,
         links: data.links || [],
@@ -150,8 +161,8 @@ export async function getTemplateLinks(templateId: string) {
     }
 
     // Don't throw error - just return empty links
-    const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error || 'Failed to fetch template links');
-    console.warn('⚠️ Failed to fetch template links (non-critical):', errorMsg);
+    const errorMsg = typeof data?.error === 'string' ? data.error : JSON.stringify(data?.error || data?.details || 'Failed to fetch template links');
+    console.warn('[AppTrove] Failed to fetch template links (non-critical):', errorMsg);
     return {
       success: false,
       links: [],
@@ -159,7 +170,7 @@ export async function getTemplateLinks(templateId: string) {
     };
   } catch (error: any) {
     // Don't throw error - just return empty links
-    console.warn('⚠️ Template links API error (non-critical):', error.message || 'Network error');
+    console.error('[AppTrove] Template links API error (non-critical):', error);
     return {
       success: false,
       links: [],
@@ -173,8 +184,9 @@ export async function getTemplateLinks(templateId: string) {
  * Uses Vercel serverless function to bypass CORS restrictions.
  */
 export async function createLink(templateId: string, linkData: { name?: string; userId?: string; [key: string]: any }) {
-  // Use Vercel serverless function to bypass CORS
+  // Use Vercel serverless function to bypass CORS - NEVER call AppTrove API directly
   try {
+    console.log(`[AppTrove] Creating link via serverless function for template: ${templateId}`);
     // Extract affiliate data for tracking
     const affiliateData = {
       id: linkData.userId || linkData.affiliateId || '',
@@ -186,6 +198,7 @@ export async function createLink(templateId: string, linkData: { name?: string; 
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({
         templateId,
@@ -215,9 +228,17 @@ export async function createLink(templateId: string, linkData: { name?: string; 
       }),
     });
 
-    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      console.error(`[AppTrove] Serverless function returned ${response.status}`);
+    }
 
-    if (response.ok && data.success) {
+    const data = await response.json().catch((e) => {
+      console.error('[AppTrove] Failed to parse response:', e);
+      return null;
+    });
+
+    if (response.ok && data && data.success) {
+      console.log(`[AppTrove] Successfully created link: ${data.unilink}`);
       return {
         success: true,
         link: data.link,
@@ -227,11 +248,13 @@ export async function createLink(templateId: string, linkData: { name?: string; 
       };
     }
 
+    const errorMsg = data?.error || data?.details || 'Failed to create link';
+    console.error('[AppTrove] Link creation failed:', errorMsg, data);
     return {
       success: false,
-      error: data.error || data.details || 'Failed to create link',
+      error: typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg),
       unilink: null,
-      details: data.details,
+      details: data?.details,
     };
   } catch (error: any) {
     console.error('[AppTrove] createLink error:', error);
