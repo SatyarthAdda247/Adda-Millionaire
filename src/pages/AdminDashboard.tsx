@@ -744,17 +744,28 @@ const AdminDashboard = () => {
             console.log(`🔗 Creating unilink in template ${templateIdToUse} for ${selectedAffiliate.name}...`);
             
             try {
-              // Create a new link from the template
+              // Create a new link from the template with comprehensive tracking
               const createData = await createLink(templateIdToUse, {
                 name: `${selectedAffiliate.name} - Affiliate Link`,
                 userId: selectedAffiliate.id,
+                affiliateId: selectedAffiliate.id,
+                affiliateName: selectedAffiliate.name,
+                affiliateEmail: selectedAffiliate.email,
                 campaign: `${selectedAffiliate.name}-affiliate`.toLowerCase().replace(/\s+/g, '-').substring(0, 50),
-                status: 'active'
+                status: 'active',
+                // Add tracking metadata
+                metadata: {
+                  affiliateId: selectedAffiliate.id,
+                  affiliateName: selectedAffiliate.name,
+                  affiliateEmail: selectedAffiliate.email,
+                  approvedBy: user?.email || 'admin',
+                  approvedAt: new Date().toISOString(),
+                },
               });
               
               if (createData.success && createData.unilink) {
                 unilink = createData.unilink;
-                linkId = createData.link?.id || uuidv4();
+                linkId = createData.linkId || createData.link?.id || uuidv4();
                 
                 console.log(`✅ UniLink created: ${unilink}`);
                 
