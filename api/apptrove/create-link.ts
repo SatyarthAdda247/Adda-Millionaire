@@ -100,17 +100,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const endpoints: Array<{ url: string; auth: 'api-key' | 'sdk-key' | 'secret' | 'basic'; headers: Record<string, string> }> = [];
 
     // Build endpoint configurations with proper auth headers
-    const endpointConfigs = [
-      { path: `/internal/link-template/${encodeURIComponent(templateId)}/link`, authMethods: ['api-key', 'sdk-key', 'secret', 'basic'] },
-      { path: `/internal/link-template/link`, authMethods: ['api-key', 'sdk-key', 'secret'] },
-      { path: `/internal/unilink`, authMethods: ['api-key', 'sdk-key', 'secret'] },
-      { path: `/v2/link-template/${encodeURIComponent(templateId)}/link`, authMethods: ['api-key', 'sdk-key', 'secret'] },
-      { path: `/api/v1/unilinks`, authMethods: ['api-key', 'sdk-key'] },
-      { path: `/api/v1/links`, authMethods: ['api-key', 'sdk-key'] },
+    // Try each endpoint pattern with each base URL
+    const endpointPaths = [
+      `/internal/link-template/${encodeURIComponent(templateId)}/link`,
+      `/internal/link-template/link`,
+      `/internal/unilink`,
+      `/v2/link-template/${encodeURIComponent(templateId)}/link`,
+      `/v2/unilink`,
+      `/api/v1/unilinks`,
+      `/api/v1/links`,
+      `/api/unilinks`,
+      `/api/links`,
+      `/link-template/${encodeURIComponent(templateId)}/link`,
+      `/unilink/create`,
+      `/link/create`,
+      `/internal/unilink?templateId=${encodeURIComponent(templateId)}`,
+      `/api/v1/unilinks?templateId=${encodeURIComponent(templateId)}`,
     ];
 
-    for (const config of endpointConfigs) {
-      for (const authMethod of config.authMethods) {
+    for (const baseUrl of APPTROVE_API_BASE_URLS) {
+      for (const path of endpointPaths) {
+        // Try SDK key first (most likely to work), then other auth methods
+        const authMethods = ['sdk-key', 'api-key', 'secret', 'basic'];
+        
+        for (const authMethod of authMethods) {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -140,11 +153,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           continue; // Skip if auth method not available
         }
 
-        endpoints.push({
-          url: `${config.baseUrl || APPTROVE_API_URL}${config.path}`,
-          auth: authMethod as any,
-          headers,
-        });
+          endpoints.push({
+            url: `${baseUrl}${path}`,
+            auth: authMethod as any,
+            headers,
+          });
+        }
       }
     }
 
