@@ -13,10 +13,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Get AppTrove credentials from environment variables
-  const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY;
-  const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID;
-  const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY;
-  const APPTROVE_API_URL = process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com';
+  // Vercel serverless functions can access env vars with or without VITE_ prefix
+  const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY;
+  const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID;
+  const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY;
+  const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
   if (!APPTROVE_API_KEY && (!APPTROVE_SECRET_ID || !APPTROVE_SECRET_KEY)) {
     return res.status(500).json({ 
