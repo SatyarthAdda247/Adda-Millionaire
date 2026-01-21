@@ -67,20 +67,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(200).json({ success: true, templates: linkTemplateList });
         }
 
-        lastError = data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`;
+        const errorMsg = data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`;
+        lastError = typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg);
       } catch (error: any) {
         lastError = error.message || 'Network error';
       }
     }
 
     // Return empty templates instead of error - don't crash
+    const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'Unknown error');
     return res.status(200).json({
       success: false,
-      error: `Failed to fetch templates: ${lastError || 'Unknown error'}`,
+      error: `Failed to fetch templates: ${errorMsg}`,
       templates: []
     });
   } catch (error: any) {
-    console.error('Serverless function error:', error);
+    console.error('[AppTrove] Templates error:', error);
     // Return empty templates instead of crashing
     return res.status(200).json({
       success: false,

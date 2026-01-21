@@ -78,11 +78,12 @@ export async function getTemplates() {
     }
 
     // Don't throw error - just return empty templates
-    console.warn('⚠️ Failed to fetch templates (non-critical):', data.error || 'Unknown error');
+    const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error || 'Failed to fetch templates');
+    console.warn('⚠️ Failed to fetch templates (non-critical):', errorMsg);
     return {
       success: false,
       templates: [],
-      error: data.error || 'Failed to fetch templates',
+      error: errorMsg,
     };
   } catch (error: any) {
     // Don't throw error - just return empty templates
@@ -128,31 +129,43 @@ export async function getTemplatesDirect() {
   throw new Error(`Failed to fetch templates: ${lastErr?.message || "Unknown error"}`);
 }
 
-/** Links within a template */
+/** Links within a template - Uses Vercel serverless function to bypass CORS */
 export async function getTemplateLinks(templateId: string) {
-  // Endpoint varies; try a few known patterns.
-  const endpoints = [
-    `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(templateId)}/link`,
-    `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(templateId)}/links`,
-  ];
+  // Use Vercel serverless function to bypass CORS
+  try {
+    const response = await fetch(`/api/apptrove/template-links?templateId=${encodeURIComponent(templateId)}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
-  const headers = APPTROVE_API_KEY ? apiKeyHeaders() : secretHeaders();
-  let lastErr: any = null;
+    const data = await response.json().catch(() => null);
 
-  for (const url of endpoints) {
-    try {
-      const res = await fetch(url, { method: "GET", headers });
-      const data = await safeJson(res);
-      if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}: ${res.statusText}`);
-
-      const links = data?.data?.linkList ?? data?.linkList ?? data?.data?.links ?? data?.links ?? (Array.isArray(data) ? data : []);
-      return { success: true, links };
-    } catch (e) {
-      lastErr = e;
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        links: data.links || [],
+      };
     }
-  }
 
-  throw new Error(`Failed to fetch template links: ${lastErr?.message || "Unknown error"}`);
+    // Don't throw error - just return empty links
+    const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error || 'Failed to fetch template links');
+    console.warn('⚠️ Failed to fetch template links (non-critical):', errorMsg);
+    return {
+      success: false,
+      links: [],
+      error: errorMsg,
+    };
+  } catch (error: any) {
+    // Don't throw error - just return empty links
+    console.warn('⚠️ Template links API error (non-critical):', error.message || 'Network error');
+    return {
+      success: false,
+      links: [],
+      error: error.message || 'Network error',
+    };
+  }
 }
 
 /**
