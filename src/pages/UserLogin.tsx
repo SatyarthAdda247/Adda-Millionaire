@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Mail, Phone, LogIn } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { AlertCircle, Mail, Phone, LogIn, ArrowLeft, Home } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
@@ -188,6 +188,17 @@ const UserLogin = () => {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
+        {/* Back to Home Button */}
+        <div className="mb-4">
+          <Link
+            to="/"
+            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Home
+          </Link>
+        </div>
+
         <Card className="shadow-xl border-2">
           <CardHeader className="text-center space-y-4">
             <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-600 to-green-600 rounded-full flex items-center justify-center">
@@ -270,7 +281,7 @@ const UserLogin = () => {
                 )}
               </Button>
 
-              <div className="text-center text-sm text-gray-500 pt-4 border-t">
+              <div className="text-center text-sm text-gray-500 pt-4 border-t space-y-2">
                 <p>
                   Don't have an account?{" "}
                   <a
@@ -284,6 +295,13 @@ const UserLogin = () => {
                     Register here
                   </a>
                 </p>
+                <Link
+                  to="/"
+                  className="inline-flex items-center text-blue-600 hover:text-blue-700 transition-colors text-sm font-medium"
+                >
+                  <Home className="w-4 h-4 mr-1" />
+                  Return to Homepage
+                </Link>
               </div>
             </form>
           </CardContent>
