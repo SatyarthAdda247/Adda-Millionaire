@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 
-import { API_BASE_URL } from "@/lib/apiConfig";
+import { getAnalyticsByUserId, updateUser, isDynamoDBConfigured } from "@/lib/dynamodb";
 
 interface Affiliate {
   id: string;
@@ -78,13 +78,16 @@ const AffiliateDetailModal = ({
   const fetchAnalytics = async () => {
     if (!affiliate) return;
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/users/${affiliate.id}/analytics`
-      );
-      const data = await response.json();
-      setAnalytics(data);
+      if (isDynamoDBConfigured()) {
+        const analytics = await getAnalyticsByUserId(affiliate.id);
+        setAnalytics(analytics);
+      } else {
+        console.error('❌ DynamoDB not configured!');
+        setAnalytics([]);
+      }
     } catch (error) {
       console.error("Error fetching analytics:", error);
+      setAnalytics([]);
     }
   };
 
@@ -92,28 +95,22 @@ const AffiliateDetailModal = ({
     if (!affiliate) return;
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/users/${affiliate.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update affiliate");
+      
+      if (isDynamoDBConfigured()) {
+        await updateUser(affiliate.id, formData);
+        toast({
+          title: "Success",
+          description: "Affiliate updated successfully",
+        });
+        setIsEditing(false);
+        onUpdate();
+      } else {
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
       }
-
-      toast({
-        title: "Success",
-        description: "Affiliate updated successfully",
-      });
-      setIsEditing(false);
-      onUpdate();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update affiliate",
+        description: error instanceof Error ? error.message : "Failed to update affiliate",
         variant: "destructive",
       });
     } finally {

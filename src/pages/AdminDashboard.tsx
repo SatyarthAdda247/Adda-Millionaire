@@ -70,7 +70,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { API_BASE_URL } from "@/lib/apiConfig";
 import { getAllUsers, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured, updateUser, deleteUser, saveLink } from "@/lib/dynamodb";
 import { getTemplates, getTemplateLinks, createLink, isAppTroveConfigured } from "@/lib/apptrove";
 import { v4 as uuidv4 } from "uuid";
@@ -305,39 +304,19 @@ const AdminDashboard = () => {
         });
         console.log('✅ Calculated stats from DynamoDB');
       } else {
-        // Fallback to backend API
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.overview) {
-              setOverallStats({
-                totalClicks: data.overview.totalClicks || 0,
-                totalConversions: data.overview.totalConversions || 0,
-                totalEarnings: data.overview.totalEarnings || 0,
-                conversionRate: data.overview.conversionRate || 0,
-                totalInstalls: data.overview.totalInstalls || 0,
-                totalPurchases: data.overview.totalPurchases || 0,
-                installRate: data.overview.installRate || 0,
-                purchaseRate: data.overview.purchaseRate || 0,
-                averageEarningsPerAffiliate: data.overview.averageEarningsPerAffiliate || 0
-              });
-            }
-          }
-        } catch (apiError) {
-          console.warn('Backend API not available, using default stats');
-          setOverallStats({
-            totalClicks: 0,
-            totalConversions: 0,
-            totalEarnings: 0,
-            conversionRate: 0,
-            totalInstalls: 0,
-            totalPurchases: 0,
-            installRate: 0,
-            purchaseRate: 0,
-            averageEarningsPerAffiliate: 0
-          });
-        }
+        // DynamoDB not configured - show error
+        console.error('❌ DynamoDB not configured! Please set AWS credentials in Vercel environment variables.');
+        setOverallStats({
+          totalClicks: 0,
+          totalConversions: 0,
+          totalEarnings: 0,
+          conversionRate: 0,
+          totalInstalls: 0,
+          totalPurchases: 0,
+          installRate: 0,
+          purchaseRate: 0,
+          averageEarningsPerAffiliate: 0
+        });
       }
     } catch (error) {
       console.error('Error fetching overall stats:', error);
@@ -377,17 +356,9 @@ const AdminDashboard = () => {
         setAnalyticsData(analyticsArray);
         console.log('✅ Fetched analytics from DynamoDB:', analyticsArray.length);
       } else {
-        // Fallback to backend API
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/dashboard/analytics?days=30`);
-          if (response.ok) {
-            const data = await response.json();
-            setAnalyticsData(data);
-          }
-        } catch (apiError) {
-          console.warn('Backend API not available, using empty analytics');
-          setAnalyticsData([]);
-        }
+        // DynamoDB not configured
+        console.error('❌ DynamoDB not configured! Please set AWS credentials in Vercel environment variables.');
+        setAnalyticsData([]);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -408,24 +379,9 @@ const AdminDashboard = () => {
           setTemplates([]);
         }
       } else {
-        // Fallback to backend API if AppTrove not configured
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/apptrove/templates`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.templates) {
-              setTemplates(data.templates);
-            } else {
-              setTemplates([]);
-            }
-          } else {
-            console.warn('Templates API not available');
-            setTemplates([]);
-          }
-        } catch (apiError) {
-          console.warn('Backend API not available for templates. Link assignment will use manual URL entry.');
-          setTemplates([]);
-        }
+        // AppTrove not configured - templates not available
+        console.warn('⚠️ AppTrove not configured. Link assignment will use manual URL entry.');
+        setTemplates([]);
       }
     } catch (error) {
       console.error('Error fetching templates:', error);
@@ -442,25 +398,13 @@ const AdminDashboard = () => {
         if (data.success && data.links) {
           setAvailableLinks(data.links);
           console.log('✅ Fetched template links:', data.links.length);
+        } else {
+          setAvailableLinks([]);
         }
       } else {
-        // Fallback to backend API
-        try {
-          const response = await fetch(`${API_BASE_URL}/api/apptrove/templates/${templateId}/links`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.links) {
-              setAvailableLinks(data.links);
-            }
-          }
-        } catch (apiError) {
-          console.error('Error fetching template links:', apiError);
-          toast({
-            title: "Error",
-            description: "Failed to fetch links from template",
-            variant: "destructive",
-          });
-        }
+        // AppTrove not configured
+        console.warn('⚠️ AppTrove not configured. Cannot fetch template links.');
+        setAvailableLinks([]);
       }
     } catch (error) {
       console.error('Error fetching template links:', error);
@@ -593,36 +537,8 @@ const AdminDashboard = () => {
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        // Fallback to backend API
-        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/assign-link`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            unilink,
-            linkId,
-            templateId
-          }),
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-          toast({
-            title: "Success",
-            description: `Link assigned to ${selectedAffiliate.name}`,
-          });
-          setAssignLinkDialogOpen(false);
-          setSelectedLink("");
-          setManualUnilink("");
-          setSelectedTemplate("");
-          setAvailableLinks([]);
-          setSelectedAffiliate(null);
-          fetchAffiliates();
-        } else {
-          throw new Error(data.error || 'Failed to assign link');
-        }
+        // DynamoDB not configured
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
       }
     } catch (error) {
       toast({
@@ -686,19 +602,8 @@ const AdminDashboard = () => {
         
         console.log('✅ Fetched affiliates from DynamoDB:', data.length);
       } else {
-        // Fallback to backend API
-        const params = new URLSearchParams();
-        if (approvalFilter !== "all") {
-          params.append("approvalStatus", approvalFilter);
-        }
-        
-        const response = await fetch(`${API_BASE_URL}/api/users?${params}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch affiliates');
-        }
-        
-        data = await response.json();
+        // DynamoDB not configured
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
       }
       
       setAffiliates(data);
@@ -855,47 +760,8 @@ const AdminDashboard = () => {
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        // Fallback to backend API
-        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/approve`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            adminNotes: adminNotes,
-            approvedBy: user?.email || 'admin'
-          }),
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-          if (data.unilink) {
-            toast({
-              title: "✅ Approved & UniLink Created",
-              description: `${selectedAffiliate.name} approved. UniLink: ${data.unilink}`,
-              duration: 5000,
-            });
-          } else if (data.warning || data.linkError) {
-            toast({
-              title: "⚠️ Approved (UniLink Failed)",
-              description: `${selectedAffiliate.name} approved but unilink creation failed: ${data.warning || data.linkError}`,
-              variant: "destructive",
-              duration: 7000,
-            });
-          } else {
-            toast({
-              title: "Approved",
-              description: `${selectedAffiliate.name} has been approved`,
-            });
-          }
-          setApprovalDialogOpen(false);
-          setAdminNotes("");
-          setSelectedAffiliate(null);
-          fetchAffiliates();
-        } else {
-          throw new Error(data.error || 'Failed to approve');
-        }
+        // DynamoDB not configured
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
       }
     } catch (error) {
       toast({
@@ -930,32 +796,8 @@ const AdminDashboard = () => {
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        // Fallback to backend API
-        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/reject`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            adminNotes: adminNotes,
-            approvedBy: user?.email || 'admin'
-          }),
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-          toast({
-            title: "Rejected",
-            description: `${selectedAffiliate.name} has been rejected`,
-          });
-          setRejectionDialogOpen(false);
-          setAdminNotes("");
-          setSelectedAffiliate(null);
-          fetchAffiliates();
-        } else {
-          throw new Error(data.error || 'Failed to reject');
-        }
+        // DynamoDB not configured
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
       }
     } catch (error) {
       toast({
@@ -998,27 +840,8 @@ const AdminDashboard = () => {
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        // Fallback to backend API
-        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}`, {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-          toast({
-            title: "User Deleted",
-            description: `${selectedAffiliate.name} has been deleted successfully`,
-          });
-          setDeleteDialogOpen(false);
-          setSelectedAffiliate(null);
-          fetchAffiliates();
-        } else {
-          throw new Error(data.error || 'Failed to delete');
-        }
+        // DynamoDB not configured
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
       }
     } catch (error) {
       toast({
@@ -1624,12 +1447,9 @@ const AdminDashboard = () => {
                                         const analytics = await getAnalyticsByUserId(affiliate.id);
                                         setUserAnalytics(analytics);
                                       } else {
-                                        // Fallback to backend API
-                                        const response = await fetch(`${API_BASE_URL}/api/users/${affiliate.id}/analytics?days=30`);
-                                        if (response.ok) {
-                                          const data = await response.json();
-                                          setUserAnalytics(data);
-                                        }
+                                        // DynamoDB not configured
+                                        console.error('❌ DynamoDB not configured!');
+                                        setUserAnalytics([]);
                                       }
                                     } catch (error) {
                                       console.error('Error fetching user analytics:', error);
