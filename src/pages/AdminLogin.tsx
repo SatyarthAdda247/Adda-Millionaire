@@ -100,6 +100,7 @@ const AdminLogin = () => {
                   }}
                   disabled={loading}
                   className="h-12 text-lg"
+                  autoComplete="new-password"
                   autoFocus
                 />
               </div>
