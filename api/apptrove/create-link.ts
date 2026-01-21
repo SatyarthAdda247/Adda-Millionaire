@@ -224,11 +224,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           // If not successful, log and try next payload variation or endpoint
           const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
-          if (response.status !== 404) {
-            // 404 means endpoint doesn't exist, try next
-            // Other errors might mean auth/payload issue, try next payload variation
-            lastError = errorMsg;
-            console.log(`[AppTrove] Endpoint failed: ${endpoint.url} (${payloadVar.label}) - ${errorMsg}`);
+          lastError = errorMsg;
+          lastResponse = { status: response.status, data };
+          
+          // Log all attempts for debugging
+          if (response.status === 404) {
+            console.log(`[AppTrove] 404 - Endpoint not found: ${endpoint.url} (${payloadVar.label})`);
+          } else {
+            console.log(`[AppTrove] ${response.status} - Endpoint failed: ${endpoint.url} (${payloadVar.label}) - ${errorMsg}`);
           }
         } catch (error: any) {
           lastError = error.message || 'Network error';
