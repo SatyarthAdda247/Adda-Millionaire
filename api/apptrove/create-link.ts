@@ -253,17 +253,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'All AppTrove API endpoints failed');
     console.error('[AppTrove] All endpoints failed:', errorMsg);
     console.error('[AppTrove] Last response:', JSON.stringify(lastResponse, null, 2));
-    console.error('[AppTrove] Attempted endpoints:', endpoints.length);
+    console.error('[AppTrove] Total attempts:', endpoints.length * payloadVariations.length);
+    console.error('[AppTrove] Template ID:', templateId);
+    console.error('[AppTrove] SDK Key present:', !!APPTROVE_SDK_KEY);
+    
+    // Try to verify API is working by fetching templates
+    let apiWorking = false;
+    try {
+      const testUrl = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=1`;
+      const testHeaders = APPTROVE_SDK_KEY ? {
+        'api-key': APPTROVE_SDK_KEY,
+        'X-SDK-Key': APPTROVE_SDK_KEY,
+        'Accept': 'application/json'
+      } : {};
+      const testResponse = await fetch(testUrl, { method: 'GET', headers: testHeaders });
+      apiWorking = testResponse.ok || testResponse.status !== 404;
+      console.log(`[AppTrove] API connectivity test: ${testResponse.status} ${testResponse.statusText}`);
+    } catch (e) {
+      console.error('[AppTrove] API connectivity test failed:', e);
+    }
     
     return res.status(200).json({
       success: false,
-      error: `Failed to create link in template ${templateId}`,
+      error: `Failed to create link in template ${templateId}. All ${endpoints.length * payloadVariations.length} endpoint/auth/payload combinations returned 404.`,
       details: errorMsg,
       lastResponse: lastResponse,
-      attemptedEndpoints: endpoints.length,
+      attemptedEndpoints: endpoints.length * payloadVariations.length,
+      apiWorking: apiWorking,
+      suggestion: apiWorking 
+        ? 'API is reachable but link creation endpoint not found. Please check: 1) Template ID is correct, 2) SDK Key has permission to create links, 3) Contact AppTrove support for correct endpoint'
+        : 'API may be unreachable or endpoint structure has changed. Please verify API base URL and endpoint format.',
       debug: process.env.NODE_ENV === 'development' ? {
-        payload,
-        endpoints: endpoints.map(e => ({ url: e.url, auth: e.auth })),
+        templateId,
+        payloadVariations: payloadVariations.map(p => p.label),
+        endpoints: endpoints.slice(0, 10).map(e => ({ url: e.url, auth: e.auth })),
+        sdkKeyPresent: !!APPTROVE_SDK_KEY,
       } : undefined,
     });
   } catch (error: any) {
