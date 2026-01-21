@@ -725,8 +725,19 @@ const AdminDashboard = () => {
         
         // Try to automatically create a unilink
         try {
+          // Ensure templates are loaded
+          let templatesToUse = templates;
+          if (templatesToUse.length === 0 && isAppTroveConfigured()) {
+            console.log('📋 Templates not loaded, fetching now...');
+            const templatesData = await getTemplates();
+            if (templatesData.success && templatesData.templates) {
+              templatesToUse = templatesData.templates;
+              setTemplates(templatesData.templates);
+            }
+          }
+          
           // Find EduRise template
-          const eduriseTemplate = templates.find(
+          const eduriseTemplate = templatesToUse.find(
             (t) => 
               t.name?.toLowerCase().includes('edurise') || 
               t._id === 'wBehUW' || 
@@ -780,7 +791,7 @@ const AdminDashboard = () => {
             }
           } else {
             // No template found or AppTrove not configured
-            linkError = templates.length === 0 
+            linkError = templatesToUse.length === 0 
               ? 'No templates available. Please configure AppTrove API or assign link manually.'
               : 'EduRise template not found. Please assign link manually.';
             
