@@ -71,7 +71,9 @@ import {
 } from "recharts";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
-import { getAllUsers, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
+import { getAllUsers, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured, updateUser, deleteUser, saveLink } from "@/lib/dynamodb";
+import { getTemplates, getTemplateLinks, createLink, isAppTroveConfigured } from "@/lib/apptrove";
+import { v4 as uuidv4 } from "uuid";
 
 interface SocialHandle {
   platform: string;
@@ -236,20 +238,78 @@ const AdminDashboard = () => {
 
   const fetchOverallStats = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.overview) {
+      const useDynamoDB = isDynamoDBConfigured();
+      
+      if (useDynamoDB) {
+        // Calculate stats from DynamoDB
+        console.log('📊 Calculating stats from DynamoDB...');
+        const allUsers = await getAllUsers();
+        const allLinks = await Promise.all(
+          allUsers.map(user => getLinksByUserId(user.id))
+        ).then(results => results.flat());
+        
+        const allAnalytics = await Promise.all(
+          allUsers.map(user => getAnalyticsByUserId(user.id))
+        ).then(results => results.flat());
+        
+        // Calculate totals
+        const totalClicks = allAnalytics.reduce((sum, a) => sum + (a.clicks || 0), 0);
+        const totalConversions = allAnalytics.reduce((sum, a) => sum + (a.conversions || 0), 0);
+        const totalEarnings = allAnalytics.reduce((sum, a) => sum + (a.earnings || 0), 0);
+        const totalInstalls = allAnalytics.reduce((sum, a) => sum + (a.installs || 0), 0);
+        const totalPurchases = allAnalytics.reduce((sum, a) => sum + (a.purchases || 0), 0);
+        
+        const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
+        const installRate = totalClicks > 0 ? (totalInstalls / totalClicks) * 100 : 0;
+        const purchaseRate = totalInstalls > 0 ? (totalPurchases / totalInstalls) * 100 : 0;
+        
+        const approvedUsers = allUsers.filter(u => u.approvalStatus === 'approved');
+        const averageEarningsPerAffiliate = approvedUsers.length > 0 ? totalEarnings / approvedUsers.length : 0;
+        
+        setOverallStats({
+          totalClicks,
+          totalConversions,
+          totalEarnings,
+          conversionRate,
+          totalInstalls,
+          totalPurchases,
+          installRate,
+          purchaseRate,
+          averageEarningsPerAffiliate
+        });
+        console.log('✅ Calculated stats from DynamoDB');
+      } else {
+        // Fallback to backend API
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.overview) {
+              setOverallStats({
+                totalClicks: data.overview.totalClicks || 0,
+                totalConversions: data.overview.totalConversions || 0,
+                totalEarnings: data.overview.totalEarnings || 0,
+                conversionRate: data.overview.conversionRate || 0,
+                totalInstalls: data.overview.totalInstalls || 0,
+                totalPurchases: data.overview.totalPurchases || 0,
+                installRate: data.overview.installRate || 0,
+                purchaseRate: data.overview.purchaseRate || 0,
+                averageEarningsPerAffiliate: data.overview.averageEarningsPerAffiliate || 0
+              });
+            }
+          }
+        } catch (apiError) {
+          console.warn('Backend API not available, using default stats');
           setOverallStats({
-            totalClicks: data.overview.totalClicks || 0,
-            totalConversions: data.overview.totalConversions || 0,
-            totalEarnings: data.overview.totalEarnings || 0,
-            conversionRate: data.overview.conversionRate || 0,
-            totalInstalls: data.overview.totalInstalls || 0,
-            totalPurchases: data.overview.totalPurchases || 0,
-            installRate: data.overview.installRate || 0,
-            purchaseRate: data.overview.purchaseRate || 0,
-            averageEarningsPerAffiliate: data.overview.averageEarningsPerAffiliate || 0
+            totalClicks: 0,
+            totalConversions: 0,
+            totalEarnings: 0,
+            conversionRate: 0,
+            totalInstalls: 0,
+            totalPurchases: 0,
+            installRate: 0,
+            purchaseRate: 0,
+            averageEarningsPerAffiliate: 0
           });
         }
       }
@@ -311,24 +371,35 @@ const AdminDashboard = () => {
 
   const fetchTemplates = async () => {
     try {
-      // Templates are only available from backend API (AppTrove)
-      // If backend is not available, use empty array
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/apptrove/templates`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.templates) {
-            setTemplates(data.templates);
-          } else {
-            setTemplates([]);
-          }
+      // Use AppTrove API directly from frontend
+      if (isAppTroveConfigured()) {
+        console.log('📋 Fetching templates from AppTrove API...');
+        const data = await getTemplates();
+        if (data.success && data.templates) {
+          setTemplates(data.templates);
+          console.log('✅ Fetched templates from AppTrove:', data.templates.length);
         } else {
-          console.warn('Templates API not available');
           setTemplates([]);
         }
-      } catch (apiError) {
-        console.warn('Backend API not available for templates. Link assignment will use manual URL entry.');
-        setTemplates([]);
+      } else {
+        // Fallback to backend API if AppTrove not configured
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/apptrove/templates`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.templates) {
+              setTemplates(data.templates);
+            } else {
+              setTemplates([]);
+            }
+          } else {
+            console.warn('Templates API not available');
+            setTemplates([]);
+          }
+        } catch (apiError) {
+          console.warn('Backend API not available for templates. Link assignment will use manual URL entry.');
+          setTemplates([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching templates:', error);
@@ -338,18 +409,38 @@ const AdminDashboard = () => {
 
   const fetchTemplateLinks = async (templateId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/apptrove/templates/${templateId}/links`);
-      if (response.ok) {
-        const data = await response.json();
+      // Use AppTrove API directly from frontend
+      if (isAppTroveConfigured()) {
+        console.log('🔗 Fetching template links from AppTrove API...');
+        const data = await getTemplateLinks(templateId);
         if (data.success && data.links) {
           setAvailableLinks(data.links);
+          console.log('✅ Fetched template links:', data.links.length);
+        }
+      } else {
+        // Fallback to backend API
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/apptrove/templates/${templateId}/links`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.links) {
+              setAvailableLinks(data.links);
+            }
+          }
+        } catch (apiError) {
+          console.error('Error fetching template links:', apiError);
+          toast({
+            title: "Error",
+            description: "Failed to fetch links from template",
+            variant: "destructive",
+          });
         }
       }
     } catch (error) {
       console.error('Error fetching template links:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch links from template",
+        description: error instanceof Error ? error.message : "Failed to fetch links from template",
         variant: "destructive",
       });
     }
@@ -379,78 +470,53 @@ const AdminDashboard = () => {
           description: "Creating a new unilink from template. Please wait.",
         });
 
-        // Create a new link from the template
-        const createResponse = await fetch(`${API_BASE_URL}/api/apptrove/templates/${selectedTemplate}/create-link`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
+        // Create a new link from the template using AppTrove API directly
+        if (isAppTroveConfigured()) {
+          const createData = await createLink(selectedTemplate, {
             name: `${selectedAffiliate.name} - Affiliate Link`,
             userId: selectedAffiliate.id
-          }),
-        });
-
-        const createData = await createResponse.json();
-        
-        if (createResponse.ok && createData.link) {
-          // Link created and assigned successfully
-          toast({
-            title: "✅ Link Created & Assigned",
-            description: `New unilink created and assigned to ${selectedAffiliate.name}`,
           });
           
-          setAssignLinkDialogOpen(false);
-          setSelectedLink("");
-          setManualUnilink("");
-          setSelectedTemplate("");
-          setAvailableLinks([]);
-          setSelectedAffiliate(null);
-          fetchAffiliates();
-          return;
-        } else {
-          // If creation failed, show helpful error with solution
-          const errorMsg = createData.error || createData.message || createData.details || 'Failed to create link from template';
-          console.error('Link creation failed:', createData);
-          
-          // Check if this is the "API not available" error
-          if (createData.solution) {
-            toast({
-              title: "Link Creation Not Available via API",
-              description: "AppTrove API doesn't support programmatic link creation. Please create links manually in the AppTrove dashboard.",
-              variant: "destructive",
-              duration: 10000,
-            });
+          if (createData.success && createData.unilink) {
+            unilink = createData.unilink;
+            linkId = createData.link?.id || null;
             
-            // Show detailed instructions in a dialog or alert
-            setTimeout(() => {
-              alert(
-                `AppTrove API does not support creating links programmatically.\n\n` +
-                `To create a link:\n` +
-                `1. Go to https://dashboard.apptrove.com\n` +
-                `2. Navigate to Deep Links > EduRise template\n` +
-                `3. Click "Add Link" button\n` +
-                `4. Create the link and copy its URL\n` +
-                `5. Come back here and use "Assign Link" with the manual URL option`
-              );
-            }, 500);
-          } else {
             toast({
-              title: "Link Creation Failed",
-              description: errorMsg,
-              variant: "destructive",
-              duration: 8000,
+              title: "✅ Link Created",
+              description: `New unilink created: ${unilink}`,
             });
+          } else {
+            throw new Error('Failed to create link from template');
           }
-          return;
+        } else {
+          // Fallback to backend API
+          const createResponse = await fetch(`${API_BASE_URL}/api/apptrove/templates/${selectedTemplate}/create-link`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: `${selectedAffiliate.name} - Affiliate Link`,
+              userId: selectedAffiliate.id
+            }),
+          });
+
+          const createData = await createResponse.json();
+          
+          if (createResponse.ok && createData.link) {
+            unilink = createData.unilink || createData.link?.unilink;
+            linkId = createData.link?.id || null;
+          } else {
+            throw new Error(createData.error || 'Failed to create link from template');
+          }
         }
       } catch (error) {
         console.error('Error creating link:', error);
         toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to create link from template",
+          title: "Link Creation Failed",
+          description: error instanceof Error ? error.message : "AppTrove API may not support programmatic link creation. Please create links manually in the AppTrove dashboard and paste the URL here.",
           variant: "destructive",
-          duration: 8000,
+          duration: 10000,
         });
         return;
       }
@@ -468,21 +534,27 @@ const AdminDashboard = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/assign-link`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          unilink,
-          linkId,
-          templateId
-        }),
-      });
-
-      const data = await response.json();
+      const useDynamoDB = isDynamoDBConfigured();
       
-      if (response.ok) {
+      if (useDynamoDB) {
+        // Save link to DynamoDB
+        const linkData = {
+          id: linkId || uuidv4(),
+          userId: selectedAffiliate.id,
+          unilink,
+          templateId: templateId || null,
+          createdAt: new Date().toISOString(),
+        };
+        
+        await saveLink(linkData);
+        
+        // Update user with link assignment
+        await updateUser(selectedAffiliate.id, {
+          assignedLink: unilink,
+          linkId: linkData.id,
+          templateId: templateId || null,
+        });
+        
         toast({
           title: "Success",
           description: `Link assigned to ${selectedAffiliate.name}`,
@@ -495,7 +567,36 @@ const AdminDashboard = () => {
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        throw new Error(data.error || 'Failed to assign link');
+        // Fallback to backend API
+        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/assign-link`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            unilink,
+            linkId,
+            templateId
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          toast({
+            title: "Success",
+            description: `Link assigned to ${selectedAffiliate.name}`,
+          });
+          setAssignLinkDialogOpen(false);
+          setSelectedLink("");
+          setManualUnilink("");
+          setSelectedTemplate("");
+          setAvailableLinks([]);
+          setSelectedAffiliate(null);
+          fetchAffiliates();
+        } else {
+          throw new Error(data.error || 'Failed to assign link');
+        }
       }
     } catch (error) {
       toast({
@@ -534,7 +635,7 @@ const AdminDashboard = () => {
           const totalClicks = analytics.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
           const totalConversions = analytics.reduce((sum: number, a: any) => sum + (a.conversions || 0), 0);
           const totalEarnings = analytics.reduce((sum: number, a: any) => sum + (a.earnings || 0), 0);
-          const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks * 100).toFixed(2) : 0;
+          const conversionRate = totalClicks > 0 ? parseFloat((totalConversions / totalClicks * 100).toFixed(2)) : 0;
           
           return {
             ...user,
@@ -593,50 +694,73 @@ const AdminDashboard = () => {
     // Show loading state
     toast({
       title: "Approving affiliate...",
-      description: "Creating unilink template and link. This may take a moment.",
+      description: "Approving affiliate and updating status.",
     });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          adminNotes: adminNotes,
-          approvedBy: user?.email || 'admin'
-        }),
-      });
-
-      const data = await response.json();
+      const useDynamoDB = isDynamoDBConfigured();
       
-      if (response.ok) {
-        // Check if unilink was created
-        if (data.unilink) {
-          toast({
-            title: "✅ Approved & UniLink Created",
-            description: `${selectedAffiliate.name} approved. UniLink: ${data.unilink}`,
-            duration: 5000,
-          });
-        } else if (data.warning || data.linkError) {
-          toast({
-            title: "⚠️ Approved (UniLink Failed)",
-            description: `${selectedAffiliate.name} approved but unilink creation failed: ${data.warning || data.linkError}`,
-            variant: "destructive",
-            duration: 7000,
-          });
-        } else {
-          toast({
-            title: "Approved",
-            description: `${selectedAffiliate.name} has been approved`,
-          });
-        }
+      if (useDynamoDB) {
+        // Update user in DynamoDB
+        await updateUser(selectedAffiliate.id, {
+          approvalStatus: 'approved',
+          approvedAt: new Date().toISOString(),
+          approvedBy: user?.email || 'admin',
+          adminNotes: adminNotes || undefined,
+        });
+        
+        toast({
+          title: "✅ Approved",
+          description: `${selectedAffiliate.name} has been approved. You can now assign a link.`,
+          duration: 5000,
+        });
+        
         setApprovalDialogOpen(false);
         setAdminNotes("");
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        throw new Error(data.error || 'Failed to approve');
+        // Fallback to backend API
+        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            adminNotes: adminNotes,
+            approvedBy: user?.email || 'admin'
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          if (data.unilink) {
+            toast({
+              title: "✅ Approved & UniLink Created",
+              description: `${selectedAffiliate.name} approved. UniLink: ${data.unilink}`,
+              duration: 5000,
+            });
+          } else if (data.warning || data.linkError) {
+            toast({
+              title: "⚠️ Approved (UniLink Failed)",
+              description: `${selectedAffiliate.name} approved but unilink creation failed: ${data.warning || data.linkError}`,
+              variant: "destructive",
+              duration: 7000,
+            });
+          } else {
+            toast({
+              title: "Approved",
+              description: `${selectedAffiliate.name} has been approved`,
+            });
+          }
+          setApprovalDialogOpen(false);
+          setAdminNotes("");
+          setSelectedAffiliate(null);
+          fetchAffiliates();
+        } else {
+          throw new Error(data.error || 'Failed to approve');
+        }
       }
     } catch (error) {
       toast({
@@ -651,20 +775,17 @@ const AdminDashboard = () => {
     if (!selectedAffiliate) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/reject`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          adminNotes: adminNotes,
-          approvedBy: user?.email || 'admin'
-        }),
-      });
-
-      const data = await response.json();
+      const useDynamoDB = isDynamoDBConfigured();
       
-      if (response.ok) {
+      if (useDynamoDB) {
+        // Update user in DynamoDB
+        await updateUser(selectedAffiliate.id, {
+          approvalStatus: 'rejected',
+          rejectedAt: new Date().toISOString(),
+          rejectedBy: user?.email || 'admin',
+          adminNotes: adminNotes || undefined,
+        });
+        
         toast({
           title: "Rejected",
           description: `${selectedAffiliate.name} has been rejected`,
@@ -674,7 +795,32 @@ const AdminDashboard = () => {
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        throw new Error(data.error || 'Failed to reject');
+        // Fallback to backend API
+        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}/reject`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            adminNotes: adminNotes,
+            approvedBy: user?.email || 'admin'
+          }),
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          toast({
+            title: "Rejected",
+            description: `${selectedAffiliate.name} has been rejected`,
+          });
+          setRejectionDialogOpen(false);
+          setAdminNotes("");
+          setSelectedAffiliate(null);
+          fetchAffiliates();
+        } else {
+          throw new Error(data.error || 'Failed to reject');
+        }
       }
     } catch (error) {
       toast({
@@ -694,16 +840,12 @@ const AdminDashboard = () => {
     if (!selectedAffiliate) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
+      const useDynamoDB = isDynamoDBConfigured();
       
-      if (response.ok) {
+      if (useDynamoDB) {
+        // Delete user from DynamoDB
+        await deleteUser(selectedAffiliate.id);
+        
         toast({
           title: "User Deleted",
           description: `${selectedAffiliate.name} has been deleted successfully`,
@@ -712,7 +854,27 @@ const AdminDashboard = () => {
         setSelectedAffiliate(null);
         fetchAffiliates();
       } else {
-        throw new Error(data.error || 'Failed to delete user');
+        // Fallback to backend API
+        const response = await fetch(`${API_BASE_URL}/api/users/${selectedAffiliate.id}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          toast({
+            title: "User Deleted",
+            description: `${selectedAffiliate.name} has been deleted successfully`,
+          });
+          setDeleteDialogOpen(false);
+          setSelectedAffiliate(null);
+          fetchAffiliates();
+        } else {
+          throw new Error(data.error || 'Failed to delete');
+        }
       }
     } catch (error) {
       toast({
@@ -1311,10 +1473,19 @@ const AdminDashboard = () => {
                                   setSelectedAffiliate(affiliate);
                                   if (affiliate.id) {
                                     try {
-                                      const response = await fetch(`${API_BASE_URL}/api/users/${affiliate.id}/analytics?days=30`);
-                                      if (response.ok) {
-                                        const data = await response.json();
-                                        setUserAnalytics(data);
+                                      const useDynamoDB = isDynamoDBConfigured();
+                                      
+                                      if (useDynamoDB) {
+                                        // Fetch analytics from DynamoDB
+                                        const analytics = await getAnalyticsByUserId(affiliate.id);
+                                        setUserAnalytics(analytics);
+                                      } else {
+                                        // Fallback to backend API
+                                        const response = await fetch(`${API_BASE_URL}/api/users/${affiliate.id}/analytics?days=30`);
+                                        if (response.ok) {
+                                          const data = await response.json();
+                                          setUserAnalytics(data);
+                                        }
                                       }
                                     } catch (error) {
                                       console.error('Error fetching user analytics:', error);
