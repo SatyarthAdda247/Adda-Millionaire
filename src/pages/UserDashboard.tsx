@@ -34,6 +34,7 @@ import {
 } from "recharts";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { getUserById, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
 
 interface SocialHandle {
   platform: string;
@@ -108,10 +109,18 @@ const UserDashboard = () => {
   const fetchUserData = async (userId: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}`);
       
-      if (!response.ok) {
-        if (response.status === 404) {
+      // Check if DynamoDB is configured
+      const useDynamoDB = isDynamoDBConfigured();
+      
+      let userData;
+      
+      if (useDynamoDB) {
+        // Fetch from DynamoDB directly
+        console.log('📊 Fetching user data from DynamoDB...');
+        userData = await getUserById(userId);
+        
+        if (!userData) {
           toast({
             title: "User Not Found",
             description: "Your account was not found. Please contact support.",
@@ -120,10 +129,31 @@ const UserDashboard = () => {
           handleLogout();
           return;
         }
-        throw new Error('Failed to fetch user data');
-      }
+        
+        // Get user's links
+        const links = await getLinksByUserId(userId);
+        userData = { ...userData, links };
+        console.log('✅ User data loaded from DynamoDB');
+      } else {
+        // Fallback to backend API
+        const response = await fetch(`${API_BASE_URL}/api/users/${userId}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast({
+              title: "User Not Found",
+              description: "Your account was not found. Please contact support.",
+              variant: "destructive",
+            });
+            handleLogout();
+            return;
+          }
+          throw new Error('Failed to fetch user data');
+        }
 
-      const userData = await response.json();
+        userData = await response.json();
+      }
+      
       setUser(userData);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -139,16 +169,33 @@ const UserDashboard = () => {
 
   const fetchAnalytics = async (userId: string) => {
     try {
-      // First try to sync latest data from AppTrove
-      await fetch(`${API_BASE_URL}/api/users/${userId}/sync-analytics`, {
-        method: 'POST'
-      });
+      // Check if DynamoDB is configured
+      const useDynamoDB = isDynamoDBConfigured();
       
-      // Then fetch analytics
-      const response = await fetch(`${API_BASE_URL}/api/users/${userId}/analytics`);
-      if (response.ok) {
-        const data = await response.json();
-        setAnalytics(data);
+      if (useDynamoDB) {
+        // Fetch analytics from DynamoDB directly
+        console.log('📈 Fetching analytics from DynamoDB...');
+        const analytics = await getAnalyticsByUserId(userId);
+        setAnalytics(analytics);
+        console.log('✅ Analytics loaded from DynamoDB:', analytics.length);
+      } else {
+        // Fallback to backend API
+        // First try to sync latest data from AppTrove
+        try {
+          await fetch(`${API_BASE_URL}/api/users/${userId}/sync-analytics`, {
+            method: 'POST'
+          });
+        } catch (syncError) {
+          // Ignore sync errors, just fetch analytics
+          console.warn('Could not sync analytics:', syncError);
+        }
+        
+        // Then fetch analytics
+        const response = await fetch(`${API_BASE_URL}/api/users/${userId}/analytics`);
+        if (response.ok) {
+          const data = await response.json();
+          setAnalytics(data);
+        }
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);

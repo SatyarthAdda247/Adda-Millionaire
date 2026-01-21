@@ -127,6 +127,100 @@ export async function getUserById(userId: string) {
   }
 }
 
+// Get all users (with optional filters)
+export async function getAllUsers(filters: {
+  search?: string;
+  platform?: string;
+  status?: string;
+  approvalStatus?: string;
+} = {}) {
+  try {
+    const client = getClient();
+    
+    // Build filter expression if filters provided
+    let filterExpression: string | undefined;
+    const expressionAttributeValues: Record<string, any> = {};
+    const expressionAttributeNames: Record<string, string> = {};
+    
+    const conditions: string[] = [];
+    
+    if (filters.platform) {
+      expressionAttributeNames['#platform'] = 'platform';
+      expressionAttributeValues[':platform'] = filters.platform;
+      conditions.push('#platform = :platform');
+    }
+    
+    if (filters.status) {
+      expressionAttributeNames['#status'] = 'status';
+      expressionAttributeValues[':status'] = filters.status;
+      conditions.push('#status = :status');
+    }
+    
+    if (filters.approvalStatus) {
+      expressionAttributeValues[':approvalStatus'] = filters.approvalStatus;
+      conditions.push('approvalStatus = :approvalStatus');
+    }
+    
+    if (filters.search) {
+      expressionAttributeNames['#name'] = 'name';
+      expressionAttributeValues[':search'] = filters.search.toLowerCase();
+      conditions.push('(contains(#name, :search) OR contains(email, :search) OR contains(phone, :search))');
+    }
+    
+    if (conditions.length > 0) {
+      filterExpression = conditions.join(' AND ');
+    }
+    
+    const result = await client.send(new ScanCommand({
+      TableName: USERS_TABLE,
+      FilterExpression: filterExpression,
+      ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
+      ExpressionAttributeValues: Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
+    }));
+    
+    return result.Items || [];
+  } catch (error: any) {
+    console.error('Error getting all users from DynamoDB:', error);
+    throw new Error(`Failed to get users: ${error.message}`);
+  }
+}
+
+// Get links by userId
+export async function getLinksByUserId(userId: string) {
+  try {
+    const client = getClient();
+    const result = await client.send(new ScanCommand({
+      TableName: LINKS_TABLE,
+      FilterExpression: 'userId = :userId',
+      ExpressionAttributeValues: {
+        ':userId': userId
+      }
+    }));
+    return result.Items || [];
+  } catch (error: any) {
+    console.error('Error getting links by userId:', error);
+    return []; // Return empty array on error
+  }
+}
+
+// Get analytics by userId
+export async function getAnalyticsByUserId(userId: string) {
+  try {
+    const client = getClient();
+    const result = await client.send(new ScanCommand({
+      TableName: ANALYTICS_TABLE,
+      FilterExpression: 'userId = :userId',
+      ExpressionAttributeValues: {
+        ':userId': userId
+      }
+    }));
+    return result.Items || [];
+  } catch (error: any) {
+    console.error('Error getting analytics by userId:', error);
+    return []; // Return empty array on error
+  }
+}
+
 // Check if DynamoDB is configured
 export function isDynamoDBConfigured(): boolean {
   const configured = !!(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);

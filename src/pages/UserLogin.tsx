@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
 import { API_BASE_URL } from "@/lib/apiConfig";
+import { getUserByEmail, getUserByPhone, getLinksByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
 
 const UserLogin = () => {
   const [email, setEmail] = useState("");
@@ -43,36 +44,68 @@ const UserLogin = () => {
         return;
       }
 
+      // Check if DynamoDB is configured
+      const useDynamoDB = isDynamoDBConfigured();
+      
       // Try to find user by email or phone
       let user;
-      if (email) {
-        const response = await fetch(`${API_BASE_URL}/api/users/email/${encodeURIComponent(email.trim().toLowerCase())}`);
-        if (response.ok) {
-          user = await response.json();
-        } else if (response.status === 404) {
-          setError("User not found. Please check your email or register first.");
-          setLoading(false);
-          return;
-        } else if (response.status === 403) {
-          const errorData = await response.json();
-          setError(errorData.error || "Access denied. Your account may have been deleted.");
+      
+      if (useDynamoDB) {
+        // Fetch from DynamoDB directly
+        console.log('🔍 Looking up user in DynamoDB...');
+        if (email) {
+          user = await getUserByEmail(email.trim().toLowerCase());
+        } else if (phone) {
+          user = await getUserByPhone(phone.trim());
+        }
+        
+        if (user) {
+          // Check if user is deleted
+          if (user.status === 'deleted' || user.approvalStatus === 'deleted') {
+            setError("Access denied. Your account may have been deleted.");
+            setLoading(false);
+            return;
+          }
+          
+          // Get user's links
+          const links = await getLinksByUserId(user.id);
+          user = { ...user, links };
+          console.log('✅ User found in DynamoDB:', user.email);
+        } else {
+          setError(email ? "User not found. Please check your email or register first." : "User not found. Please check your phone number or register first.");
           setLoading(false);
           return;
         }
-      } else if (phone) {
-        // Search by phone - we'll need to implement this endpoint
-        const response = await fetch(`${API_BASE_URL}/api/users/phone/${encodeURIComponent(phone.trim())}`);
-        if (response.ok) {
-          user = await response.json();
-        } else if (response.status === 404) {
-          setError("User not found. Please check your phone number or register first.");
-          setLoading(false);
-          return;
-        } else if (response.status === 403) {
-          const errorData = await response.json();
-          setError(errorData.error || "Access denied. Your account may have been deleted.");
-          setLoading(false);
-          return;
+      } else {
+        // Fallback to backend API
+        if (email) {
+          const response = await fetch(`${API_BASE_URL}/api/users/email/${encodeURIComponent(email.trim().toLowerCase())}`);
+          if (response.ok) {
+            user = await response.json();
+          } else if (response.status === 404) {
+            setError("User not found. Please check your email or register first.");
+            setLoading(false);
+            return;
+          } else if (response.status === 403) {
+            const errorData = await response.json();
+            setError(errorData.error || "Access denied. Your account may have been deleted.");
+            setLoading(false);
+            return;
+          }
+        } else if (phone) {
+          const response = await fetch(`${API_BASE_URL}/api/users/phone/${encodeURIComponent(phone.trim())}`);
+          if (response.ok) {
+            user = await response.json();
+          } else if (response.status === 404) {
+            setError("User not found. Please check your phone number or register first.");
+            setLoading(false);
+            return;
+          } else if (response.status === 403) {
+            const errorData = await response.json();
+            setError(errorData.error || "Access denied. Your account may have been deleted.");
+            setLoading(false);
+            return;
+          }
         }
       }
 
