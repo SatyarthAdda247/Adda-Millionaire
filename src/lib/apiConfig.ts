@@ -30,13 +30,18 @@ export function getApiBaseUrl(): string {
     
     // If deployed on Vercel but VITE_API_URL is not set
     if (hostname.includes('vercel.app') || hostname.includes('adda-millionaire') || hostname.includes('partners-adda') || hostname.includes('partners.addaeducation')) {
-      console.warn(
-        '⚠️ VITE_API_URL is not set! Please set it in Vercel environment variables.\n' +
-        'Go to: Vercel Project → Settings → Environment Variables → Add VITE_API_URL\n' +
-        'Example: https://your-backend.railway.app or https://your-backend.render.com'
-      );
+      // Check if DynamoDB is configured - if so, backend API is optional
+      const dynamoDBConfigured = !!(import.meta.env.VITE_AWS_ACCESS_KEY_ID && import.meta.env.VITE_AWS_SECRET_ACCESS_KEY);
+      if (!dynamoDBConfigured) {
+        console.warn(
+          '⚠️ VITE_API_URL is not set! Please set it in Vercel environment variables.\n' +
+          'Go to: Vercel Project → Settings → Environment Variables → Add VITE_API_URL\n' +
+          'Example: https://your-backend.railway.app or https://your-backend.render.com\n' +
+          'Alternatively, configure DynamoDB credentials (VITE_AWS_ACCESS_KEY_ID, VITE_AWS_SECRET_ACCESS_KEY)'
+        );
+      }
       // Try to use a common backend URL pattern (user should set VITE_API_URL)
-      // This is a fallback - user MUST set VITE_API_URL in Vercel for production
+      // This is a fallback - user MUST set VITE_API_URL in Vercel for production if not using DynamoDB
       return 'https://edurise-backend.railway.app'; // Default fallback - user should override
     }
   }
@@ -52,8 +57,12 @@ if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
   if (hostname.includes('vercel.app') || hostname.includes('adda-millionaire') || hostname.includes('partners-adda')) {
     console.log('🌐 API Base URL:', API_BASE_URL);
-    if (!import.meta.env.VITE_API_URL) {
-      console.warn('⚠️ VITE_API_URL not set! Forms may not work. Set it in Vercel environment variables.');
+    // Only warn if DynamoDB is not configured (since DynamoDB doesn't need backend)
+    const dynamoDBConfigured = !!(import.meta.env.VITE_AWS_ACCESS_KEY_ID && import.meta.env.VITE_AWS_SECRET_ACCESS_KEY);
+    if (!import.meta.env.VITE_API_URL && !dynamoDBConfigured) {
+      console.warn('⚠️ VITE_API_URL not set! Forms may not work. Set it in Vercel environment variables, or configure DynamoDB credentials.');
+    } else if (dynamoDBConfigured) {
+      console.log('✅ Using DynamoDB directly - backend API not required');
     }
   } else if (hostname === 'localhost' || hostname === '127.0.0.1') {
     console.log('🔧 Development Mode - API Base URL:', API_BASE_URL);
