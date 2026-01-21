@@ -805,8 +805,10 @@ const AdminDashboard = () => {
                 return; // Exit early on success
               } else {
                 // Link creation failed, but don't show error - just approve silently
-                linkError = createData.error || 'UniLink creation unavailable';
-                console.warn('⚠️ Link creation failed (non-critical):', linkError);
+                const errorMsg = typeof createData.error === 'string' ? createData.error : JSON.stringify(createData.error || createData.details || 'UniLink creation unavailable');
+                linkError = errorMsg;
+                console.warn('⚠️ Link creation failed (non-critical):', errorMsg);
+                console.warn('⚠️ Full error details:', createData);
               }
             } catch (linkApiError) {
               // API call failed - don't crash, just log

@@ -218,13 +218,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // All endpoints failed - return error but don't crash
-    console.error('[AppTrove] All endpoints failed:', lastError);
+    const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'All AppTrove API endpoints failed');
+    console.error('[AppTrove] All endpoints failed:', errorMsg);
+    console.error('[AppTrove] Last response:', JSON.stringify(lastResponse, null, 2));
+    console.error('[AppTrove] Attempted endpoints:', endpoints.length);
+    
     return res.status(200).json({
       success: false,
       error: `Failed to create link in template ${templateId}`,
-      details: lastError || 'All AppTrove API endpoints failed',
+      details: errorMsg,
       lastResponse: lastResponse,
       attemptedEndpoints: endpoints.length,
+      debug: process.env.NODE_ENV === 'development' ? {
+        payload,
+        endpoints: endpoints.map(e => ({ url: e.url, auth: e.auth })),
+      } : undefined,
     });
   } catch (error: any) {
     console.error('[AppTrove] Serverless function error:', error);
