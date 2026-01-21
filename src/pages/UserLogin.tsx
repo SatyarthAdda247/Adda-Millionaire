@@ -8,7 +8,6 @@ import { AlertCircle, Mail, Phone, LogIn, ArrowLeft, Home } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
-import { API_BASE_URL } from "@/lib/apiConfig";
 import { getUserByEmail, getUserByPhone, getLinksByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
 
 const UserLogin = () => {
@@ -77,59 +76,10 @@ const UserLogin = () => {
           return;
         }
       } else {
-        // Fallback to backend API
-        if (email) {
-          let response;
-          try {
-            response = await fetch(`${API_BASE_URL}/api/users/email/${encodeURIComponent(email.trim().toLowerCase())}`);
-          } catch (fetchError: any) {
-            console.error('Network error:', fetchError);
-            setError("Unable to connect to server. Please check your internet connection or try again later.");
-            setLoading(false);
-            return;
-          }
-          
-          if (response.ok) {
-            user = await response.json();
-          } else if (response.status === 404) {
-            setError("User not found. Please check your email or register first.");
-            setLoading(false);
-            return;
-          } else if (response.status === 403) {
-            const errorData = await response.json().catch(() => ({}));
-            setError(errorData.error || "Access denied. Your account may have been deleted.");
-            setLoading(false);
-            return;
-          } else if (!response.ok) {
-            // Handle other errors
-            const errorText = await response.text().catch(() => 'Unknown error');
-            console.error('Backend API error:', response.status, errorText);
-            setError("Unable to connect to server. Please try again later.");
-            setLoading(false);
-            return;
-          }
-        } else if (phone) {
-          const response = await fetch(`${API_BASE_URL}/api/users/phone/${encodeURIComponent(phone.trim())}`);
-          if (response.ok) {
-            user = await response.json();
-          } else if (response.status === 404) {
-            setError("User not found. Please check your phone number or register first.");
-            setLoading(false);
-            return;
-          } else if (response.status === 403) {
-            const errorData = await response.json();
-            setError(errorData.error || "Access denied. Your account may have been deleted.");
-            setLoading(false);
-            return;
-          } else if (!response.ok) {
-            // Handle other errors (network, CORS, etc.)
-            const errorText = await response.text();
-            console.error('Backend API error:', response.status, errorText);
-            setError("Unable to connect to server. Please try again later.");
-            setLoading(false);
-            return;
-          }
-        }
+        // DynamoDB not configured
+        setError("System not configured. Please contact support.");
+        setLoading(false);
+        return;
       }
 
       if (!user) {

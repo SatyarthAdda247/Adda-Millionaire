@@ -34,7 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import AffiliateDetailModal from "@/components/AffiliateDetailModal";
 
-import { API_BASE_URL } from "@/lib/apiConfig";
+import { getAllUsers, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
 
 interface Affiliate {
   id: string;
@@ -90,38 +90,104 @@ const Dashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch stats
-      const statsResponse = await fetch(`${API_BASE_URL}/api/dashboard/stats`);
-      const statsData = await statsResponse.json();
-      setStats(statsData);
-
-      // Fetch affiliates
-      const params = new URLSearchParams();
-      if (platformFilter !== "all") params.append("platform", platformFilter);
-      params.append("sortBy", sortBy);
-      params.append("sortOrder", sortOrder);
+      if (!isDynamoDBConfigured()) {
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
+      }
       
-      const affiliatesResponse = await fetch(
-        `${API_BASE_URL}/api/users?${params.toString()}`
-      );
-      const affiliatesData = await affiliatesResponse.json();
+      // Fetch all users from DynamoDB
+      const filters: any = {};
+      if (platformFilter !== "all") filters.platform = platformFilter;
+      
+      const users = await getAllUsers(filters);
+      
+      // Get links and analytics for each user
+      const affiliatesWithData = await Promise.all(users.map(async (user: any) => {
+        const links = await getLinksByUserId(user.id);
+        const analytics = await getAnalyticsByUserId(user.id);
+        
+        // Calculate stats
+        const totalClicks = analytics.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
+        const totalConversions = analytics.reduce((sum: number, a: any) => sum + (a.conversions || 0), 0);
+        const totalEarnings = analytics.reduce((sum: number, a: any) => sum + (a.earnings || 0), 0);
+        const conversionRate = totalClicks > 0 ? parseFloat((totalConversions / totalClicks * 100).toFixed(2)) : 0;
+        
+        return {
+          ...user,
+          links,
+          stats: {
+            totalClicks,
+            totalConversions,
+            totalEarnings,
+            conversionRate,
+            lastActivity: analytics.length > 0 ? analytics[analytics.length - 1].date : user.createdAt
+          }
+        };
+      }));
+      
+      // Calculate overall stats
+      const totalAffiliates = affiliatesWithData.length;
+      const activeAffiliates = affiliatesWithData.filter((a: any) => a.status === 'active' && a.approvalStatus === 'approved').length;
+      const totalClicks = affiliatesWithData.reduce((sum: number, a: any) => sum + a.stats.totalClicks, 0);
+      const totalConversions = affiliatesWithData.reduce((sum: number, a: any) => sum + a.stats.totalConversions, 0);
+      const totalEarnings = affiliatesWithData.reduce((sum: number, a: any) => sum + a.stats.totalEarnings, 0);
+      const conversionRate = totalClicks > 0 ? parseFloat((totalConversions / totalClicks * 100).toFixed(2)) : 0;
+      
+      setStats({
+        overview: {
+          totalAffiliates,
+          activeAffiliates,
+          totalClicks,
+          totalConversions,
+          totalEarnings,
+          conversionRate
+        },
+        topPerformers: affiliatesWithData
+          .sort((a: any, b: any) => b.stats.totalEarnings - a.stats.totalEarnings)
+          .slice(0, 5)
+          .map((a: any) => ({
+            userId: a.id,
+            name: a.name,
+            earnings: a.stats.totalEarnings
+          }))
+      });
       
       // Apply search filter
-      let filtered = affiliatesData;
+      let filtered = affiliatesWithData;
       if (searchQuery) {
-        filtered = affiliatesData.filter((affiliate: Affiliate) =>
+        filtered = affiliatesWithData.filter((affiliate: Affiliate) =>
           affiliate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           affiliate.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
           affiliate.socialHandle.toLowerCase().includes(searchQuery.toLowerCase())
         );
       }
       
+      // Sort
+      filtered.sort((a: any, b: any) => {
+        let aVal: any, bVal: any;
+        if (sortBy === 'createdAt') {
+          aVal = new Date(a.createdAt).getTime();
+          bVal = new Date(b.createdAt).getTime();
+        } else if (sortBy === 'name') {
+          aVal = a.name.toLowerCase();
+          bVal = b.name.toLowerCase();
+        } else {
+          aVal = a.stats[sortBy] || 0;
+          bVal = b.stats[sortBy] || 0;
+        }
+        
+        if (sortOrder === 'asc') {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+      
       setAffiliates(filtered);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       toast({
         title: "Error",
-        description: "Failed to load dashboard data",
+        description: error instanceof Error ? error.message : "Failed to load dashboard data",
         variant: "destructive",
       });
     } finally {
@@ -131,19 +197,16 @@ const Dashboard = () => {
 
   const handleSync = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/analytics/sync`, {
-        method: "POST",
-      });
-      const data = await response.json();
+      // Refresh dashboard data (analytics are already in DynamoDB)
+      await fetchDashboardData();
       toast({
         title: "Sync Complete",
-        description: data.message || "Analytics synced successfully",
+        description: "Dashboard data refreshed successfully",
       });
-      fetchDashboardData();
     } catch (error) {
       toast({
         title: "Sync Failed",
-        description: "Failed to sync analytics",
+        description: "Failed to refresh dashboard data",
         variant: "destructive",
       });
     }

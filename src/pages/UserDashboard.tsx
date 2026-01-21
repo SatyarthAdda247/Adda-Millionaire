@@ -33,7 +33,6 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { API_BASE_URL } from "@/lib/apiConfig";
 import { getUserById, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
 
 interface SocialHandle {
@@ -135,23 +134,8 @@ const UserDashboard = () => {
         userData = { ...userData, links };
         console.log('✅ User data loaded from DynamoDB');
       } else {
-        // Fallback to backend API
-        const response = await fetch(`${API_BASE_URL}/api/users/${userId}`);
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast({
-              title: "User Not Found",
-              description: "Your account was not found. Please contact support.",
-              variant: "destructive",
-            });
-            handleLogout();
-            return;
-          }
-          throw new Error('Failed to fetch user data');
-        }
-
-        userData = await response.json();
+        // DynamoDB not configured
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
       }
       
       setUser(userData);
@@ -179,23 +163,9 @@ const UserDashboard = () => {
         setAnalytics(analytics);
         console.log('✅ Analytics loaded from DynamoDB:', analytics.length);
       } else {
-        // Fallback to backend API
-        // First try to sync latest data from AppTrove
-        try {
-          await fetch(`${API_BASE_URL}/api/users/${userId}/sync-analytics`, {
-            method: 'POST'
-          });
-        } catch (syncError) {
-          // Ignore sync errors, just fetch analytics
-          console.warn('Could not sync analytics:', syncError);
-        }
-        
-        // Then fetch analytics
-        const response = await fetch(`${API_BASE_URL}/api/users/${userId}/analytics`);
-        if (response.ok) {
-          const data = await response.json();
-          setAnalytics(data);
-        }
+        // DynamoDB not configured
+        console.error('❌ DynamoDB not configured!');
+        setAnalytics([]);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
