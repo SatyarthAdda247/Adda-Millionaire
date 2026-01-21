@@ -29,7 +29,7 @@ export function getApiBaseUrl(): string {
     const hostname = window.location.hostname;
     
     // If deployed on Vercel but VITE_API_URL is not set
-    if (hostname.includes('vercel.app') || hostname.includes('adda-millionaire') || hostname.includes('partners.addaeducation')) {
+    if (hostname.includes('vercel.app') || hostname.includes('adda-millionaire') || hostname.includes('partners-adda') || hostname.includes('partners.addaeducation')) {
       console.warn(
         '⚠️ VITE_API_URL is not set! Please set it in Vercel environment variables.\n' +
         'Go to: Vercel Project → Settings → Environment Variables → Add VITE_API_URL\n' +
