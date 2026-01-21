@@ -235,20 +235,27 @@ const AdminDashboard = () => {
     }
   }, [selectedTemplate]);
 
-  // Auto-select template when dialog opens (Millionaire's Adda / EduRise)
+  // Auto-select template when dialog opens (Millionaires Adda template ID: wBehUW)
   useEffect(() => {
-    if (assignLinkDialogOpen && templates.length > 0) {
-      // Find template by name (Millionaire's Adda, EduRise) or ID
+    if (!assignLinkDialogOpen) return;
+
+    // Always prefer the known Template ID from AppTrove: "Millionaires Adda" => wBehUW
+    if (!selectedTemplate) {
+      setSelectedTemplate("wBehUW");
+    }
+
+    // If templates are loaded, still try to match by name/id and keep selection consistent
+    if (templates.length > 0 && !selectedTemplate) {
       const defaultTemplate = templates.find(
-        (t) => 
-          t.name?.toLowerCase().includes('millionaire') ||
-          t.name?.toLowerCase().includes('adda') ||
-          t.name?.toLowerCase().includes('edurise') ||
-          t._id === 'wBehUW' || 
-          t.id === 'wBehUW'
+        (t) =>
+          t._id === "wBehUW" ||
+          t.id === "wBehUW" ||
+          t.name?.toLowerCase().includes("millionaire") ||
+          t.name?.toLowerCase().includes("adda") ||
+          t.name?.toLowerCase().includes("edurise"),
       );
-      
-      if (defaultTemplate && !selectedTemplate) {
+
+      if (defaultTemplate) {
         const templateId = defaultTemplate._id || defaultTemplate.id;
         setSelectedTemplate(templateId);
       }
@@ -738,18 +745,15 @@ const AdminDashboard = () => {
             }
           }
           
-          // Find template (Millionaire's Adda / EduRise)
-          const defaultTemplate = templatesToUse.find(
-            (t) => 
-              t.name?.toLowerCase().includes('millionaire') ||
-              t.name?.toLowerCase().includes('adda') ||
-              t.name?.toLowerCase().includes('edurise') ||
-              t._id === 'wBehUW' || 
-              t.id === 'wBehUW'
-          );
-          
-          if (defaultTemplate && isAppTroveConfigured()) {
-            const templateIdToUse = defaultTemplate._id || defaultTemplate.id;
+          // Always target the user's shown template: "Millionaires Adda" (Template ID: wBehUW)
+          // If AppTrove returns templates, we still validate it exists; otherwise we proceed with the ID directly.
+          const templateIdToUse = "wBehUW";
+          const templateExists =
+            templatesToUse.length === 0
+              ? true
+              : !!templatesToUse.find((t) => t._id === templateIdToUse || t.id === templateIdToUse);
+
+          if (templateExists && isAppTroveConfigured()) {
             templateId = templateIdToUse;
             
             // Create a new link from the template
@@ -797,7 +801,7 @@ const AdminDashboard = () => {
             // No template found or AppTrove not configured
             linkError = templatesToUse.length === 0 
               ? 'No templates available. Please configure AppTrove API or assign link manually.'
-              : 'Default template (Millionaire\'s Adda/EduRise) not found. Please assign link manually.';
+              : 'Template wBehUW (Millionaires Adda) not found in your AppTrove account. Please assign link manually.';
             
             // Still approve the user
             await updateUser(selectedAffiliate.id, {
