@@ -2,7 +2,7 @@
  * Vercel Serverless Function: Create AppTrove UniLink
  * 
  * This proxies AppTrove API calls to bypass CORS restrictions.
- * Includes comprehensive tracking parameters for accurate analytics.
+ * Uses the same pattern as the old backend server.js that was working.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -36,151 +36,189 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Get AppTrove credentials - SDK Key is hardcoded as fallback
+    // Get AppTrove credentials - Match old backend pattern
+    // Old backend used Secret ID/Key with Basic Auth as PRIMARY method
     const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY;
     const APPTROVE_SDK_KEY = process.env.VITE_APPTROVE_SDK_KEY || process.env.APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
-    const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID;
-    const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY;
-    // Try multiple API base URLs - AppTrove might use different domains
-    const APPTROVE_API_BASE_URLS = [
-      process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com',
-      'https://api.apptrove.io',
-      'https://apptrove.com/api',
-      'https://apptrove.io/api',
-    ].filter(Boolean).map(url => url.replace(/\/$/, ''));
-    
-    const APPTROVE_API_URL = APPTROVE_API_BASE_URLS[0]; // Use first as primary
+    const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
+    const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
+    const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
-    // Build comprehensive payload with all tracking parameters
-    const campaign = linkData?.campaign || (linkData?.name || 'Affiliate Link').replace(/\s+/g, '-').toLowerCase().substring(0, 50);
+    // Build payload matching old backend format exactly
+    const linkName = linkData?.name || `${affiliateData?.name || 'Affiliate'} - Affiliate Link` || 'Affiliate Link';
+    const campaign = linkData?.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50);
     
-    // Extract affiliate tracking data
-    const affiliateId = affiliateData?.id || linkData?.userId || linkData?.affiliateId || '';
-    const affiliateName = affiliateData?.name || linkData?.name || '';
-    const affiliateEmail = affiliateData?.email || linkData?.email || '';
-    
-    // Build payload variations - AppTrove might expect different formats
     const basePayload = {
-      name: linkData?.name || `${affiliateName} - Affiliate Link` || 'Affiliate Link',
+      name: linkName,
       campaign: campaign,
       deepLinking: linkData?.deepLink || '',
       status: linkData?.status || 'active',
-    };
-
-    // Payload variation 1: With templateId in body
-    const payloadWithTemplateId: any = {
-      ...basePayload,
-      templateId: templateId,
-      template_id: templateId, // Some APIs use snake_case
-      metadata: {
-        affiliateId: affiliateId,
-        affiliateName: affiliateName,
-        affiliateEmail: affiliateEmail,
-        userId: linkData?.userId || affiliateId,
-        createdAt: new Date().toISOString(),
-        source: 'admin_dashboard',
-        ...linkData?.metadata,
-      },
-      ...(linkData?.utm_source && { utm_source: linkData.utm_source }),
-      ...(linkData?.utm_medium && { utm_medium: linkData.utm_medium }),
-      ...(linkData?.utm_campaign && { utm_campaign: linkData.utm_campaign }),
-      ...(linkData?.utm_term && { utm_term: linkData.utm_term }),
-      ...(linkData?.utm_content && { utm_content: linkData.utm_content }),
       ...linkData,
     };
 
-    // Payload variation 2: Minimal payload (some endpoints might reject extra fields)
-    const payloadMinimal: any = {
-      name: basePayload.name,
-      campaign: basePayload.campaign,
-      templateId: templateId,
-    };
-
-    // Try multiple endpoints and auth methods (comprehensive fallback)
-    const endpoints: Array<{ url: string; auth: 'api-key' | 'sdk-key' | 'secret' | 'basic'; headers: Record<string, string> }> = [];
-
-    // Build endpoint configurations with proper auth headers
-    // Try each endpoint pattern with each base URL
-    const endpointPaths = [
-      `/internal/link-template/${encodeURIComponent(templateId)}/link`,
-      `/internal/link-template/link`,
-      `/internal/unilink`,
-      `/v2/link-template/${encodeURIComponent(templateId)}/link`,
-      `/v2/unilink`,
-      `/api/v1/unilinks`,
-      `/api/v1/links`,
-      `/api/unilinks`,
-      `/api/links`,
-      `/link-template/${encodeURIComponent(templateId)}/link`,
-      `/unilink/create`,
-      `/link/create`,
-      `/internal/unilink?templateId=${encodeURIComponent(templateId)}`,
-      `/api/v1/unilinks?templateId=${encodeURIComponent(templateId)}`,
-    ];
-
-    for (const baseUrl of APPTROVE_API_BASE_URLS) {
-      for (const path of endpointPaths) {
-        // Try SDK key first (most likely to work), then other auth methods
-        const authMethods = ['sdk-key', 'api-key', 'secret', 'basic'];
+    // Try to get template info first to find template ID variants (oid, _id)
+    let templateIdVariants = [templateId];
+    try {
+      const templateResponse = await fetch(
+        `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`,
+        {
+          headers: APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY ? {
+            'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
+            'Accept': 'application/json'
+          } : APPTROVE_SDK_KEY ? {
+            'api-key': APPTROVE_SDK_KEY,
+            'Accept': 'application/json'
+          } : {},
+        }
+      );
+      
+      if (templateResponse.ok) {
+        const templateData = await templateResponse.json().catch(() => null);
+        const templates = templateData?.data?.linkTemplateList || templateData?.linkTemplateList || [];
+        const template = templates.find((t: any) => 
+          t._id === templateId || t.id === templateId || t.oid === templateId
+        );
         
-        for (const authMethod of authMethods) {
-        const headers: Record<string, string> = {
+        if (template) {
+          // Add template ID variants
+          if (template.oid && template.oid !== templateId) templateIdVariants.push(template.oid);
+          if (template._id && template._id !== templateId) templateIdVariants.push(template._id);
+          if (template.id && template.id !== templateId) templateIdVariants.push(template.id);
+        }
+      }
+    } catch (e) {
+      console.log('[AppTrove] Could not fetch template variants, using provided templateId only');
+    }
+
+    // Build endpoints matching old backend EXACTLY
+    // Old backend tried: Basic Auth (Secret ID/Key) FIRST, then secret headers, then API key
+    const endpoints: Array<{ url: string; auth: string; headers: Record<string, string>; payload: any }> = [];
+
+    // Method 1: Basic Auth with Secret ID/Key (PRIMARY - matches old backend)
+    for (const id of templateIdVariants) {
+      if (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
+        const authString = Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64');
+        endpoints.push({
+          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
+          auth: 'basic',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Basic ${authString}`,
+          },
+          payload: basePayload,
+        });
+      }
+    }
+
+    // Method 2: Secret ID/Key as headers
+    for (const id of templateIdVariants) {
+      if (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
+        endpoints.push({
+          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
+          auth: 'secret-headers',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'secret-id': APPTROVE_SECRET_ID,
+            'secret-key': APPTROVE_SECRET_KEY,
+            'X-Secret-ID': APPTROVE_SECRET_ID,
+            'X-Secret-Key': APPTROVE_SECRET_KEY,
+          },
+          payload: basePayload,
+        });
+      }
+    }
+
+    // Method 3: API Key (fallback)
+    for (const id of templateIdVariants) {
+      if (APPTROVE_API_KEY) {
+        endpoints.push({
+          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
+          auth: 'api-key',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': APPTROVE_API_KEY,
+          },
+          payload: basePayload,
+        });
+      }
+    }
+
+    // Alternative endpoints (matching old backend)
+    if (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
+      const authString = Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64');
+      
+      // /internal/unilink with templateId in payload
+      endpoints.push({
+        url: `${APPTROVE_API_URL}/internal/unilink`,
+        auth: 'basic',
+        headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-        };
+          'Authorization': `Basic ${authString}`,
+        },
+        payload: { ...basePayload, templateId: templateId },
+      });
 
-        // Set authentication headers based on method
-        // SDK Key is tried first since it's hardcoded and most likely to work
-        if (authMethod === 'sdk-key' && APPTROVE_SDK_KEY) {
-          headers['api-key'] = APPTROVE_SDK_KEY;
-          headers['X-SDK-Key'] = APPTROVE_SDK_KEY;
-          headers['x-sdk-key'] = APPTROVE_SDK_KEY; // lowercase variant
-          headers['X-API-Key'] = APPTROVE_SDK_KEY; // Some endpoints use this
-          headers['Authorization'] = `Bearer ${APPTROVE_SDK_KEY}`; // Some endpoints use Bearer
-        } else if (authMethod === 'api-key' && APPTROVE_API_KEY) {
-          headers['api-key'] = APPTROVE_API_KEY;
-          headers['X-API-Key'] = APPTROVE_API_KEY;
-          headers['Authorization'] = `Bearer ${APPTROVE_API_KEY}`;
-        } else if (authMethod === 'secret' && APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
-          headers['secret-id'] = APPTROVE_SECRET_ID;
-          headers['secret-key'] = APPTROVE_SECRET_KEY;
-          headers['X-Secret-ID'] = APPTROVE_SECRET_ID;
-          headers['X-Secret-Key'] = APPTROVE_SECRET_KEY;
-        } else if (authMethod === 'basic' && APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
-          const authString = Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64');
-          headers['Authorization'] = `Basic ${authString}`;
-        } else {
-          continue; // Skip if auth method not available
-        }
+      // /internal/link-template/link with templateId in payload
+      endpoints.push({
+        url: `${APPTROVE_API_URL}/internal/link-template/link`,
+        auth: 'basic',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Basic ${authString}`,
+        },
+        payload: { ...basePayload, templateId: templateId },
+      });
 
-          endpoints.push({
-            url: `${baseUrl}${path}`,
-            auth: authMethod as any,
-            headers,
-          });
-        }
+      // v2 API endpoints
+      for (const id of templateIdVariants) {
+        endpoints.push({
+          url: `${APPTROVE_API_URL}/v2/link-template/${encodeURIComponent(id)}/link`,
+          auth: 'basic',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Basic ${authString}`,
+          },
+          payload: basePayload,
+        });
+      }
+    }
+
+    // Try SDK Key as last resort
+    if (APPTROVE_SDK_KEY && endpoints.length === 0) {
+      for (const id of templateIdVariants) {
+        endpoints.push({
+          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
+          auth: 'sdk-key',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': APPTROVE_SDK_KEY,
+            'X-SDK-Key': APPTROVE_SDK_KEY,
+          },
+          payload: basePayload,
+        });
       }
     }
 
     let lastError: any = null;
     let lastResponse: any = null;
 
-    // Try each endpoint with different payload variations
-    const payloadVariations = [
-      { payload: payloadWithTemplateId, label: 'full' },
-      { payload: payloadMinimal, label: 'minimal' },
-    ];
-
+    // Try each endpoint (matching old backend logic)
     for (const endpoint of endpoints) {
-      for (const payloadVar of payloadVariations) {
-        try {
-          console.log(`[AppTrove] Trying endpoint: ${endpoint.url} with auth: ${endpoint.auth}, payload: ${payloadVar.label}`);
-          
-          const response = await fetch(endpoint.url, {
-            method: 'POST',
-            headers: endpoint.headers,
-            body: JSON.stringify(payloadVar.payload),
-          });
+      try {
+        console.log(`[AppTrove] Trying ${endpoint.url} with ${endpoint.auth} auth`);
+        
+        const response = await fetch(endpoint.url, {
+          method: 'POST',
+          headers: endpoint.headers,
+          body: JSON.stringify(endpoint.payload),
+        });
 
         const responseText = await response.text();
         let data: any = null;
@@ -188,55 +226,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           data = JSON.parse(responseText);
         } catch {
-          // If not JSON, try to extract useful info
           data = { raw: responseText };
         }
 
         lastResponse = { status: response.status, data };
 
-        // Check for success (200-299)
-        if (response.ok || response.status === 200 || response.status === 201) {
-          // Extract unilink from various response formats
-          const unilink =
-            data?.data?.unilink ??
-            data?.unilink ??
-            data?.data?.link?.link ??
-            data?.data?.link?.unilink ??
-            data?.data?.link?.url ??
-            data?.link?.link ??
-            data?.link?.unilink ??
-            data?.link?.url ??
-            data?.url ??
+        // Check for success (200-299) - matching old backend
+        if (response.status >= 200 && response.status < 300) {
+          console.log(`✅ Success with ${endpoint.url} using ${endpoint.auth} auth!`);
+          
+          // Extract unilink matching old backend pattern
+          const unilinkUrl = 
+            data?.shortUrl || 
+            data?.longUrl || 
+            data?.link || 
+            data?.url ||
+            data?.data?.shortUrl || 
+            data?.data?.longUrl || 
+            data?.data?.link ||
+            data?.data?.url || 
+            data?.result?.link || 
+            data?.result?.url || 
             null;
 
-          // If we got a successful response but no unilink, try to construct it
-          if (!unilink && data?.data?.link) {
-            const linkId = data?.data?.link?.id || data?.data?.link?._id || data?.data?.linkId;
-            if (linkId) {
-              const domain = data?.data?.link?.domain || data?.data?.domain || 'applink.reevo.in';
-              return res.status(200).json({
-                success: true,
-                link: data?.data?.link || data?.link || data,
-                unilink: `https://${domain}/d/${linkId}`,
-                linkId: linkId,
-                tracking: {
-                  affiliateId,
-                  campaign,
-                  templateId,
-                },
-              });
-            }
-          }
+          const linkId = 
+            data?._id || 
+            data?.id || 
+            data?.linkId ||
+            data?.data?._id || 
+            data?.data?.id || 
+            data?.data?.linkId ||
+            data?.result?.id || 
+            data?.result?.linkId || 
+            null;
 
-          // Success with unilink
-          if (unilink) {
+          if (unilinkUrl) {
             return res.status(200).json({
               success: true,
-              link: data?.data?.link || data?.link || data,
-              unilink: unilink,
-              linkId: data?.data?.link?.id || data?.data?.linkId || data?.link?.id,
+              link: data,
+              unilink: unilinkUrl,
+              linkId: linkId,
               tracking: {
-                affiliateId,
+                affiliateId: affiliateData?.id || linkData?.userId,
+                campaign,
+                templateId,
+              },
+            });
+          }
+
+          // If we got success but no URL, try to construct it
+          if (linkId) {
+            const domain = data?.domain || data?.data?.domain || 'applink.reevo.in';
+            return res.status(200).json({
+              success: true,
+              link: data,
+              unilink: `https://${domain}/d/${linkId}`,
+              linkId: linkId,
+              tracking: {
+                affiliateId: affiliateData?.id || linkData?.userId,
                 campaign,
                 templateId,
               },
@@ -244,69 +291,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         }
 
-          // If not successful, log and try next payload variation or endpoint
-          const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
-          lastError = errorMsg;
-          lastResponse = { status: response.status, data };
-          
-          // Log all attempts for debugging
-          if (response.status === 404) {
-            console.log(`[AppTrove] 404 - Endpoint not found: ${endpoint.url} (${payloadVar.label})`);
-          } else {
-            console.log(`[AppTrove] ${response.status} - Endpoint failed: ${endpoint.url} (${payloadVar.label}) - ${errorMsg}`);
-          }
-        } catch (error: any) {
-          lastError = error.message || 'Network error';
-          console.error(`[AppTrove] Endpoint error: ${endpoint.url} (${payloadVar.label})`, error);
-          continue; // Try next payload variation or endpoint
-        }
+        // If not successful, log and try next endpoint
+        const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
+        lastError = errorMsg;
+        console.log(`[AppTrove] ${response.status} - ${endpoint.url} (${endpoint.auth}): ${errorMsg}`);
+      } catch (error: any) {
+        lastError = error.message || 'Network error';
+        console.error(`[AppTrove] Endpoint error: ${endpoint.url} (${endpoint.auth})`, error);
+        continue;
       }
     }
 
-    // All endpoints failed - return error but don't crash
-    const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'All AppTrove API endpoints failed');
+    // All endpoints failed
+    const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'All endpoints failed');
     console.error('[AppTrove] All endpoints failed:', errorMsg);
     console.error('[AppTrove] Last response:', JSON.stringify(lastResponse, null, 2));
-    console.error('[AppTrove] Total attempts:', endpoints.length * payloadVariations.length);
-    console.error('[AppTrove] Template ID:', templateId);
-    console.error('[AppTrove] SDK Key present:', !!APPTROVE_SDK_KEY);
-    
-    // Try to verify API is working by fetching templates
-    let apiWorking = false;
-    try {
-      const testUrl = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=1`;
-      const testHeaders = APPTROVE_SDK_KEY ? {
-        'api-key': APPTROVE_SDK_KEY,
-        'X-SDK-Key': APPTROVE_SDK_KEY,
-        'Accept': 'application/json'
-      } : {};
-      const testResponse = await fetch(testUrl, { method: 'GET', headers: testHeaders });
-      apiWorking = testResponse.ok || testResponse.status !== 404;
-      console.log(`[AppTrove] API connectivity test: ${testResponse.status} ${testResponse.statusText}`);
-    } catch (e) {
-      console.error('[AppTrove] API connectivity test failed:', e);
-    }
+    console.error('[AppTrove] Attempted endpoints:', endpoints.length);
+    console.error('[AppTrove] Template ID variants tried:', templateIdVariants);
     
     return res.status(200).json({
       success: false,
-      error: `Failed to create link in template ${templateId}. All ${endpoints.length * payloadVariations.length} endpoint/auth/payload combinations returned 404.`,
+      error: `Failed to create link in template ${templateId}`,
       details: errorMsg,
       lastResponse: lastResponse,
-      attemptedEndpoints: endpoints.length * payloadVariations.length,
-      apiWorking: apiWorking,
-      suggestion: apiWorking 
-        ? 'API is reachable but link creation endpoint not found. Please check: 1) Template ID is correct, 2) SDK Key has permission to create links, 3) Contact AppTrove support for correct endpoint'
-        : 'API may be unreachable or endpoint structure has changed. Please verify API base URL and endpoint format.',
-      debug: process.env.NODE_ENV === 'development' ? {
-        templateId,
-        payloadVariations: payloadVariations.map(p => p.label),
-        endpoints: endpoints.slice(0, 10).map(e => ({ url: e.url, auth: e.auth })),
-        sdkKeyPresent: !!APPTROVE_SDK_KEY,
-      } : undefined,
+      attemptedEndpoints: endpoints.length,
+      templateIdVariants: templateIdVariants,
+      suggestion: 'All API endpoints returned errors. Link creation may require manual setup in AppTrove dashboard, or API access may not be enabled for your account.',
     });
   } catch (error: any) {
     console.error('[AppTrove] Serverless function error:', error);
-    // Return error response instead of crashing
     return res.status(200).json({
       success: false,
       error: 'Internal server error',
