@@ -295,6 +295,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
         lastError = errorMsg;
         console.log(`[AppTrove] ${response.status} - ${endpoint.url} (${endpoint.auth}): ${errorMsg}`);
+        
+        // Log full response for debugging 404s
+        if (response.status === 404) {
+          console.log(`[AppTrove] 404 Details - URL: ${endpoint.url}, Auth: ${endpoint.auth}, Response:`, JSON.stringify(data, null, 2));
+        }
       } catch (error: any) {
         lastError = error.message || 'Network error';
         console.error(`[AppTrove] Endpoint error: ${endpoint.url} (${endpoint.auth})`, error);
