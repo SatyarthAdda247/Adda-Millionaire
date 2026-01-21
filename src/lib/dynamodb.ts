@@ -254,7 +254,7 @@ export function isDynamoDBConfigured(): boolean {
   // Log configuration status (always log on Vercel to help debug)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    const isProduction = hostname.includes('vercel.app') || hostname.includes('adda-millionaire');
+    const isProduction = hostname.includes('vercel.app') || hostname.includes('adda-millionaire') || hostname.includes('partners-adda');
     const isDevelopment = hostname.includes('localhost') || hostname.includes('127.0.0.1');
     
     if (configured) {

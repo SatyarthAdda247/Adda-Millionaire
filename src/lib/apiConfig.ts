@@ -50,7 +50,7 @@ export const API_BASE_URL = getApiBaseUrl();
 // Log API URL in development or if there's a warning (helps with debugging)
 if (typeof window !== 'undefined') {
   const hostname = window.location.hostname;
-  if (hostname.includes('vercel.app') || hostname.includes('adda-millionaire')) {
+  if (hostname.includes('vercel.app') || hostname.includes('adda-millionaire') || hostname.includes('partners-adda')) {
     console.log('🌐 API Base URL:', API_BASE_URL);
     if (!import.meta.env.VITE_API_URL) {
       console.warn('⚠️ VITE_API_URL not set! Forms may not work. Set it in Vercel environment variables.');

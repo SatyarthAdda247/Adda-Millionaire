@@ -86,10 +86,10 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl px-4"
-                  size="sm"
+            <Button
+              variant="outline"
+              className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl px-4"
+              size="sm"
                 >
                   <LogIn className="w-4 h-4 mr-2" />
                   Login
@@ -111,8 +111,8 @@ const Navbar = () => {
                 <DropdownMenuItem
                   onClick={() => navigate('/admin/login')}
                   className="cursor-pointer"
-                >
-                  <Shield className="w-4 h-4 mr-2" />
+            >
+              <Shield className="w-4 h-4 mr-2" />
                   <div className="flex flex-col">
                     <span className="font-medium">Admin Login</span>
                     <span className="text-xs text-gray-500">Manage affiliates</span>
@@ -186,17 +186,17 @@ const Navbar = () => {
                   <User className="w-4 h-4 mr-2" />
                   User Login
                 </Button>
-                <Button
-                  onClick={() => {
+              <Button
+                onClick={() => {
                     navigate('/admin/login');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  variant="outline"
-                  className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl w-full"
-                >
-                  <Shield className="w-4 h-4 mr-2" />
+                  setIsMobileMenuOpen(false);
+                }}
+                variant="outline"
+                className="border-gray-300 text-gray-700 hover:bg-gray-50 rounded-xl w-full"
+              >
+                <Shield className="w-4 h-4 mr-2" />
                   Admin Login
-                </Button>
+              </Button>
               </div>
               <Button
                 onClick={() => scrollToSection("signup")}
