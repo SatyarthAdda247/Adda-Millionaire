@@ -163,6 +163,7 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://adda-millionaire.vercel.app',
   'https://edurise.vercel.app',
+  'https://partners.addaeducation',
   'http://localhost:5173',
   'http://localhost:8080',
   'http://localhost:3000',
