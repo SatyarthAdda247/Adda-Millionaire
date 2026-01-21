@@ -224,51 +224,12 @@ const HowYouEarn = () => {
           ))}
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
-          className="max-w-4xl mx-auto bg-blue-50 rounded-2xl p-6 md:p-8 border border-blue-100 mb-12"
-        >
-          <h3 className="text-xl md:text-2xl font-display font-semibold text-gray-900 mb-2 text-center">
-            Create Videos. Get Paid Every Month.
-          </h3>
-          <div className="grid md:grid-cols-2 gap-6 mt-6">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-1">
-                  New Conversion
-                </h4>
-                <p className="text-sm text-gray-600">
-                  When someone buys using your link: <strong className="text-gray-900">₹199 commission</strong>
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-gray-900 mb-1">
-                  Renewal Commission
-                </h4>
-                <p className="text-sm text-gray-600">
-                  When they renew monthly: <strong className="text-gray-900">20% commission (₹40)</strong> per renewal, every month
-                </p>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
         {/* Earnings Calculator */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
-          transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
-          className="max-w-2xl mx-auto bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200"
+          transition={{ duration: 0.8, delay: 0.6, ease: "easeOut" }}
+          className="max-w-2xl mx-auto bg-white rounded-2xl p-8 md:p-12 shadow-lg border border-gray-200 mb-12"
         >
           <h3 className="text-3xl md:text-4xl font-display font-bold text-gray-900 mb-2 text-center">
             Estimate Your <span className="text-green-600">Earnings</span>
@@ -356,6 +317,45 @@ const HowYouEarn = () => {
           <p className="text-xs text-gray-500 text-center mt-6">
             Actual earnings depend on engagement and conversions.
           </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, delay: 0.8, ease: "easeOut" }}
+          className="max-w-4xl mx-auto bg-blue-50 rounded-2xl p-6 md:p-8 border border-blue-100"
+        >
+          <h3 className="text-xl md:text-2xl font-display font-semibold text-gray-900 mb-2 text-center">
+            Create Videos. Get Paid Every Month.
+          </h3>
+          <div className="grid md:grid-cols-2 gap-6 mt-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                <Users className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-1">
+                  New Conversion
+                </h4>
+                <p className="text-sm text-gray-600">
+                  When someone buys using your link: <strong className="text-gray-900">₹199 commission</strong>
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-1">
+                  Renewal Commission
+                </h4>
+                <p className="text-sm text-gray-600">
+                  When they renew monthly: <strong className="text-gray-900">20% commission (₹40)</strong> per renewal, every month
+                </p>
+              </div>
+            </div>
+          </div>
         </motion.div>
       </div>
     </section>

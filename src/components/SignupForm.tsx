@@ -398,19 +398,10 @@ const SignupForm = () => {
           <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <div className="flex items-center justify-between">
-                  <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <CheckCircle2 className="w-6 h-6 text-green-600" />
-                    Application Submitted Successfully!
-                  </DialogTitle>
-                  <button
-                    onClick={() => setShowSuccessDialog(false)}
-                    className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
-                  >
-                    <X className="h-5 w-5 text-gray-500 hover:text-gray-900" />
-                    <span className="sr-only">Close</span>
-                  </button>
-                </div>
+                <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+                  Application Submitted Successfully!
+                </DialogTitle>
                 <DialogDescription className="pt-4 text-base text-gray-600">
                   Your affiliate application has been received and is pending admin approval.
                 </DialogDescription>
