@@ -57,7 +57,7 @@ export default function SocialHandleInput({ handles, onChange }: SocialHandleInp
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <label className="block text-base font-medium text-gray-700">
-          Social Media Handles
+          Social Media Handles <span className="text-red-500">*</span>
         </label>
         <Button
           type="button"
@@ -72,8 +72,8 @@ export default function SocialHandleInput({ handles, onChange }: SocialHandleInp
       </div>
 
       {handles.length === 0 && (
-        <div className="text-sm text-gray-500 text-center py-4 border-2 border-dashed rounded-lg">
-          No social handles added. Click "Add Handle" to add one.
+        <div className="text-sm text-amber-600 text-center py-4 border-2 border-amber-300 border-dashed rounded-lg bg-amber-50">
+          <strong>Required:</strong> Please add at least one social media handle to proceed.
         </div>
       )}
 
