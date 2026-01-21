@@ -235,19 +235,21 @@ const AdminDashboard = () => {
     }
   }, [selectedTemplate]);
 
-  // Auto-select "EduRise" template when dialog opens
+  // Auto-select template when dialog opens (Millionaire's Adda / EduRise)
   useEffect(() => {
     if (assignLinkDialogOpen && templates.length > 0) {
-      // Find "EduRise" template by name or ID
-      const eduriseTemplate = templates.find(
+      // Find template by name (Millionaire's Adda, EduRise) or ID
+      const defaultTemplate = templates.find(
         (t) => 
-          t.name?.toLowerCase().includes('edurise') || 
+          t.name?.toLowerCase().includes('millionaire') ||
+          t.name?.toLowerCase().includes('adda') ||
+          t.name?.toLowerCase().includes('edurise') ||
           t._id === 'wBehUW' || 
           t.id === 'wBehUW'
       );
       
-      if (eduriseTemplate && !selectedTemplate) {
-        const templateId = eduriseTemplate._id || eduriseTemplate.id;
+      if (defaultTemplate && !selectedTemplate) {
+        const templateId = defaultTemplate._id || defaultTemplate.id;
         setSelectedTemplate(templateId);
       }
     }
@@ -736,16 +738,18 @@ const AdminDashboard = () => {
             }
           }
           
-          // Find EduRise template
-          const eduriseTemplate = templatesToUse.find(
+          // Find template (Millionaire's Adda / EduRise)
+          const defaultTemplate = templatesToUse.find(
             (t) => 
-              t.name?.toLowerCase().includes('edurise') || 
+              t.name?.toLowerCase().includes('millionaire') ||
+              t.name?.toLowerCase().includes('adda') ||
+              t.name?.toLowerCase().includes('edurise') ||
               t._id === 'wBehUW' || 
               t.id === 'wBehUW'
           );
           
-          if (eduriseTemplate && isAppTroveConfigured()) {
-            const templateIdToUse = eduriseTemplate._id || eduriseTemplate.id;
+          if (defaultTemplate && isAppTroveConfigured()) {
+            const templateIdToUse = defaultTemplate._id || defaultTemplate.id;
             templateId = templateIdToUse;
             
             // Create a new link from the template
@@ -793,7 +797,7 @@ const AdminDashboard = () => {
             // No template found or AppTrove not configured
             linkError = templatesToUse.length === 0 
               ? 'No templates available. Please configure AppTrove API or assign link manually.'
-              : 'EduRise template not found. Please assign link manually.';
+              : 'Default template (Millionaire\'s Adda/EduRise) not found. Please assign link manually.';
             
             // Still approve the user
             await updateUser(selectedAffiliate.id, {
@@ -2114,7 +2118,7 @@ const AdminDashboard = () => {
           <div className="space-y-4 py-4">
             <Alert>
               <AlertDescription>
-                <strong>Auto-Create:</strong> If you select the "EduRise" template and don't choose an existing link, a new link will be automatically created when you click "Assign Link".
+                <strong>Auto-Create:</strong> If you select the default template (Millionaire's Adda/EduRise) and don't choose an existing link, a new link will be automatically created when you click "Assign Link".
               </AlertDescription>
             </Alert>
 
@@ -2177,7 +2181,7 @@ const AdminDashboard = () => {
               <p className="text-xs text-gray-500 mt-1">
                 {selectedLink 
                   ? 'Selected link will override this entry.' 
-                  : 'Paste the unilink URL from AppTrove dashboard here. You can find it after creating a link in the "EduRise" template.'}
+                  : 'Paste the unilink URL from AppTrove dashboard here. You can find it after creating a link in the default template (Millionaire\'s Adda/EduRise).'}
               </p>
             </div>
           </div>
