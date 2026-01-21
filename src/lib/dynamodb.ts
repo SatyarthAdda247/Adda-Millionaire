@@ -13,7 +13,7 @@
  */
 
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 // AWS Configuration from environment variables
 // These should be set in Vercel environment variables:
@@ -282,6 +282,106 @@ export function isDynamoDBConfigured(): boolean {
   }
   
   return configured;
+}
+
+// Update user in DynamoDB
+export async function updateUser(userId: string, updates: Record<string, any>) {
+  try {
+    const client = getClient();
+    
+    // Build update expression
+    const updateExpressions: string[] = [];
+    const expressionAttributeValues: Record<string, any> = {};
+    const expressionAttributeNames: Record<string, string> = {};
+    
+    Object.keys(updates).forEach((key, index) => {
+      if (updates[key] !== undefined) {
+        const attrName = key === 'name' ? '#name' : key;
+        if (key === 'name') {
+          expressionAttributeNames['#name'] = 'name';
+        }
+        updateExpressions.push(`${attrName} = :val${index}`);
+        expressionAttributeValues[`:val${index}`] = updates[key];
+      }
+    });
+    
+    // Always update updatedAt
+    updateExpressions.push('updatedAt = :updatedAt');
+    expressionAttributeValues[':updatedAt'] = new Date().toISOString();
+    
+    await client.send(new UpdateCommand({
+      TableName: USERS_TABLE,
+      Key: { id: userId },
+      UpdateExpression: `SET ${updateExpressions.join(', ')}`,
+      ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
+      ExpressionAttributeValues: expressionAttributeValues,
+      ReturnValues: 'ALL_NEW'
+    }));
+    
+    // Return updated user
+    return await getUserById(userId);
+  } catch (error: any) {
+    console.error('Error updating user in DynamoDB:', error);
+    throw new Error(`Failed to update user: ${error.message || error.name || 'Unknown error'}`);
+  }
+}
+
+// Delete user from DynamoDB
+export async function deleteUser(userId: string) {
+  try {
+    const client = getClient();
+    await client.send(new DeleteCommand({
+      TableName: USERS_TABLE,
+      Key: { id: userId }
+    }));
+    return true;
+  } catch (error: any) {
+    console.error('Error deleting user from DynamoDB:', error);
+    throw new Error(`Failed to delete user: ${error.message || error.name || 'Unknown error'}`);
+  }
+}
+
+// Save link to DynamoDB
+export async function saveLink(link: any) {
+  try {
+    const client = getClient();
+    await client.send(new PutCommand({
+      TableName: LINKS_TABLE,
+      Item: {
+        id: link.id,
+        userId: link.userId,
+        ...link,
+        createdAt: link.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    }));
+    return { success: true, link };
+  } catch (error: any) {
+    console.error('Error saving link to DynamoDB:', error);
+    throw new Error(`Failed to save link: ${error.message || error.name || 'Unknown error'}`);
+  }
+}
+
+// Save analytics to DynamoDB
+export async function saveAnalytics(analytics: any) {
+  try {
+    const client = getClient();
+    await client.send(new PutCommand({
+      TableName: ANALYTICS_TABLE,
+      Item: {
+        id: analytics.id,
+        userId: analytics.userId,
+        linkId: analytics.linkId || null,
+        ...analytics,
+        createdAt: analytics.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    }));
+    return { success: true, analytics };
+  } catch (error: any) {
+    console.error('Error saving analytics to DynamoDB:', error);
+    throw new Error(`Failed to save analytics: ${error.message || error.name || 'Unknown error'}`);
+  }
 }
 
 // Export table names
