@@ -159,9 +159,16 @@ export async function getTemplateLinks(templateId: string) {
  * Create UniLink within a template.
  * Uses Vercel serverless function to bypass CORS restrictions.
  */
-export async function createLink(templateId: string, linkData: { name?: string; [key: string]: any }) {
+export async function createLink(templateId: string, linkData: { name?: string; userId?: string; [key: string]: any }) {
   // Use Vercel serverless function to bypass CORS
   try {
+    // Extract affiliate data for tracking
+    const affiliateData = {
+      id: linkData.userId || linkData.affiliateId || '',
+      name: linkData.name || linkData.affiliateName || '',
+      email: linkData.email || linkData.affiliateEmail || '',
+    };
+
     const response = await fetch('/api/apptrove/create-link', {
       method: 'POST',
       headers: {
@@ -169,11 +176,27 @@ export async function createLink(templateId: string, linkData: { name?: string; 
       },
       body: JSON.stringify({
         templateId,
+        affiliateData,
         linkData: {
           name: linkData.name || 'Affiliate Link',
+          userId: linkData.userId || linkData.affiliateId,
           campaign: linkData.campaign || (linkData.name || 'Affiliate Link').replace(/\s+/g, '-').toLowerCase().substring(0, 50),
           deepLinking: linkData.deepLink || '',
           status: linkData.status || 'active',
+          // Include all tracking parameters
+          metadata: {
+            affiliateId: linkData.userId || linkData.affiliateId,
+            createdAt: new Date().toISOString(),
+            source: 'admin_dashboard',
+            ...linkData.metadata,
+          },
+          // UTM parameters if provided
+          ...(linkData.utm_source && { utm_source: linkData.utm_source }),
+          ...(linkData.utm_medium && { utm_medium: linkData.utm_medium }),
+          ...(linkData.utm_campaign && { utm_campaign: linkData.utm_campaign }),
+          ...(linkData.utm_term && { utm_term: linkData.utm_term }),
+          ...(linkData.utm_content && { utm_content: linkData.utm_content }),
+          // Include any other fields
           ...linkData,
         },
       }),
@@ -186,6 +209,8 @@ export async function createLink(templateId: string, linkData: { name?: string; 
         success: true,
         link: data.link,
         unilink: data.unilink,
+        linkId: data.linkId,
+        tracking: data.tracking,
       };
     }
 
@@ -193,8 +218,10 @@ export async function createLink(templateId: string, linkData: { name?: string; 
       success: false,
       error: data.error || data.details || 'Failed to create link',
       unilink: null,
+      details: data.details,
     };
   } catch (error: any) {
+    console.error('[AppTrove] createLink error:', error);
     return {
       success: false,
       error: error.message || 'Network error',
