@@ -307,28 +307,38 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
   };
 }
 
-/** Stats (best-effort; endpoint may differ) */
+/** Stats - Uses Vercel serverless function with Reporting API Key */
 export async function getUniLinkStats(linkId: string) {
-  const endpoints = [
-    `${APPTROVE_API_URL}/internal/unilink/${encodeURIComponent(linkId)}/stats`,
-    `${APPTROVE_API_URL}/internal/link/${encodeURIComponent(linkId)}/stats`,
-  ];
+  // Use Vercel serverless function to bypass CORS and use Reporting API Key
+  try {
+    const response = await fetch(`/api/apptrove/stats?linkId=${encodeURIComponent(linkId)}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
 
-  const headers = APPTROVE_API_KEY ? apiKeyHeaders() : secretHeaders();
-  let lastErr: any = null;
+    const data = await response.json().catch(() => null);
 
-  for (const url of endpoints) {
-    try {
-      const res = await fetch(url, { method: "GET", headers });
-      const data = await safeJson(res);
-      if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}: ${res.statusText}`);
-      return { success: true, stats: data?.data || data };
-    } catch (e) {
-      lastErr = e;
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        stats: data.stats,
+      };
     }
-  }
 
-  throw new Error(`Failed to fetch stats: ${lastErr?.message || "Unknown error"}`);
+    return {
+      success: false,
+      stats: null,
+      error: data.error || data.details || 'Failed to fetch stats',
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      stats: null,
+      error: error.message || 'Network error',
+    };
+  }
 }
 
 export function isAppTroveConfigured(): boolean {
