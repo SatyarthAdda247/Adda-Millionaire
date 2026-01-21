@@ -30,7 +30,6 @@ const followerRanges = [
   "500K+",
 ];
 
-import { API_BASE_URL } from "@/lib/apiConfig";
 import { saveUser, getUserByEmail, isDynamoDBConfigured } from "@/lib/dynamodb";
 import { v4 as uuidv4 } from "uuid";
 
@@ -145,67 +144,8 @@ const SignupForm = () => {
           message: 'Your application has been submitted successfully. It is pending admin approval. You will receive an email once approved.'
         };
       } else {
-        // Fallback to backend API
-        let response;
-        try {
-          response = await fetch(`${API_BASE_URL}/api/users/register`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: formData.name,
-              email: formData.email,
-              phone: formData.phone,
-              followerCount: formData.followerCount,
-              socialHandles: socialHandles.map(h => ({
-                platform: h.platform,
-                handle: h.handle,
-              })),
-            }),
-          });
-      } catch (fetchError: any) {
-        // Handle network errors (server not running, CORS, blocked by client, etc.)
-        console.error('Network error:', fetchError);
-        const errorMsg = fetchError?.message || String(fetchError) || 'Unknown error';
-        const isNetworkError = 
-          errorMsg.includes('Failed to fetch') || 
-          errorMsg.includes('ERR_BLOCKED_BY_CLIENT') ||
-          errorMsg.includes('ERR_CONNECTION_REFUSED') ||
-          errorMsg.includes('NetworkError') ||
-          errorMsg.includes('Network request failed') ||
-          errorMsg.includes('CORS') ||
-          fetchError?.name === 'TypeError' ||
-          fetchError?.name === 'NetworkError';
-        
-        // Check if we're on Vercel production
-        const isProduction = typeof window !== 'undefined' && 
-          (window.location.hostname.includes('vercel.app') || 
-           window.location.hostname.includes('adda-millionaire') ||
-           window.location.hostname.includes('partners-adda'));
-        
-        const errorMessage = isNetworkError
-          ? isProduction
-            ? `Unable to connect to backend server. If using DynamoDB, check AWS credentials. If using backend API, ensure VITE_API_URL is set correctly in Vercel and backend server is running.`
-            : `Unable to connect to backend server at ${API_BASE_URL}. Please ensure the backend server is running. Start it with: cd server && npm start`
-          : `Network error: ${errorMsg}`;
-        throw new Error(errorMessage);
-      }
-
-        // Check if response is ok before parsing JSON
-        if (!response.ok) {
-          let errorMessage = 'Registration failed';
-          try {
-            const errorData = await response.json();
-            errorMessage = errorData.error || errorData.message || errorMessage;
-          } catch {
-            // If JSON parsing fails, use status text
-            errorMessage = response.statusText || `Server returned ${response.status}`;
-          }
-          throw new Error(errorMessage);
-        }
-
-        data = await response.json();
+        // DynamoDB not configured
+        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables (VITE_AWS_ACCESS_KEY_ID, VITE_AWS_SECRET_ACCESS_KEY).');
       }
 
       // Success
