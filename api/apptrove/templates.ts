@@ -15,11 +15,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Get AppTrove credentials from environment variables
   // Vercel serverless functions can access env vars with or without VITE_ prefix
   const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY;
+  const APPTROVE_SDK_KEY = process.env.VITE_APPTROVE_SDK_KEY || process.env.APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
+  const APPTROVE_REPORTING_API_KEY = process.env.VITE_APPTROVE_REPORTING_API_KEY || process.env.APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
   const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID;
   const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY;
   const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
-  if (!APPTROVE_API_KEY && (!APPTROVE_SECRET_ID || !APPTROVE_SECRET_KEY)) {
+  // Check if we have any valid credentials
+  if (!APPTROVE_API_KEY && !APPTROVE_SDK_KEY && (!APPTROVE_SECRET_ID || !APPTROVE_SECRET_KEY)) {
     return res.status(500).json({ 
       error: 'AppTrove API credentials not configured',
       templates: []
@@ -28,9 +31,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const url = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`;
 
-  // Try api-key first, then secret headers
+  // Try api-key first (API Key or SDK Key), then secret headers
   const tryHeaders = [
     { label: 'api-key', headers: APPTROVE_API_KEY ? { 'api-key': APPTROVE_API_KEY, 'Accept': 'application/json' } : null },
+    { label: 'sdk-key', headers: APPTROVE_SDK_KEY ? { 
+      'api-key': APPTROVE_SDK_KEY, 
+      'X-SDK-Key': APPTROVE_SDK_KEY,
+      'Accept': 'application/json' 
+    } : null },
     { label: 'secret', headers: (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) ? {
       'secret-id': APPTROVE_SECRET_ID,
       'secret-key': APPTROVE_SECRET_KEY,

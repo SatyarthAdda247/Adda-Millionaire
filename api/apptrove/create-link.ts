@@ -22,14 +22,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Get AppTrove credentials from environment variables
   // Vercel serverless functions can access env vars with or without VITE_ prefix
   const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY;
+  const APPTROVE_SDK_KEY = process.env.VITE_APPTROVE_SDK_KEY || process.env.APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
+  const APPTROVE_REPORTING_API_KEY = process.env.VITE_APPTROVE_REPORTING_API_KEY || process.env.APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
   const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID;
   const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY;
   const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
-  if (!APPTROVE_API_KEY && (!APPTROVE_SECRET_ID || !APPTROVE_SECRET_KEY)) {
+  // Check if we have any valid credentials
+  if (!APPTROVE_API_KEY && !APPTROVE_SDK_KEY && (!APPTROVE_SECRET_ID || !APPTROVE_SECRET_KEY)) {
     return res.status(500).json({ 
       error: 'AppTrove API credentials not configured',
-      details: 'Set VITE_APPTROVE_API_KEY or VITE_APPTROVE_SECRET_ID + VITE_APPTROVE_SECRET_KEY in Vercel environment variables'
+      details: 'Set VITE_APPTROVE_API_KEY, VITE_APPTROVE_SDK_KEY, or VITE_APPTROVE_SECRET_ID + VITE_APPTROVE_SECRET_KEY in Vercel environment variables'
     });
   }
 
@@ -66,9 +69,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'Accept': 'application/json',
       };
 
-      // Add authentication
-      if (endpoint.auth === 'api-key' && APPTROVE_API_KEY) {
-        headers['api-key'] = APPTROVE_API_KEY;
+      // Add authentication - try multiple methods
+      if (endpoint.auth === 'api-key') {
+        // Try API Key first, then SDK Key
+        if (APPTROVE_API_KEY) {
+          headers['api-key'] = APPTROVE_API_KEY;
+        } else if (APPTROVE_SDK_KEY) {
+          headers['api-key'] = APPTROVE_SDK_KEY;
+          headers['X-SDK-Key'] = APPTROVE_SDK_KEY;
+        } else {
+          continue; // Skip if no API key available
+        }
       } else if (endpoint.auth === 'secret' && APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
         headers['secret-id'] = APPTROVE_SECRET_ID;
         headers['secret-key'] = APPTROVE_SECRET_KEY;
