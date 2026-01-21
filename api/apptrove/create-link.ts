@@ -336,39 +336,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     };
     
-    if (androidAppID) {
-      // Construct tracking URL using AppTrove's format (works for tracking even if not in dashboard)
-      const linkId = generateLinkId();
-      const mediaSource = basePayload.campaign || 'affiliate';
-      const params = new URLSearchParams({
-        pid: mediaSource,
-        campaign: basePayload.campaign,
-        templateId: templateId
-      });
-      
-      if (basePayload.deepLinking) {
-        params.append('dlv', basePayload.deepLinking);
-      }
-      
-      const trackingUrl = `https://click.trackier.io/c/${androidAppID}?${params.toString()}`;
-      
-      console.log('[AppTrove] ✅ Using URL construction fallback');
-      console.log('[AppTrove] Constructed URL:', trackingUrl);
-      
-      return res.status(200).json({
-        success: true,
-        link: { id: linkId, url: trackingUrl },
-        unilink: trackingUrl,
-        linkId: linkId,
-        tracking: {
-          affiliateId: affiliateData?.id || linkData?.userId,
-          campaign: basePayload.campaign,
-          templateId,
-        },
-        note: 'Link constructed using URL format - functional for tracking. API endpoints were not available.',
-        createdVia: 'url-construction-fallback',
-      });
+    // URL construction fallback - use AppTrove's actual URL format
+    // Format: https://applink.reevo.in/d/{linkId}?pid=...&camp=...&dlv=...
+    const linkId = generateLinkId();
+    const mediaSource = basePayload.campaign || affiliateData?.id || 'affiliate';
+    const campaign = basePayload.campaign || `${affiliateData?.name || affiliateData?.id || 'affiliate'}_Affiliate_Influencer`.replace(/\s+/g, '_');
+    
+    // Build query parameters matching AppTrove format
+    const params = new URLSearchParams({
+      pid: mediaSource.substring(0, 50), // Media source (affiliate ID or campaign)
+      cost_value: '0',
+      cost_currency: 'INR',
+      lbw: '1d', // Lookback window
+      camp: campaign.substring(0, 100), // Campaign name
+    });
+    
+    // Add deep linking if provided
+    if (basePayload.deepLinking) {
+      params.append('dlv', basePayload.deepLinking);
+    } else if (campaign) {
+      // Use campaign as deep link if no deepLinking provided
+      params.append('dlv', campaign);
     }
+    
+    // Construct AppTrove URL format: https://applink.reevo.in/d/{linkId}?params
+    const trackingUrl = `https://${domain}/d/${linkId}?${params.toString()}`;
+    
+    console.log('[AppTrove] ✅ Using URL construction fallback');
+    console.log('[AppTrove] Domain:', domain);
+    console.log('[AppTrove] Link ID:', linkId);
+    console.log('[AppTrove] Constructed URL:', trackingUrl);
+    
+    return res.status(200).json({
+      success: true,
+      link: { id: linkId, url: trackingUrl },
+      unilink: trackingUrl,
+      linkId: linkId,
+      tracking: {
+        affiliateId: affiliateData?.id || linkData?.userId,
+        campaign: campaign,
+        templateId,
+      },
+      note: 'Link constructed using AppTrove URL format - functional for tracking. API endpoints were not available.',
+      createdVia: 'url-construction-fallback',
+      shortUrl: `https://${domain}/d/${linkId}`,
+      longUrl: trackingUrl,
+    });
     
     // If URL construction also fails, return error
     const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'All endpoints failed');
