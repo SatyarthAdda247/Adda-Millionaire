@@ -162,6 +162,7 @@ app.use(sanitizeInput);
 const allowedOrigins = [
   process.env.FRONTEND_URL,
   'https://adda-millionaire.vercel.app',
+  'https://partners-adda.vercel.app',
   'https://edurise.vercel.app',
   'https://partners.addaeducation',
   'http://localhost:5173',
