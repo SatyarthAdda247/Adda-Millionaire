@@ -711,26 +711,121 @@ const AdminDashboard = () => {
     // Show loading state
     toast({
       title: "Approving affiliate...",
-      description: "Approving affiliate and updating status.",
+      description: "Approving affiliate and creating unilink. This may take a moment.",
     });
 
     try {
       const useDynamoDB = isDynamoDBConfigured();
       
       if (useDynamoDB) {
-        // Update user in DynamoDB
-        await updateUser(selectedAffiliate.id, {
-          approvalStatus: 'approved',
-          approvedAt: new Date().toISOString(),
-          approvedBy: user?.email || 'admin',
-          adminNotes: adminNotes || undefined,
-        });
+        let unilink = null;
+        let linkId = null;
+        let templateId = null;
+        let linkError = null;
         
-        toast({
-          title: "✅ Approved",
-          description: `${selectedAffiliate.name} has been approved. You can now assign a link.`,
-          duration: 5000,
-        });
+        // Try to automatically create a unilink
+        try {
+          // Find EduRise template
+          const eduriseTemplate = templates.find(
+            (t) => 
+              t.name?.toLowerCase().includes('edurise') || 
+              t._id === 'wBehUW' || 
+              t.id === 'wBehUW'
+          );
+          
+          if (eduriseTemplate && isAppTroveConfigured()) {
+            const templateIdToUse = eduriseTemplate._id || eduriseTemplate.id;
+            templateId = templateIdToUse;
+            
+            // Create a new link from the template
+            const createData = await createLink(templateIdToUse, {
+              name: `${selectedAffiliate.name} - Affiliate Link`,
+              userId: selectedAffiliate.id
+            });
+            
+            if (createData.success && createData.unilink) {
+              unilink = createData.unilink;
+              linkId = createData.link?.id || uuidv4();
+              
+              // Save link to DynamoDB
+              const linkData = {
+                id: linkId,
+                userId: selectedAffiliate.id,
+                unilink,
+                templateId: templateIdToUse,
+                createdAt: new Date().toISOString(),
+              };
+              
+              await saveLink(linkData);
+              
+              // Update user with assigned link
+              await updateUser(selectedAffiliate.id, {
+                approvalStatus: 'approved',
+                approvedAt: new Date().toISOString(),
+                approvedBy: user?.email || 'admin',
+                adminNotes: adminNotes || undefined,
+                assignedLink: unilink,
+                linkId: linkId,
+                templateId: templateIdToUse,
+              });
+            } else {
+              linkError = 'Failed to create unilink';
+              // Still approve the user even if link creation fails
+              await updateUser(selectedAffiliate.id, {
+                approvalStatus: 'approved',
+                approvedAt: new Date().toISOString(),
+                approvedBy: user?.email || 'admin',
+                adminNotes: adminNotes || undefined,
+              });
+            }
+          } else {
+            // No template found or AppTrove not configured
+            linkError = templates.length === 0 
+              ? 'No templates available. Please configure AppTrove API or assign link manually.'
+              : 'EduRise template not found. Please assign link manually.';
+            
+            // Still approve the user
+            await updateUser(selectedAffiliate.id, {
+              approvalStatus: 'approved',
+              approvedAt: new Date().toISOString(),
+              approvedBy: user?.email || 'admin',
+              adminNotes: adminNotes || undefined,
+            });
+          }
+        } catch (linkCreationError) {
+          console.error('Error creating unilink:', linkCreationError);
+          linkError = linkCreationError instanceof Error ? linkCreationError.message : 'Failed to create unilink';
+          
+          // Still approve the user even if link creation fails
+          await updateUser(selectedAffiliate.id, {
+            approvalStatus: 'approved',
+            approvedAt: new Date().toISOString(),
+            approvedBy: user?.email || 'admin',
+            adminNotes: adminNotes || undefined,
+          });
+        }
+        
+        // Show appropriate toast message
+        if (unilink) {
+          toast({
+            title: "✅ Approved & UniLink Created",
+            description: `${selectedAffiliate.name} approved. UniLink: ${unilink}`,
+            duration: 5000,
+          });
+        } else if (linkError) {
+          toast({
+            title: "⚠️ Approved (UniLink Failed)",
+            description: `${selectedAffiliate.name} approved but unilink creation failed: ${linkError}. You can assign a link manually.`,
+            variant: "destructive",
+            duration: 7000,
+          });
+        } else {
+          toast({
+            title: "✅ Approved",
+            description: `${selectedAffiliate.name} has been approved. You can now assign a link.`,
+            duration: 5000,
+          });
+        }
         
         setApprovalDialogOpen(false);
         setAdminNotes("");
