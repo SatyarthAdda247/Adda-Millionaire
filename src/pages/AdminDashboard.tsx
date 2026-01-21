@@ -165,8 +165,8 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [loading, setLoading] = useState(true);
-  // Admin authentication - temporarily allow access (will be configured with Google OAuth later)
-  const [authenticated, setAuthenticated] = useState(true); // Set to true for now
+  // Admin authentication - check sessionStorage
+  const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<any>({ email: 'admin@edurise.com', name: 'Admin' });
   const [searchQuery, setSearchQuery] = useState("");
   const [approvalFilter, setApprovalFilter] = useState<string>("all");
@@ -213,13 +213,21 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   useEffect(() => {
+    // Check authentication on every render
+    const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
+    
+    if (!isAuthenticated) {
+      navigate('/admin/login');
+      return;
+    }
+    
     if (authenticated) {
       fetchAffiliates();
       fetchOverallStats();
       fetchAnalytics();
       fetchTemplates();
     }
-  }, [authenticated, approvalFilter]);
+  }, [authenticated, approvalFilter, navigate]);
 
   useEffect(() => {
     if (selectedTemplate) {
@@ -653,7 +661,7 @@ const AdminDashboard = () => {
               totalClicks,
               totalConversions,
               totalEarnings,
-              conversionRate: parseFloat(conversionRate),
+              conversionRate,
               lastActivity: analytics.length > 0 ? analytics[analytics.length - 1].date : user.createdAt
             }
           };
@@ -841,8 +849,17 @@ const AdminDashboard = () => {
   };
 
   const handleLogout = () => {
-    // Temporarily disabled - auth will be configured later
-    navigate('/');
+    // Clear authentication
+    sessionStorage.removeItem('adminAuthenticated');
+    sessionStorage.removeItem('adminLoginTime');
+    
+    toast({
+      title: "Logged Out",
+      description: "You have been logged out successfully.",
+    });
+    
+    // Redirect to login page
+    navigate('/admin/login');
   };
 
   const handleDelete = async () => {
