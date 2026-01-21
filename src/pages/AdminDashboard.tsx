@@ -552,20 +552,10 @@ const AdminDashboard = () => {
         // Filter out deleted users
         data = usersWithData.filter((u: any) => u.status !== 'deleted' && u.approvalStatus !== 'deleted');
         
-        // Apply sorting if needed
-        if (sortBy) {
-          const order = sortOrder === 'desc' ? -1 : 1;
-          data.sort((a: any, b: any) => {
-            if (sortBy === 'name') {
-              return a.name.localeCompare(b.name) * order;
-            } else if (sortBy === 'createdAt') {
-              return (new Date(a.createdAt) - new Date(b.createdAt)) * order;
-            } else if (sortBy === 'clicks') {
-              return (a.stats.totalClicks - b.stats.totalClicks) * order;
-            }
-            return 0;
-          });
-        }
+        // Sort by createdAt descending (newest first)
+        data.sort((a: any, b: any) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
         
         console.log('✅ Fetched affiliates from DynamoDB:', data.length);
       } else {
