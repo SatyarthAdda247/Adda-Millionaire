@@ -734,37 +734,27 @@ const AdminDashboard = () => {
         
         // Try to automatically create a unilink
         try {
-          // Ensure templates are loaded
-          let templatesToUse = templates;
-          if (templatesToUse.length === 0 && isAppTroveConfigured()) {
-            console.log('📋 Templates not loaded, fetching now...');
-            const templatesData = await getTemplates();
-            if (templatesData.success && templatesData.templates) {
-              templatesToUse = templatesData.templates;
-              setTemplates(templatesData.templates);
-            }
-          }
-          
-          // Always target the user's shown template: "Millionaires Adda" (Template ID: wBehUW)
-          // If AppTrove returns templates, we still validate it exists; otherwise we proceed with the ID directly.
+          // Always use the hardcoded template ID: "Millionaires Adda" (wBehUW)
           const templateIdToUse = "wBehUW";
-          const templateExists =
-            templatesToUse.length === 0
-              ? true
-              : !!templatesToUse.find((t) => t._id === templateIdToUse || t.id === templateIdToUse);
-
-          if (templateExists && isAppTroveConfigured()) {
+          
+          if (isAppTroveConfigured()) {
             templateId = templateIdToUse;
+            
+            console.log(`🔗 Creating unilink in template ${templateIdToUse} for ${selectedAffiliate.name}...`);
             
             // Create a new link from the template
             const createData = await createLink(templateIdToUse, {
               name: `${selectedAffiliate.name} - Affiliate Link`,
-              userId: selectedAffiliate.id
+              userId: selectedAffiliate.id,
+              campaign: `${selectedAffiliate.name}-affiliate`.toLowerCase().replace(/\s+/g, '-').substring(0, 50),
+              status: 'active'
             });
             
             if (createData.success && createData.unilink) {
               unilink = createData.unilink;
               linkId = createData.link?.id || uuidv4();
+              
+              console.log(`✅ UniLink created: ${unilink}`);
               
               // Save link to DynamoDB
               const linkData = {
@@ -788,7 +778,9 @@ const AdminDashboard = () => {
                 templateId: templateIdToUse,
               });
             } else {
-              linkError = 'Failed to create unilink';
+              linkError = createData.error || 'Failed to create unilink - AppTrove API may not support programmatic link creation from browser';
+              console.error('❌ Link creation failed:', linkError);
+              
               // Still approve the user even if link creation fails
               await updateUser(selectedAffiliate.id, {
                 approvalStatus: 'approved',
@@ -798,10 +790,8 @@ const AdminDashboard = () => {
               });
             }
           } else {
-            // No template found or AppTrove not configured
-            linkError = templatesToUse.length === 0 
-              ? 'No templates available. Please configure AppTrove API or assign link manually.'
-              : 'Template wBehUW (Millionaires Adda) not found in your AppTrove account. Please assign link manually.';
+            // AppTrove not configured
+            linkError = 'AppTrove API not configured. Please set VITE_APPTROVE_API_KEY or VITE_APPTROVE_SECRET_ID + VITE_APPTROVE_SECRET_KEY in Vercel environment variables.';
             
             // Still approve the user
             await updateUser(selectedAffiliate.id, {
