@@ -459,26 +459,8 @@ const AdminDashboard = () => {
             throw new Error('Failed to create link from template');
           }
         } else {
-          // Fallback to backend API
-          const createResponse = await fetch(`${API_BASE_URL}/api/apptrove/templates/${selectedTemplate}/create-link`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: `${selectedAffiliate.name} - Affiliate Link`,
-              userId: selectedAffiliate.id
-            }),
-          });
-
-          const createData = await createResponse.json();
-          
-          if (createResponse.ok && createData.link) {
-            unilink = createData.unilink || createData.link?.unilink;
-            linkId = createData.link?.id || null;
-          } else {
-            throw new Error(createData.error || 'Failed to create link from template');
-          }
+          // AppTrove not configured - user must enter link manually
+          console.warn('⚠️ AppTrove not configured. Link must be entered manually.');
         }
       } catch (error) {
         console.error('Error creating link:', error);
