@@ -5,18 +5,18 @@ import { TrendingUp, Users, Coins } from "lucide-react";
 const stats = [
   {
     icon: Coins,
-    value: "₹15,000+",
-    label: "Earn Per Month",
+    value: "₹199",
+    label: "Commission Per Sale",
   },
   {
     icon: Users,
     value: "1,000+",
-    label: "People Already Earning",
+    label: "Active Affiliates",
   },
   {
     icon: TrendingUp,
-    value: "100%",
-    label: "Payout",
+    value: "20%",
+    label: "Recurring Commission",
   },
 ];
 
