@@ -85,6 +85,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (template.oid && template.oid !== templateId) templateIdVariants.push(template.oid);
           if (template._id && template._id !== templateId) templateIdVariants.push(template._id);
           if (template.id && template.id !== templateId) templateIdVariants.push(template.id);
+          
+          // Log template data for debugging
+          console.log('[AppTrove] Template found:', {
+            name: template.name,
+            domain: template.domain,
+            androidAppID: template.androidAppID || template.androidAppId || template.packageName || template.androidPackage,
+            iosAppID: template.iosAppID || template.iosAppId || template.bundleId || template.iosBundle,
+          });
         }
       }
     } catch (e) {
@@ -312,8 +320,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[AppTrove] All API endpoints failed, trying URL construction fallback...');
     
     // Get template domain and Android App ID for URL construction
+    // Try multiple field names for Android App ID (package name)
     const domain = template?.domain || process.env.APPTROVE_DOMAIN || 'applink.reevo.in';
-    const androidAppID = template?.androidAppID || process.env.APPTROVE_ANDROID_APP_ID;
+    const androidAppID = 
+      template?.androidAppID || 
+      template?.androidAppId || 
+      template?.packageName || 
+      template?.androidPackage ||
+      template?.android?.packageName ||
+      template?.android?.appId ||
+      process.env.APPTROVE_ANDROID_APP_ID;
     
     // Generate unique link ID
     const generateLinkId = () => {
