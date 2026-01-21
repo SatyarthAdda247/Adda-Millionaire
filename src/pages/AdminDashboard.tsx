@@ -456,18 +456,82 @@ const AdminDashboard = () => {
   const fetchAffiliates = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (approvalFilter !== "all") {
-        params.append("approvalStatus", approvalFilter);
+      
+      // Check if DynamoDB is configured
+      const useDynamoDB = isDynamoDBConfigured();
+      
+      let data;
+      
+      if (useDynamoDB) {
+        // Fetch from DynamoDB directly
+        console.log('📊 Fetching affiliates from DynamoDB...');
+        const filters: any = {};
+        if (searchFilter) filters.search = searchFilter;
+        if (platformFilter) filters.platform = platformFilter;
+        if (statusFilter) filters.status = statusFilter;
+        if (approvalFilter !== "all") filters.approvalStatus = approvalFilter;
+        
+        const users = await getAllUsers(filters);
+        
+        // Get links and analytics for each user
+        const usersWithData = await Promise.all(users.map(async (user: any) => {
+          const links = await getLinksByUserId(user.id);
+          const analytics = await getAnalyticsByUserId(user.id);
+          
+          // Calculate stats
+          const totalClicks = analytics.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
+          const totalConversions = analytics.reduce((sum: number, a: any) => sum + (a.conversions || 0), 0);
+          const totalEarnings = analytics.reduce((sum: number, a: any) => sum + (a.earnings || 0), 0);
+          const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks * 100).toFixed(2) : 0;
+          
+          return {
+            ...user,
+            links,
+            stats: {
+              totalClicks,
+              totalConversions,
+              totalEarnings,
+              conversionRate: parseFloat(conversionRate),
+              lastActivity: analytics.length > 0 ? analytics[analytics.length - 1].date : user.createdAt
+            }
+          };
+        }));
+        
+        // Filter out deleted users
+        data = usersWithData.filter((u: any) => u.status !== 'deleted' && u.approvalStatus !== 'deleted');
+        
+        // Apply sorting if needed
+        if (sortBy) {
+          const order = sortOrder === 'desc' ? -1 : 1;
+          data.sort((a: any, b: any) => {
+            if (sortBy === 'name') {
+              return a.name.localeCompare(b.name) * order;
+            } else if (sortBy === 'createdAt') {
+              return (new Date(a.createdAt) - new Date(b.createdAt)) * order;
+            } else if (sortBy === 'clicks') {
+              return (a.stats.totalClicks - b.stats.totalClicks) * order;
+            }
+            return 0;
+          });
+        }
+        
+        console.log('✅ Fetched affiliates from DynamoDB:', data.length);
+      } else {
+        // Fallback to backend API
+        const params = new URLSearchParams();
+        if (approvalFilter !== "all") {
+          params.append("approvalStatus", approvalFilter);
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/api/users?${params}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch affiliates');
+        }
+        
+        data = await response.json();
       }
       
-      const response = await fetch(`${API_BASE_URL}/api/users?${params}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch affiliates');
-      }
-      
-      const data = await response.json();
       setAffiliates(data);
     } catch (error) {
       console.error('Error fetching affiliates:', error);
