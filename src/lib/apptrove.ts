@@ -77,12 +77,16 @@ export async function getTemplates() {
       };
     }
 
+    // Don't throw error - just return empty templates
+    console.warn('⚠️ Failed to fetch templates (non-critical):', data.error || 'Unknown error');
     return {
       success: false,
       templates: [],
       error: data.error || 'Failed to fetch templates',
     };
   } catch (error: any) {
+    // Don't throw error - just return empty templates
+    console.warn('⚠️ Templates API error (non-critical):', error.message || 'Network error');
     return {
       success: false,
       templates: [],
