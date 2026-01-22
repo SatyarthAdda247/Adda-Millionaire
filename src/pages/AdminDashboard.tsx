@@ -552,8 +552,14 @@ const AdminDashboard = () => {
         
         // Get links and analytics for each user
         const usersWithData = await Promise.all(users.map(async (user: any) => {
-          const links = await getLinksByUserId(user.id);
+          const linksRaw = await getLinksByUserId(user.id);
           const analytics = await getAnalyticsByUserId(user.id);
+          
+          // Normalize links - ensure they have 'link' property (table expects affiliate.links[0].link)
+          const links = linksRaw.map((link: any) => ({
+            ...link,
+            link: link.link || link.unilink || link.url || link.shortUrl || link.longUrl || '', // Map unilink to link
+          }));
           
           // Calculate stats
           const totalClicks = analytics.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
