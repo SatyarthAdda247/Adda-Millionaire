@@ -38,7 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Get AppTrove credentials - Match old backend pattern
     // Secret ID/Key with Basic Auth as PRIMARY method
-    const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY;
+    // Priority: Environment variables > Hardcoded fallbacks
+    const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || '82aa3b94-bb98-449d-a372-4a8a98e319f0';
     const APPTROVE_SDK_KEY = process.env.VITE_APPTROVE_SDK_KEY || process.env.APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
     const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
     const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
@@ -66,9 +67,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'X-Secret-Key': APPTROVE_SECRET_KEY,
         'Accept': 'application/json'
       } : null },
-      // Method 3: API Key
+      // Method 3: S2S API Key (Server-to-Server)
+      { label: 's2s-api-key', headers: process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API ? { 
+        'api-key': process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || '82aa3b94-bb98-449d-a372-4a8a98e319f0', 
+        'X-S2S-API-Key': process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || '82aa3b94-bb98-449d-a372-4a8a98e319f0',
+        'Accept': 'application/json' 
+      } : null },
+      // Method 4: API Key
       { label: 'api-key', headers: APPTROVE_API_KEY ? { 'api-key': APPTROVE_API_KEY, 'Accept': 'application/json' } : null },
-      // Method 4: SDK Key
+      // Method 5: SDK Key
       { label: 'sdk-key', headers: APPTROVE_SDK_KEY ? { 
         'api-key': APPTROVE_SDK_KEY, 
         'X-SDK-Key': APPTROVE_SDK_KEY,
