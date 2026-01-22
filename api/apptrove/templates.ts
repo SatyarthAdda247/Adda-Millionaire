@@ -32,16 +32,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
     const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
+    // Build URL with query params (matching old backend format)
     const url = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`;
 
-    // Try authentication methods in order: Basic Auth (Secret ID/Key) FIRST, then others
+    // Try authentication methods in order (matching old backend - uses api-key header)
+    // Old backend used: 'api-key': APPTROVE_API_KEY header
     const tryHeaders = [
-      // Method 1: Basic Auth with Secret ID/Key (PRIMARY - matches old backend)
+      // Method 1: S2S API Key (Server-to-Server) - PRIMARY (this is the API key user provided)
+      { label: 's2s-api-key', headers: {
+        'api-key': APPTROVE_API_KEY, // This is the S2S API key (82aa3b94-bb98-449d-a372-4a8a98e319f0)
+        'Accept': 'application/json'
+      } },
+      // Method 2: Basic Auth with Secret ID/Key
       { label: 'basic-auth', headers: (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) ? {
         'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
         'Accept': 'application/json'
       } : null },
-      // Method 2: Secret ID/Key as headers
+      // Method 3: Secret ID/Key as headers
       { label: 'secret-headers', headers: (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) ? {
         'secret-id': APPTROVE_SECRET_ID,
         'secret-key': APPTROVE_SECRET_KEY,
@@ -49,15 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'X-Secret-Key': APPTROVE_SECRET_KEY,
         'Accept': 'application/json'
       } : null },
-      // Method 3: S2S API Key (Server-to-Server)
-      { label: 's2s-api-key', headers: (process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || APPTROVE_API_KEY) ? { 
-        'api-key': process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || APPTROVE_API_KEY || '82aa3b94-bb98-449d-a372-4a8a98e319f0', 
-        'X-S2S-API-Key': process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || APPTROVE_API_KEY || '82aa3b94-bb98-449d-a372-4a8a98e319f0',
-        'Accept': 'application/json' 
-      } : null },
-      // Method 4: API Key
-      { label: 'api-key', headers: APPTROVE_API_KEY ? { 'api-key': APPTROVE_API_KEY, 'Accept': 'application/json' } : null },
-      // Method 5: SDK Key
+      // Method 4: SDK Key
       { label: 'sdk-key', headers: APPTROVE_SDK_KEY ? { 
         'api-key': APPTROVE_SDK_KEY, 
         'X-SDK-Key': APPTROVE_SDK_KEY,
