@@ -49,9 +49,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         'X-Secret-Key': APPTROVE_SECRET_KEY,
         'Accept': 'application/json'
       } : null },
-      // Method 3: API Key
+      // Method 3: S2S API Key (Server-to-Server)
+      { label: 's2s-api-key', headers: (process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || APPTROVE_API_KEY) ? { 
+        'api-key': process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || APPTROVE_API_KEY || '82aa3b94-bb98-449d-a372-4a8a98e319f0', 
+        'X-S2S-API-Key': process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API || APPTROVE_API_KEY || '82aa3b94-bb98-449d-a372-4a8a98e319f0',
+        'Accept': 'application/json' 
+      } : null },
+      // Method 4: API Key
       { label: 'api-key', headers: APPTROVE_API_KEY ? { 'api-key': APPTROVE_API_KEY, 'Accept': 'application/json' } : null },
-      // Method 4: SDK Key
+      // Method 5: SDK Key
       { label: 'sdk-key', headers: APPTROVE_SDK_KEY ? { 
         'api-key': APPTROVE_SDK_KEY, 
         'X-SDK-Key': APPTROVE_SDK_KEY,
