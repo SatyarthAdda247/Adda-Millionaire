@@ -656,14 +656,25 @@ const AdminDashboard = () => {
                 
                 console.log(`✅ UniLink created: ${unilink}`);
                 
+                // Check if link was constructed manually (may not track properly)
+                const isManualConstruction = (createData as any).createdVia === 'url-construction-fallback';
+                
                 // Save link to DynamoDB
-                const linkData = {
+                const linkData: any = {
                   id: linkId,
                   userId: selectedAffiliate.id,
                   unilink,
                   templateId: templateIdToUse,
                   createdAt: new Date().toISOString(),
                 };
+                
+                // Add optional fields if present
+                if ((createData as any).createdVia) {
+                  linkData.createdVia = (createData as any).createdVia;
+                }
+                if ((createData as any).warning) {
+                  linkData.warning = (createData as any).warning;
+                }
                 
                 await saveLink(linkData);
                 
@@ -680,9 +691,12 @@ const AdminDashboard = () => {
                 
                 // Success - exit early
                 toast({
-                  title: "✅ Approved & UniLink Created",
-                  description: `${selectedAffiliate.name} approved. UniLink: ${unilink}`,
-                  duration: 5000,
+                  title: isManualConstruction ? "⚠️ Approved & Link Created (Verify Tracking)" : "✅ Approved & UniLink Created",
+                  description: isManualConstruction 
+                    ? `${selectedAffiliate.name} approved. Link: ${unilink}\n\n⚠️ IMPORTANT: This link was constructed manually. Please verify tracking works by:\n1) Clicking the link\n2) Checking AppTrove dashboard for clicks/conversions\n3) Testing with a real conversion`
+                    : `${selectedAffiliate.name} approved. UniLink: ${unilink}`,
+                  duration: isManualConstruction ? 10000 : 5000,
+                  variant: isManualConstruction ? "default" : "default",
                 });
                 
                 setApprovalDialogOpen(false);
