@@ -331,32 +331,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       template?.android?.appId ||
       process.env.APPTROVE_ANDROID_APP_ID;
     
-    // Generate unique link ID
+    // Generate unique link ID - shorter format like "Shobhit" from example
     const generateLinkId = () => {
-      return `link_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      // Use affiliate name/ID if available, otherwise generate short ID
+      if (affiliateData?.name) {
+        // Clean name: remove spaces, special chars, limit length, make lowercase
+        const cleanName = affiliateData.name
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toLowerCase()
+          .substring(0, 20);
+        if (cleanName.length >= 3) {
+          return cleanName;
+        }
+      }
+      if (affiliateData?.id) {
+        // Use first part of ID if it's readable (remove UUID dashes, etc.)
+        const idPart = affiliateData.id
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toLowerCase()
+          .substring(0, 15);
+        if (idPart.length >= 3) {
+          return idPart;
+        }
+      }
+      // Fallback: short random ID (base36 timestamp + random)
+      return `link${Date.now().toString(36)}${Math.random().toString(36).substring(2, 5)}`;
     };
     
     // URL construction fallback - use AppTrove's actual URL format
     // Format: https://applink.reevo.in/d/{linkId}?pid=...&camp=...&dlv=...
     const linkId = generateLinkId();
-    const mediaSource = basePayload.campaign || affiliateData?.id || 'affiliate';
+    // Use affiliate ID or name for media source (pid parameter)
+    const mediaSource = affiliateData?.id || affiliateData?.name?.replace(/\s+/g, '_') || basePayload.campaign || 'affiliate';
+    // Campaign name format: {name}_Affiliate_Influencer
     const campaign = basePayload.campaign || `${affiliateData?.name || affiliateData?.id || 'affiliate'}_Affiliate_Influencer`.replace(/\s+/g, '_');
     
-    // Build query parameters matching AppTrove format
+    // Build query parameters matching AppTrove format (based on example URL)
     const params = new URLSearchParams({
-      pid: mediaSource.substring(0, 50), // Media source (affiliate ID or campaign)
+      pid: mediaSource.substring(0, 50), // Media source (affiliate ID or name)
       cost_value: '0',
       cost_currency: 'INR',
       lbw: '1d', // Lookback window
       camp: campaign.substring(0, 100), // Campaign name
     });
     
-    // Add deep linking if provided
-    if (basePayload.deepLinking) {
-      params.append('dlv', basePayload.deepLinking);
-    } else if (campaign) {
-      // Use campaign as deep link if no deepLinking provided
-      params.append('dlv', campaign);
+    // Add deep linking if provided (dlv parameter)
+    const deepLinkValue = basePayload.deepLinking || campaign || '';
+    if (deepLinkValue) {
+      params.append('dlv', deepLinkValue);
     }
     
     // Construct AppTrove URL format: https://applink.reevo.in/d/{linkId}?params
@@ -381,50 +403,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       createdVia: 'url-construction-fallback',
       shortUrl: `https://${domain}/d/${linkId}`,
       longUrl: trackingUrl,
-    });
-    
-    // This code should never be reached since we always construct a URL above
-    // But keeping it as a safety fallback
-    const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'All endpoints failed');
-    console.error('[AppTrove] Unexpected: URL construction should have succeeded');
-    console.error('[AppTrove] Last response:', JSON.stringify(lastResponse, null, 2));
-    console.error('[AppTrove] Attempted endpoints:', endpoints.length);
-    console.error('[AppTrove] Template ID variants tried:', templateIdVariants);
-    console.error('[AppTrove] Domain:', domain);
-    
-    // Even as a last resort, construct URL with default domain
-    const linkId = generateLinkId();
-    const mediaSource = basePayload.campaign || affiliateData?.id || 'affiliate';
-    const campaign = basePayload.campaign || `${affiliateData?.name || affiliateData?.id || 'affiliate'}_Affiliate_Influencer`.replace(/\s+/g, '_');
-    
-    const params = new URLSearchParams({
-      pid: mediaSource.substring(0, 50),
-      cost_value: '0',
-      cost_currency: 'INR',
-      lbw: '1d',
-      camp: campaign.substring(0, 100),
-    });
-    
-    if (basePayload.deepLinking || campaign) {
-      params.append('dlv', basePayload.deepLinking || campaign);
-    }
-    
-    const fallbackUrl = `https://applink.reevo.in/d/${linkId}?${params.toString()}`;
-    
-    return res.status(200).json({
-      success: true,
-      link: { id: linkId, url: fallbackUrl },
-      unilink: fallbackUrl,
-      linkId: linkId,
-      tracking: {
-        affiliateId: affiliateData?.id || linkData?.userId,
-        campaign: campaign,
-        templateId,
-      },
-      note: 'Link constructed using AppTrove URL format (fallback). API endpoints were not available.',
-      createdVia: 'url-construction-fallback-final',
-      shortUrl: `https://applink.reevo.in/d/${linkId}`,
-      longUrl: fallbackUrl,
     });
   } catch (error: any) {
     console.error('[AppTrove] Serverless function error:', error);
