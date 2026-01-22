@@ -68,11 +68,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     for (const attempt of tryHeaders) {
       try {
+        console.log(`[AppTrove Templates] Trying ${attempt.label} authentication...`);
         const response = await fetch(url, { method: 'GET', headers: attempt.headers });
-        const data = await response.json().catch(() => null);
+        const responseText = await response.text();
+        let data: any = null;
+        
+        try {
+          data = JSON.parse(responseText);
+        } catch {
+          data = { raw: responseText };
+        }
 
         if (response.ok) {
-          // Handle different response structures
+          console.log(`[AppTrove Templates] ✅ Success with ${attempt.label} authentication!`);
+          // Handle different response structures (matching old backend)
           const linkTemplateList =
             data?.data?.linkTemplateList ??
             data?.linkTemplateList ??
@@ -82,10 +91,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(200).json({ success: true, templates: linkTemplateList });
         }
 
-        const errorMsg = data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`;
+        const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
         lastError = typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg);
+        console.log(`[AppTrove Templates] ❌ ${attempt.label} failed: ${errorMsg}`);
       } catch (error: any) {
         lastError = error.message || 'Network error';
+        console.error(`[AppTrove Templates] Error with ${attempt.label}:`, error);
       }
     }
 
