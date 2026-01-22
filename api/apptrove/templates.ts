@@ -35,34 +35,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Build URL with query params (matching old backend format)
     const url = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`;
 
-    // Try authentication methods in order (matching old backend - uses api-key header)
-    // Old backend used: 'api-key': APPTROVE_API_KEY header
+    // Try authentication methods in order
+    // Based on old backend and user's credentials, try multiple approaches
     const tryHeaders = [
-      // Method 1: S2S API Key (Server-to-Server) - PRIMARY (this is the API key user provided)
-      { label: 's2s-api-key', headers: {
-        'api-key': APPTROVE_API_KEY, // This is the S2S API key (82aa3b94-bb98-449d-a372-4a8a98e319f0)
-        'Accept': 'application/json'
-      } },
-      // Method 2: Basic Auth with Secret ID/Key
-      { label: 'basic-auth', headers: (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) ? {
+      // Method 1: Basic Auth with Secret ID/Key (PRIMARY - most reliable)
+      { label: 'basic-auth-secret', headers: {
         'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
         'Accept': 'application/json'
-      } : null },
-      // Method 3: Secret ID/Key as headers
-      { label: 'secret-headers', headers: (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) ? {
+      } },
+      // Method 2: S2S API Key with api-key header
+      { label: 's2s-api-key', headers: {
+        'api-key': APPTROVE_API_KEY, // S2S API key (82aa3b94-bb98-449d-a372-4a8a98e319f0)
+        'Accept': 'application/json'
+      } },
+      // Method 3: Secret ID/Key as custom headers
+      { label: 'secret-headers', headers: {
         'secret-id': APPTROVE_SECRET_ID,
         'secret-key': APPTROVE_SECRET_KEY,
         'X-Secret-ID': APPTROVE_SECRET_ID,
         'X-Secret-Key': APPTROVE_SECRET_KEY,
         'Accept': 'application/json'
-      } : null },
+      } },
       // Method 4: SDK Key
-      { label: 'sdk-key', headers: APPTROVE_SDK_KEY ? { 
-        'api-key': APPTROVE_SDK_KEY, 
+      { label: 'sdk-key', headers: {
+        'api-key': APPTROVE_SDK_KEY,
         'X-SDK-Key': APPTROVE_SDK_KEY,
-        'Accept': 'application/json' 
-      } : null },
-    ].filter((x): x is { label: string; headers: Record<string, string> } => !!x.headers);
+        'Accept': 'application/json'
+      } },
+      // Method 5: Try S2S API key with X-S2S-API-Key header
+      { label: 's2s-api-key-alt', headers: {
+        'api-key': APPTROVE_API_KEY,
+        'X-S2S-API-Key': APPTROVE_API_KEY,
+        'Accept': 'application/json'
+      } },
+    ];
 
     let lastError: any = null;
 
