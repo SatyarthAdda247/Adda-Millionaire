@@ -78,8 +78,12 @@ export async function getTemplates() {
     }
 
     // Don't throw error - just return empty templates
+    // Templates are non-critical - link creation uses hardcoded template ID (wBehUW)
     const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error || 'Failed to fetch templates');
-    console.warn('⚠️ Failed to fetch templates (non-critical):', errorMsg);
+    // Only log if it's not an auth error (auth errors are expected if API key not set in Vercel)
+    if (!errorMsg.includes('Authentication') && !errorMsg.includes('Invalid API key')) {
+      console.warn('⚠️ Failed to fetch templates (non-critical):', errorMsg);
+    }
     return {
       success: false,
       templates: [],
