@@ -221,9 +221,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let lastResponse: any = null;
 
     // Try each endpoint (matching old backend logic)
+    // CRITICAL: We MUST succeed with API call to register link in AppTrove dashboard
+    // URL construction fallback creates links that aren't visible in dashboard
     for (const endpoint of endpoints) {
       try {
         console.log(`[AppTrove] Trying ${endpoint.url} with ${endpoint.auth} auth`);
+        console.log(`[AppTrove] Payload:`, JSON.stringify(endpoint.payload, null, 2));
         
         const response = await fetch(endpoint.url, {
           method: 'POST',
@@ -242,11 +245,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         lastResponse = { status: response.status, data };
 
+        console.log(`[AppTrove] Response status: ${response.status}`);
+        console.log(`[AppTrove] Response data:`, JSON.stringify(data, null, 2).substring(0, 500));
+
         // Check for success (200-299) - matching old backend
         if (response.status >= 200 && response.status < 300) {
           console.log(`✅ Success with ${endpoint.url} using ${endpoint.auth} auth!`);
           
-          // Extract unilink matching old backend pattern
+          // Extract unilink matching old backend pattern - try all possible fields
           const unilinkUrl = 
             data?.shortUrl || 
             data?.longUrl || 
@@ -257,7 +263,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             data?.data?.link ||
             data?.data?.url || 
             data?.result?.link || 
-            data?.result?.url || 
+            data?.result?.url ||
+            data?.linkData?.shortUrl ||
+            data?.linkData?.longUrl ||
+            data?.linkData?.link ||
             null;
 
           const linkId = 
@@ -268,10 +277,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             data?.data?.id || 
             data?.data?.linkId ||
             data?.result?.id || 
-            data?.result?.linkId || 
+            data?.result?.linkId ||
+            data?.linkData?._id ||
+            data?.linkData?.id ||
+            data?.linkData?.linkId ||
             null;
 
+          // If we have a URL, return success (link is registered in AppTrove)
           if (unilinkUrl) {
+            console.log(`✅ Link created and registered in AppTrove! URL: ${unilinkUrl}, ID: ${linkId}`);
             return res.status(200).json({
               success: true,
               link: data,
@@ -282,34 +296,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 campaign,
                 templateId,
               },
+              createdVia: 'api-registered',
             });
           }
 
-          // If we got success but no URL, try to construct it
+          // If we got success but no URL, try to construct it from linkId
           if (linkId) {
-            const domain = data?.domain || data?.data?.domain || 'applink.reevo.in';
+            const domain = data?.domain || data?.data?.domain || template?.domain || process.env.APPTROVE_DOMAIN || 'applink.reevo.in';
+            const constructedUrl = `https://${domain}/d/${linkId}`;
+            console.log(`✅ Link created with ID ${linkId}, constructed URL: ${constructedUrl}`);
             return res.status(200).json({
               success: true,
               link: data,
-              unilink: `https://${domain}/d/${linkId}`,
+              unilink: constructedUrl,
               linkId: linkId,
               tracking: {
                 affiliateId: affiliateData?.id || linkData?.userId,
                 campaign,
                 templateId,
               },
+              createdVia: 'api-registered',
             });
           }
+
+          // Success response but no URL or ID - log full response for debugging
+          console.warn(`⚠️ Success response but no URL/ID found. Full response:`, JSON.stringify(data, null, 2));
         }
 
         // If not successful, log and try next endpoint
-        const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
+        const errorMsg = data?.message || data?.error || data?.codeMsg || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
         lastError = errorMsg;
-        console.log(`[AppTrove] ${response.status} - ${endpoint.url} (${endpoint.auth}): ${errorMsg}`);
+        console.log(`[AppTrove] ❌ ${response.status} - ${endpoint.url} (${endpoint.auth}): ${errorMsg}`);
         
-        // Log full response for debugging 404s
-        if (response.status === 404) {
-          console.log(`[AppTrove] 404 Details - URL: ${endpoint.url}, Auth: ${endpoint.auth}, Response:`, JSON.stringify(data, null, 2));
+        // Log full response for debugging
+        if (response.status >= 400) {
+          console.log(`[AppTrove] Error Details - Status: ${response.status}, URL: ${endpoint.url}, Auth: ${endpoint.auth}`);
+          console.log(`[AppTrove] Response:`, JSON.stringify(data, null, 2).substring(0, 1000));
         }
       } catch (error: any) {
         lastError = error.message || 'Network error';
@@ -318,93 +340,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // All endpoints failed - try URL construction fallback (like old backend)
-    console.log('[AppTrove] All API endpoints failed, trying URL construction fallback...');
+    // All endpoints failed - this is CRITICAL
+    // URL construction fallback creates links that aren't registered in AppTrove dashboard
+    // We MUST return an error so admin knows to create link manually
+    console.error('[AppTrove] ❌ CRITICAL: All API endpoints failed!');
+    console.error('[AppTrove] Attempted endpoints:', endpoints.length);
+    console.error('[AppTrove] Last error:', lastError);
+    console.error('[AppTrove] Last response:', JSON.stringify(lastResponse, null, 2));
     
-    try {
-      // Get template domain
-      const domain = template?.domain || process.env.APPTROVE_DOMAIN || 'applink.reevo.in';
-      
-      // Generate unique link ID - shorter format like "Shobhit" from example
-      const generateLinkId = () => {
-        try {
-          // Use affiliate name/ID if available, otherwise generate short ID
-          if (affiliateData?.name) {
-            const cleanName = String(affiliateData.name)
-              .replace(/[^a-zA-Z0-9]/g, '')
-              .toLowerCase()
-              .substring(0, 20);
-            if (cleanName.length >= 3) {
-              return cleanName;
-            }
-          }
-          if (affiliateData?.id) {
-            const idPart = String(affiliateData.id)
-              .replace(/[^a-zA-Z0-9]/g, '')
-              .toLowerCase()
-              .substring(0, 15);
-            if (idPart.length >= 3) {
-              return idPart;
-            }
-          }
-          // Fallback: short random ID
-          return `link${Date.now().toString(36)}${Math.random().toString(36).substring(2, 5)}`;
-        } catch (e) {
-          return `link${Date.now().toString(36)}${Math.random().toString(36).substring(2, 5)}`;
-        }
-      };
-      
-      const linkId = generateLinkId();
-      const mediaSource = String(affiliateData?.id || affiliateData?.name?.replace(/\s+/g, '_') || basePayload.campaign || 'affiliate').substring(0, 50);
-      const campaignName = String(basePayload.campaign || `${affiliateData?.name || affiliateData?.id || 'affiliate'}_Affiliate_Influencer`.replace(/\s+/g, '_')).substring(0, 100);
-      
-      // Build query parameters
-      const params = new URLSearchParams({
-        pid: mediaSource,
-        cost_value: '0',
-        cost_currency: 'INR',
-        lbw: '1d',
-        camp: campaignName,
-      });
-      
-      const deepLinkValue = basePayload.deepLinking || campaignName || '';
-      if (deepLinkValue) {
-        params.append('dlv', deepLinkValue);
-      }
-      
-      const trackingUrl = `https://${domain}/d/${linkId}?${params.toString()}`;
-      
-      console.log('[AppTrove] ✅ Using URL construction fallback');
-      console.log('[AppTrove] Domain:', domain);
-      console.log('[AppTrove] Link ID:', linkId);
-      console.log('[AppTrove] Constructed URL:', trackingUrl);
-      
-      return res.status(200).json({
-        success: true,
-        link: { id: linkId, url: trackingUrl },
-        unilink: trackingUrl,
-        linkId: linkId,
-        tracking: {
-          affiliateId: affiliateData?.id || linkData?.userId || '',
-          campaign: campaignName,
-          templateId,
-        },
-        note: 'Link constructed using AppTrove URL format. ⚠️ IMPORTANT: This link may not be registered in AppTrove dashboard. Please verify tracking works by: 1) Clicking the link, 2) Checking AppTrove dashboard for clicks/conversions, 3) Testing with a real conversion. If tracking does not work, links must be created manually in AppTrove dashboard.',
-        createdVia: 'url-construction-fallback',
-        shortUrl: `https://${domain}/d/${linkId}`,
-        longUrl: trackingUrl,
-        warning: 'Link constructed manually - tracking verification required',
-      });
-    } catch (fallbackError: any) {
-      console.error('[AppTrove] URL construction fallback error:', fallbackError);
-      return res.status(200).json({
-        success: false,
-        error: 'Failed to create link - both API and URL construction failed',
-        details: fallbackError.message || 'Unknown error in URL construction',
-        lastResponse: lastResponse,
-        attemptedEndpoints: endpoints.length,
-      });
-    }
+    return res.status(200).json({
+      success: false,
+      error: 'Failed to create link via AppTrove API - link will NOT be visible in dashboard',
+      details: `All ${endpoints.length} API endpoints failed. Last error: ${lastError || 'Unknown'}`,
+      lastResponse: lastResponse,
+      attemptedEndpoints: endpoints.length,
+      note: '⚠️ CRITICAL: Link was NOT created in AppTrove. Please create it manually in AppTrove dashboard to ensure it appears and tracking works correctly.',
+      requiresManualCreation: true,
+    });
   } catch (error: any) {
     console.error('[AppTrove] Serverless function error:', error);
     return res.status(200).json({

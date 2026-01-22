@@ -650,14 +650,25 @@ const AdminDashboard = () => {
                 },
               });
               
-              if (createData.success && createData.unilink) {
+              // Check if link creation failed and requires manual creation
+              if ((createData as any).requiresManualCreation) {
+                // API failed - link was NOT created in AppTrove dashboard
+                linkError = createData.error || 'Link creation failed - requires manual creation in AppTrove dashboard';
+                console.error('❌ CRITICAL: Link creation failed - link will NOT be visible in AppTrove dashboard');
+                console.error('❌ Error details:', createData);
+                
+                // Don't save any link - it doesn't exist in AppTrove
+                // User will need to create it manually
+              } else if (createData.success && createData.unilink) {
+                // Link successfully created via API - it's registered in AppTrove
                 unilink = createData.unilink;
                 linkId = createData.linkId || createData.link?.id || uuidv4();
                 
-                console.log(`✅ UniLink created: ${unilink}`);
+                console.log(`✅ UniLink created and registered in AppTrove: ${unilink}`);
                 
-                // Check if link was constructed manually (may not track properly)
-                const isManualConstruction = (createData as any).createdVia === 'url-construction-fallback';
+                // Check if link was created via API (registered) or constructed manually
+                const createdVia = (createData as any).createdVia || 'api-registered';
+                const isRegistered = createdVia === 'api-registered';
                 
                 // Save link to DynamoDB
                 const linkData: any = {
@@ -666,15 +677,9 @@ const AdminDashboard = () => {
                   unilink,
                   templateId: templateIdToUse,
                   createdAt: new Date().toISOString(),
+                  createdVia: createdVia,
+                  isRegistered: isRegistered,
                 };
-                
-                // Add optional fields if present
-                if ((createData as any).createdVia) {
-                  linkData.createdVia = (createData as any).createdVia;
-                }
-                if ((createData as any).warning) {
-                  linkData.warning = (createData as any).warning;
-                }
                 
                 await saveLink(linkData);
                 
@@ -691,12 +696,9 @@ const AdminDashboard = () => {
                 
                 // Success - exit early
                 toast({
-                  title: isManualConstruction ? "⚠️ Approved & Link Created (Verify Tracking)" : "✅ Approved & UniLink Created",
-                  description: isManualConstruction 
-                    ? `${selectedAffiliate.name} approved. Link: ${unilink}\n\n⚠️ IMPORTANT: This link was constructed manually. Please verify tracking works by:\n1) Clicking the link\n2) Checking AppTrove dashboard for clicks/conversions\n3) Testing with a real conversion`
-                    : `${selectedAffiliate.name} approved. UniLink: ${unilink}`,
-                  duration: isManualConstruction ? 10000 : 5000,
-                  variant: isManualConstruction ? "default" : "default",
+                  title: "✅ Approved & UniLink Created",
+                  description: `${selectedAffiliate.name} approved. UniLink: ${unilink}\n\n✅ Link is registered in AppTrove dashboard and will track properly.`,
+                  duration: 5000,
                 });
                 
                 setApprovalDialogOpen(false);
@@ -705,10 +707,10 @@ const AdminDashboard = () => {
                 fetchAffiliates();
                 return; // Exit early on success
               } else {
-                // Link creation failed, but don't show error - just approve silently
+                // Link creation failed for unknown reason
                 const errorMsg = typeof createData.error === 'string' ? createData.error : JSON.stringify(createData.error || createData.details || 'UniLink creation unavailable');
                 linkError = errorMsg;
-                console.warn('⚠️ Link creation failed (non-critical):', errorMsg);
+                console.warn('⚠️ Link creation failed:', errorMsg);
                 console.warn('⚠️ Full error details:', createData);
               }
             } catch (linkApiError) {
@@ -743,12 +745,23 @@ const AdminDashboard = () => {
         
         // Show appropriate toast message (only if we didn't already show one)
         if (!unilink) {
-          // Link creation failed or wasn't attempted - show simple approval message
-          toast({
-            title: "✅ Approved",
-            description: `${selectedAffiliate.name} has been approved. ${linkError ? 'You can assign a link manually.' : 'You can assign a link if needed.'}`,
-            duration: 5000,
-          });
+          // Link creation failed or wasn't attempted
+          if (linkError && linkError.includes('requires manual creation')) {
+            // API failed - show critical warning
+            toast({
+              title: "⚠️ Approved (Link Creation Failed)",
+              description: `${selectedAffiliate.name} has been approved, but link creation failed.\n\n❌ CRITICAL: Link was NOT created in AppTrove dashboard.\n\nPlease create the link manually in AppTrove dashboard:\n1) Go to AppTrove dashboard\n2) Select template "wBehUW" (Millionaire's Adda/EduRise)\n3) Create new link for ${selectedAffiliate.name}\n4) Assign the link manually using the "Assign Link" button`,
+              duration: 15000,
+              variant: "destructive",
+            });
+          } else {
+            // Other failure - show simple message
+            toast({
+              title: "✅ Approved",
+              description: `${selectedAffiliate.name} has been approved. ${linkError ? 'You can assign a link manually.' : 'You can assign a link if needed.'}`,
+              duration: 5000,
+            });
+          }
         }
         
         setApprovalDialogOpen(false);
