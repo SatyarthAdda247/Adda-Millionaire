@@ -69,18 +69,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let templateIdVariants = [templateId];
     let template: any = null;
     try {
-      const templateResponse = await fetch(
-        `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`,
-        {
-          headers: APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY ? {
-            'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
-            'Accept': 'application/json'
-          } : APPTROVE_SDK_KEY ? {
-            'api-key': APPTROVE_SDK_KEY,
-            'Accept': 'application/json'
-          } : {},
+      // Add timeout for template fetch (5 seconds)
+      const templateController = new AbortController();
+      const templateTimeoutId = setTimeout(() => templateController.abort(), 5000);
+      
+      let templateResponse: Response;
+      try {
+        templateResponse = await fetch(
+          `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`,
+          {
+            headers: APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY ? {
+              'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
+              'Accept': 'application/json'
+            } : APPTROVE_SDK_KEY ? {
+              'api-key': APPTROVE_SDK_KEY,
+              'Accept': 'application/json'
+            } : {},
+            signal: templateController.signal,
+          }
+        );
+        clearTimeout(templateTimeoutId);
+      } catch (templateError: any) {
+        clearTimeout(templateTimeoutId);
+        if (templateError.name === 'AbortError') {
+          console.log('[AppTrove] Template fetch timeout (non-critical)');
+        } else {
+          console.log('[AppTrove] Template fetch error (non-critical):', templateError.message);
         }
-      );
+        throw templateError;
+      }
       
       if (templateResponse.ok) {
         const templateData = await templateResponse.json().catch(() => null);
@@ -245,11 +262,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[AppTrove] Trying ${endpoint.url} with ${endpoint.auth} auth`);
         console.log(`[AppTrove] Payload:`, JSON.stringify(endpoint.payload, null, 2));
         
-        const response = await fetch(endpoint.url, {
-          method: 'POST',
-          headers: endpoint.headers,
-          body: JSON.stringify(endpoint.payload),
-        });
+        // Add timeout to prevent hanging requests (10 seconds)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        let response: Response;
+        try {
+          response = await fetch(endpoint.url, {
+            method: 'POST',
+            headers: endpoint.headers,
+            body: JSON.stringify(endpoint.payload),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            throw new Error(`Request timeout after 10 seconds - ${endpoint.url}`);
+          } else if (fetchError.code === 'ECONNREFUSED' || fetchError.message?.includes('ECONNREFUSED')) {
+            throw new Error(`Connection refused - AppTrove API may be down or unreachable`);
+          } else if (fetchError.code === 'ETIMEDOUT' || fetchError.message?.includes('timeout')) {
+            throw new Error(`Connection timeout - AppTrove API took too long to respond`);
+          } else if (fetchError.message?.includes('fetch failed')) {
+            throw new Error(`Network error - Unable to reach AppTrove API: ${fetchError.message}`);
+          }
+          throw fetchError;
+        }
 
         const responseText = await response.text();
         let data: any = null;
@@ -351,8 +389,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.log(`[AppTrove] Response:`, JSON.stringify(data, null, 2).substring(0, 1000));
         }
       } catch (error: any) {
-        lastError = error.message || 'Network error';
-        console.error(`[AppTrove] Endpoint error: ${endpoint.url} (${endpoint.auth})`, error);
+        const errorMsg = error.message || 'Network error';
+        lastError = errorMsg;
+        
+        // Log specific connection errors
+        if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
+          console.error(`[AppTrove] ⏱️ Timeout error: ${endpoint.url} (${endpoint.auth})`);
+          console.error(`[AppTrove] AppTrove API took too long to respond (>10s)`);
+        } else if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('Connection refused')) {
+          console.error(`[AppTrove] 🔌 Connection refused: ${endpoint.url} (${endpoint.auth})`);
+          console.error(`[AppTrove] AppTrove API may be down or unreachable`);
+        } else if (errorMsg.includes('Network error') || errorMsg.includes('fetch failed')) {
+          console.error(`[AppTrove] 🌐 Network error: ${endpoint.url} (${endpoint.auth})`);
+          console.error(`[AppTrove] Unable to reach AppTrove API: ${errorMsg}`);
+        } else {
+          console.error(`[AppTrove] ❌ Endpoint error: ${endpoint.url} (${endpoint.auth})`, error);
+        }
         continue;
       }
     }
