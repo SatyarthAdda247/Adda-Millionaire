@@ -105,69 +105,85 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
       
-      if (!templateFetchFailed && templateResponse!.ok) {
-        const templateData = await templateResponse!.json().catch(() => null);
-        const templates = templateData?.data?.linkTemplateList || templateData?.linkTemplateList || [];
+      if (!templateFetchFailed && templateResponse!) {
+        const responseStatus = templateResponse!.status;
+        const responseText = await templateResponse!.text().catch(() => '');
         
-        console.log(`[AppTrove] Found ${templates.length} templates`);
-        console.log(`[AppTrove] Template IDs available:`, templates.map((t: any) => t._id || t.id || t.oid).filter(Boolean).join(', '));
-        
-        template = templates.find((t: any) => 
-          t._id === templateId || t.id === templateId || t.oid === templateId
-        );
-        
-        // Store available template IDs for error reporting
-        availableTemplateIds = templates.map((t: any) => t._id || t.id || t.oid).filter(Boolean);
-        
-        if (template) {
-          // Add template ID variants
-          if (template.oid && template.oid !== templateId) templateIdVariants.push(template.oid);
-          if (template._id && template._id !== templateId) templateIdVariants.push(template._id);
-          if (template.id && template.id !== templateId) templateIdVariants.push(template.id);
+        if (templateResponse!.ok) {
+          const templateData = JSON.parse(responseText).catch(() => null);
+          const templates = templateData?.data?.linkTemplateList || templateData?.linkTemplateList || [];
           
-          console.log(`[AppTrove] ✅ Template "${templateId}" found!`);
-          console.log(`[AppTrove] Template name: ${template.name}`);
-          console.log(`[AppTrove] Template ID variants: ${templateIdVariants.join(', ')}`);
+          console.log(`[AppTrove] Found ${templates.length} templates`);
+          console.log(`[AppTrove] Template IDs available:`, templates.map((t: any) => t._id || t.id || t.oid).filter(Boolean).join(', '));
           
-          templateVerificationResult = {
-            found: true,
-            templateId: templateId,
-            templateName: template.name,
-            templateIdVariants: templateIdVariants,
-            domain: template.domain,
-            androidAppID: template.androidAppID || template.androidAppId || template.packageName || template.androidPackage,
-            hasPlayStoreConfig: !!(template.notInstalled?.androidRdtCUrl || template.androidRdtCUrl),
-          };
+          template = templates.find((t: any) => 
+            t._id === templateId || t.id === templateId || t.oid === templateId
+          );
           
-          // Log template data for debugging - including Play Store configuration
-          console.log('[AppTrove] Template details:', templateVerificationResult);
+          // Store available template IDs for error reporting
+          availableTemplateIds = templates.map((t: any) => t._id || t.id || t.oid).filter(Boolean);
           
-          // Warn if Play Store configuration is missing
-          if (!template.notInstalled?.androidRdtCUrl && !template.androidRdtCUrl) {
-            console.warn('⚠️ WARNING: Template does not have Play Store URL configured!');
-            console.warn('⚠️ Links created from this template may not redirect to Play Store.');
-            console.warn('⚠️ Please configure Play Store URL in AppTrove dashboard for template:', templateId);
+          if (template) {
+            // Add template ID variants
+            if (template.oid && template.oid !== templateId) templateIdVariants.push(template.oid);
+            if (template._id && template._id !== templateId) templateIdVariants.push(template._id);
+            if (template.id && template.id !== templateId) templateIdVariants.push(template.id);
+            
+            console.log(`[AppTrove] ✅ Template "${templateId}" found!`);
+            console.log(`[AppTrove] Template name: ${template.name}`);
+            console.log(`[AppTrove] Template ID variants: ${templateIdVariants.join(', ')}`);
+            
+            templateVerificationResult = {
+              found: true,
+              templateId: templateId,
+              templateName: template.name,
+              templateIdVariants: templateIdVariants,
+              domain: template.domain,
+              androidAppID: template.androidAppID || template.androidAppId || template.packageName || template.androidPackage,
+              hasPlayStoreConfig: !!(template.notInstalled?.androidRdtCUrl || template.androidRdtCUrl),
+            };
+            
+            // Log template data for debugging - including Play Store configuration
+            console.log('[AppTrove] Template details:', templateVerificationResult);
+            
+            // Warn if Play Store configuration is missing
+            if (!template.notInstalled?.androidRdtCUrl && !template.androidRdtCUrl) {
+              console.warn('⚠️ WARNING: Template does not have Play Store URL configured!');
+              console.warn('⚠️ Links created from this template may not redirect to Play Store.');
+              console.warn('⚠️ Please configure Play Store URL in AppTrove dashboard for template:', templateId);
+            }
+          } else {
+            console.error(`[AppTrove] ❌ Template "${templateId}" NOT FOUND in available templates!`);
+            const availableTemplates = templates.map((t: any) => ({
+              _id: t._id,
+              id: t.id,
+              oid: t.oid,
+              name: t.name
+            }));
+            console.error(`[AppTrove] Available templates:`, availableTemplates);
+            console.error(`[AppTrove] This is likely why all endpoints return 404 - template doesn't exist!`);
+            
+            templateVerificationResult = {
+              found: false,
+              requestedTemplateId: templateId,
+              availableTemplateIds: availableTemplateIds,
+              availableTemplates: availableTemplates,
+            };
           }
         } else {
-          console.error(`[AppTrove] ❌ Template "${templateId}" NOT FOUND in available templates!`);
-          const availableTemplates = templates.map((t: any) => ({
-            _id: t._id,
-            id: t.id,
-            oid: t.oid,
-            name: t.name
-          }));
-          console.error(`[AppTrove] Available templates:`, availableTemplates);
-          console.error(`[AppTrove] This is likely why all endpoints return 404 - template doesn't exist!`);
+          // Template fetch failed - log error but continue
+          console.warn(`[AppTrove] ⚠️ Template fetch failed with status ${responseStatus}`);
+          console.warn(`[AppTrove] Response:`, responseText.substring(0, 500));
+          console.warn(`[AppTrove] Will try to create link anyway with templateId "${templateId}"`);
           
           templateVerificationResult = {
-            found: false,
+            fetchFailed: true,
+            status: responseStatus,
+            error: responseText.substring(0, 200),
             requestedTemplateId: templateId,
-            availableTemplateIds: availableTemplateIds,
-            availableTemplates: availableTemplates,
+            note: 'Template verification failed - proceeding with provided templateId',
           };
         }
-      } else if (!templateFetchFailed) {
-        console.warn(`[AppTrove] ⚠️ Template fetch returned ${templateResponse!.status} - will try with provided templateId only`);
       }
     } catch (e: any) {
       console.warn('[AppTrove] ⚠️ Could not fetch template variants:', e.message);
