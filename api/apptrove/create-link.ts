@@ -47,17 +47,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
     // Build payload matching old backend format exactly
+    // Match working link format: pid=Affiliate (simple string, not UUID)
     const linkName = linkData?.name || `${affiliateData?.name || 'Affiliate'} - Affiliate Link` || 'Affiliate Link';
-    const campaign = linkData?.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50);
     
-    // Build payload matching old backend format exactly
-    // Include all necessary fields for proper Play Store redirect
+    // Campaign format: Use affiliate name with underscores (matching working link: "Shobhit_Affiliate_Influencer")
+    const affiliateName = affiliateData?.name || 'Affiliate';
+    const campaignName = linkData?.campaign || `${affiliateName}_Affiliate_Influencer`.replace(/\s+/g, '_');
+    
+    // Build payload matching working link format exactly
     const basePayload = {
       name: linkName,
-      campaign: campaign,
-      deepLinking: linkData?.deepLink || campaign || '',
+      campaign: campaignName,
+      deepLinking: linkData?.deepLink || campaignName || '',
       status: linkData?.status || 'active',
-      // Ensure link inherits template's Play Store configuration
+      // pid should be "Affiliate" (simple string) - AppTrove will handle this automatically
+      // Don't pass pid in payload - let AppTrove set it based on template configuration
       ...linkData,
     };
 

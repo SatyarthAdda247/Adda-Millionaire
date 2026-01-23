@@ -638,13 +638,16 @@ const AdminDashboard = () => {
             
             try {
               // Create a new link from the template with comprehensive tracking
+              // Match working link format: campaign should be "Name_Affiliate_Influencer"
+              const campaignName = `${selectedAffiliate.name}_Affiliate_Influencer`.replace(/\s+/g, '_');
               const createData = await createLink(templateIdToUse, {
                 name: `${selectedAffiliate.name} - Affiliate Link`,
                 userId: selectedAffiliate.id,
                 affiliateId: selectedAffiliate.id,
                 affiliateName: selectedAffiliate.name,
                 affiliateEmail: selectedAffiliate.email,
-                campaign: `${selectedAffiliate.name}-affiliate`.toLowerCase().replace(/\s+/g, '-').substring(0, 50),
+                campaign: campaignName,
+                deepLinking: campaignName, // Match working link: dlv should match camp
                 status: 'active',
                 // Add tracking metadata
                 metadata: {
