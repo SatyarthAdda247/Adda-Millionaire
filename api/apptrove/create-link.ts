@@ -414,15 +414,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // We MUST return an error so admin knows to create link manually
     console.error('[AppTrove] ❌ CRITICAL: All API endpoints failed!');
     console.error('[AppTrove] Attempted endpoints:', endpoints.length);
+    console.error('[AppTrove] Template ID:', templateId);
+    console.error('[AppTrove] Template ID variants tried:', templateIdVariants.join(', '));
     console.error('[AppTrove] Last error:', lastError);
-    console.error('[AppTrove] Last response:', JSON.stringify(lastResponse, null, 2));
+    console.error('[AppTrove] Last response status:', lastResponse?.status);
+    console.error('[AppTrove] Last response data:', JSON.stringify(lastResponse?.data, null, 2).substring(0, 1000));
+    console.error('[AppTrove] Endpoints tried:');
+    endpoints.forEach((ep, idx) => {
+      console.error(`  ${idx + 1}. ${ep.url} (${ep.auth})`);
+    });
+    
+    // Provide helpful error message based on last response
+    let helpfulError = `All ${endpoints.length} API endpoints failed. Last error: ${lastError || 'Unknown'}`;
+    if (lastResponse?.status === 404) {
+      helpfulError += '\n\nPossible causes:\n';
+      helpfulError += '1. Template ID "wBehUW" may be incorrect - verify in AppTrove dashboard\n';
+      helpfulError += '2. API endpoint URL may be wrong - check APPTROVE_API_URL\n';
+      helpfulError += '3. Template may not exist or may be inactive\n';
+      helpfulError += '4. API endpoint structure may have changed\n';
+    } else if (lastResponse?.status === 401) {
+      helpfulError += '\n\nAuthentication failed - check:\n';
+      helpfulError += '1. APPTROVE_SECRET_ID and APPTROVE_SECRET_KEY are set correctly\n';
+      helpfulError += '2. Credentials have permission to create links\n';
+    }
     
     return res.status(200).json({
       success: false,
       error: 'Failed to create link via AppTrove API - link will NOT be visible in dashboard',
-      details: `All ${endpoints.length} API endpoints failed. Last error: ${lastError || 'Unknown'}`,
+      details: helpfulError,
       lastResponse: lastResponse,
       attemptedEndpoints: endpoints.length,
+      templateId: templateId,
+      templateIdVariants: templateIdVariants,
+      endpointsTried: endpoints.map(ep => ({ url: ep.url, auth: ep.auth })),
       note: '⚠️ CRITICAL: Link was NOT created in AppTrove. Please create it manually in AppTrove dashboard to ensure it appears and tracking works correctly.',
       requiresManualCreation: true,
     });
