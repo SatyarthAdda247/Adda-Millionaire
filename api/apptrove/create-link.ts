@@ -70,6 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let templateIdVariants = [templateId];
     let template: any = null;
     let templateFetchFailed = false;
+    let availableTemplateIds: string[] = [];
+    let templateVerificationResult: any = null;
     
     try {
       // Add timeout for template fetch (5 seconds)
@@ -114,6 +116,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           t._id === templateId || t.id === templateId || t.oid === templateId
         );
         
+        // Store available template IDs for error reporting
+        availableTemplateIds = templates.map((t: any) => t._id || t.id || t.oid).filter(Boolean);
+        
         if (template) {
           // Add template ID variants
           if (template.oid && template.oid !== templateId) templateIdVariants.push(template.oid);
@@ -124,16 +129,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.log(`[AppTrove] Template name: ${template.name}`);
           console.log(`[AppTrove] Template ID variants: ${templateIdVariants.join(', ')}`);
           
-          // Log template data for debugging - including Play Store configuration
-          console.log('[AppTrove] Template details:', {
-            name: template.name,
+          templateVerificationResult = {
+            found: true,
+            templateId: templateId,
+            templateName: template.name,
+            templateIdVariants: templateIdVariants,
             domain: template.domain,
             androidAppID: template.androidAppID || template.androidAppId || template.packageName || template.androidPackage,
-            iosAppID: template.iosAppID || template.iosAppId || template.bundleId || template.iosBundle,
             hasPlayStoreConfig: !!(template.notInstalled?.androidRdtCUrl || template.androidRdtCUrl),
-            playStoreUrl: template.notInstalled?.androidRdtCUrl || template.androidRdtCUrl || 'Not configured',
-            deepLinkingEnabled: !!(template.installed?.androidRdt || template.androidRdt),
-          });
+          };
+          
+          // Log template data for debugging - including Play Store configuration
+          console.log('[AppTrove] Template details:', templateVerificationResult);
           
           // Warn if Play Store configuration is missing
           if (!template.notInstalled?.androidRdtCUrl && !template.androidRdtCUrl) {
@@ -143,13 +150,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
         } else {
           console.error(`[AppTrove] ❌ Template "${templateId}" NOT FOUND in available templates!`);
-          console.error(`[AppTrove] Available template IDs:`, templates.map((t: any) => ({
+          const availableTemplates = templates.map((t: any) => ({
             _id: t._id,
             id: t.id,
             oid: t.oid,
             name: t.name
-          })));
+          }));
+          console.error(`[AppTrove] Available templates:`, availableTemplates);
           console.error(`[AppTrove] This is likely why all endpoints return 404 - template doesn't exist!`);
+          
+          templateVerificationResult = {
+            found: false,
+            requestedTemplateId: templateId,
+            availableTemplateIds: availableTemplateIds,
+            availableTemplates: availableTemplates,
+          };
         }
       } else if (!templateFetchFailed) {
         console.warn(`[AppTrove] ⚠️ Template fetch returned ${templateResponse!.status} - will try with provided templateId only`);
@@ -471,6 +486,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       templateId: templateId,
       templateIdVariants: templateIdVariants,
       endpointsTried: endpoints.map(ep => ({ url: ep.url, auth: ep.auth })),
+      templateVerification: templateVerificationResult,
+      availableTemplateIds: availableTemplateIds,
       note: '⚠️ CRITICAL: Link was NOT created in AppTrove. Please create it manually in AppTrove dashboard to ensure it appears and tracking works correctly.',
       requiresManualCreation: true,
     });
