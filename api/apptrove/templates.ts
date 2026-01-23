@@ -24,13 +24,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Get AppTrove credentials from environment variables
-    // Match old backend pattern: Secret ID/Key with Basic Auth as PRIMARY method
-    // Priority: Environment variables > Hardcoded fallbacks
-    const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || '82aa3b94-bb98-449d-a372-4a8a98e319f0';
-    const APPTROVE_SDK_KEY = process.env.VITE_APPTROVE_SDK_KEY || process.env.APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
-    const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
-    const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
-    const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
+    // NOTE: Vercel serverless functions CANNOT access VITE_ prefixed variables
+    // Match old backend: uses process.env.APPTROVE_API_KEY directly
+    // Priority: APPTROVE_API_KEY > APPTROVE_S2S_API > VITE_ vars (for local dev) > Hardcoded fallbacks
+    const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_API_KEY || '82aa3b94-bb98-449d-a372-4a8a98e319f0';
+    const APPTROVE_SDK_KEY = process.env.APPTROVE_SDK_KEY || process.env.VITE_APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
+    const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || process.env.VITE_APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
+    const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || process.env.VITE_APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
+    const APPTROVE_API_URL = (process.env.APPTROVE_API_URL || process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
+    
+    // Log which variables are being used (for debugging)
+    console.log(`[AppTrove Templates] Environment check:`);
+    console.log(`  - process.env.APPTROVE_API_KEY: ${process.env.APPTROVE_API_KEY ? `SET (${process.env.APPTROVE_API_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
+    console.log(`  - process.env.APPTROVE_S2S_API: ${process.env.APPTROVE_S2S_API ? `SET (${process.env.APPTROVE_S2S_API.substring(0, 8)}...)` : 'NOT SET'}`);
+    console.log(`  - Using API Key: ${APPTROVE_API_KEY.substring(0, 8)}...`);
+    console.log(`  - API URL: ${APPTROVE_API_URL}`);
 
     // Build URL with query params (matching old backend format EXACTLY)
     // Old backend uses: /internal/link-template with params: status=active&limit=100
