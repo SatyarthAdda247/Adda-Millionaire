@@ -50,11 +50,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const linkName = linkData?.name || `${affiliateData?.name || 'Affiliate'} - Affiliate Link` || 'Affiliate Link';
     const campaign = linkData?.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50);
     
+    // Build payload matching old backend format exactly
+    // Include all necessary fields for proper Play Store redirect
     const basePayload = {
       name: linkName,
       campaign: campaign,
-      deepLinking: linkData?.deepLink || '',
+      deepLinking: linkData?.deepLink || campaign || '',
       status: linkData?.status || 'active',
+      // Ensure link inherits template's Play Store configuration
       ...linkData,
     };
 
