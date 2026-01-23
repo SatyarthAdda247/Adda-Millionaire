@@ -75,7 +75,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     for (const attempt of tryHeaders) {
       try {
         console.log(`[AppTrove Templates] Trying ${attempt.label} authentication...`);
-        const response = await fetch(url, { method: 'GET', headers: attempt.headers });
+        
+        // Add timeout (10 seconds)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        let response: Response;
+        try {
+          response = await fetch(url, { 
+            method: 'GET', 
+            headers: attempt.headers,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+        } catch (fetchError: any) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            throw new Error(`Request timeout after 10 seconds`);
+          } else if (fetchError.code === 'ECONNREFUSED') {
+            throw new Error(`Connection refused - AppTrove API unreachable`);
+          } else if (fetchError.code === 'ETIMEDOUT') {
+            throw new Error(`Connection timeout`);
+          }
+          throw fetchError;
+        }
         const responseText = await response.text();
         let data: any = null;
         
