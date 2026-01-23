@@ -80,14 +80,21 @@ export async function getTemplates() {
     // Don't throw error - just return empty templates
     // Templates are non-critical - link creation uses hardcoded template ID (wBehUW)
     const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error || 'Failed to fetch templates');
-    // Only log if it's not an auth error (auth errors are expected if API key not set in Vercel)
-    if (!errorMsg.includes('Authentication') && !errorMsg.includes('Invalid API key')) {
+    
+    // Log error with debug info if available
+    if (data.debug) {
+      console.warn('⚠️ Failed to fetch templates:', errorMsg);
+      console.warn('⚠️ Debug info:', data.debug);
+      console.warn('⚠️ Check Vercel environment variables: APPTROVE_API_KEY or APPTROVE_S2S_API');
+    } else if (!errorMsg.includes('Authentication') && !errorMsg.includes('Invalid API key')) {
       console.warn('⚠️ Failed to fetch templates (non-critical):', errorMsg);
     }
+    
     return {
       success: false,
       templates: [],
       error: errorMsg,
+      debug: data.debug,
     };
   } catch (error: any) {
     // Don't throw error - just return empty templates

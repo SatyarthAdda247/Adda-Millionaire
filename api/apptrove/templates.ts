@@ -166,10 +166,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Return empty templates instead of error - don't crash
     const errorMsg = typeof lastError === 'string' ? lastError : JSON.stringify(lastError || 'Unknown error');
+    console.error(`[AppTrove Templates] ❌ All authentication methods failed!`);
+    console.error(`[AppTrove Templates] Last error: ${errorMsg}`);
+    console.error(`[AppTrove Templates] URL tried: ${url}`);
+    console.error(`[AppTrove Templates] Check: APPTROVE_API_KEY (S2S API key) is set in Vercel environment variables`);
+    
     return res.status(200).json({
       success: false,
       error: `Failed to fetch templates: ${errorMsg}`,
-      templates: []
+      templates: [],
+      debug: {
+        url,
+        attemptedMethods: tryHeaders.map(h => h.label),
+        apiKeySet: !!APPTROVE_API_KEY,
+        note: 'Check Vercel environment variables: APPTROVE_API_KEY or APPTROVE_S2S_API should be set'
+      }
     });
   } catch (error: any) {
     console.error('[AppTrove] Templates error:', error);
