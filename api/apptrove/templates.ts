@@ -32,8 +32,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
     const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
-    // Build URL with query params (matching old backend format)
+    // Build URL with query params (matching old backend format EXACTLY)
+    // Old backend uses: /internal/link-template with params: status=active&limit=100
     const url = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`;
+    
+    console.log(`[AppTrove Templates] Fetching from: ${url}`);
+    console.log(`[AppTrove Templates] Using S2S API Key: ${APPTROVE_API_KEY ? 'Set' : 'Not set'}`);
 
     // Try authentication methods in order
     // OLD BACKEND USES: 'api-key' header with APPTROVE_API_KEY (S2S API key)
@@ -139,6 +143,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // If 401/403, authentication is wrong - try next method
         // If 404, endpoint might be wrong
         // If 400, might be validation error
+        if (response.status === 401) {
+          console.log(`[AppTrove Templates] 401 Unauthorized - ${attempt.label} auth failed, trying next method...`);
+        } else if (response.status === 403) {
+          console.log(`[AppTrove Templates] 403 Forbidden - ${attempt.label} auth failed, trying next method...`);
+        } else if (response.status === 404) {
+          console.log(`[AppTrove Templates] 404 Not Found - endpoint may be wrong or API structure changed`);
+        }
       } catch (error: any) {
         lastError = error.message || 'Network error';
         console.error(`[AppTrove Templates] Error with ${attempt.label}:`, error);
