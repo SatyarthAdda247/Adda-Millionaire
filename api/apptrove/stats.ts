@@ -30,18 +30,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `${APPTROVE_API_URL}/api/reporting/link/${encodeURIComponent(linkId)}/stats`,
   ];
 
-  // Try Reporting API Key first, then regular API Key
+  // Try authentication methods - Reporting API Key for stats, then regular API Key
   const tryHeaders = [
-    { label: 'reporting-api-key', headers: APPTROVE_REPORTING_API_KEY ? {
+    { label: 'reporting-api-key', headers: {
       'api-key': APPTROVE_REPORTING_API_KEY,
       'X-Reporting-API-Key': APPTROVE_REPORTING_API_KEY,
       'Accept': 'application/json'
-    } : null },
-    { label: 'api-key', headers: APPTROVE_API_KEY ? {
+    } },
+    { label: 's2s-api-key', headers: {
       'api-key': APPTROVE_API_KEY,
       'Accept': 'application/json'
-    } : null },
-  ].filter((x): x is { label: string; headers: Record<string, string> } => !!x.headers);
+    } },
+  ];
 
   let lastError: any = null;
 
