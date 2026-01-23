@@ -66,8 +66,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     };
 
     // Try to get template info first to find template ID variants (oid, _id) and domain
+    // CRITICAL: Verify template exists before trying to create links
     let templateIdVariants = [templateId];
     let template: any = null;
+    let templateFetchFailed = false;
+    
     try {
       // Add timeout for template fetch (5 seconds)
       const templateController = new AbortController();
@@ -75,6 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       
       let templateResponse: Response;
       try {
+        console.log(`[AppTrove] Fetching templates to verify template ID "${templateId}" exists...`);
         templateResponse = await fetch(
           `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`,
           {
@@ -91,17 +95,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         clearTimeout(templateTimeoutId);
       } catch (templateError: any) {
         clearTimeout(templateTimeoutId);
+        templateFetchFailed = true;
         if (templateError.name === 'AbortError') {
-          console.log('[AppTrove] Template fetch timeout (non-critical)');
+          console.warn('[AppTrove] ⚠️ Template fetch timeout - will try with provided templateId only');
         } else {
-          console.log('[AppTrove] Template fetch error (non-critical):', templateError.message);
+          console.warn('[AppTrove] ⚠️ Template fetch error - will try with provided templateId only:', templateError.message);
         }
-        throw templateError;
       }
       
-      if (templateResponse.ok) {
-        const templateData = await templateResponse.json().catch(() => null);
+      if (!templateFetchFailed && templateResponse!.ok) {
+        const templateData = await templateResponse!.json().catch(() => null);
         const templates = templateData?.data?.linkTemplateList || templateData?.linkTemplateList || [];
+        
+        console.log(`[AppTrove] Found ${templates.length} templates`);
+        console.log(`[AppTrove] Template IDs available:`, templates.map((t: any) => t._id || t.id || t.oid).filter(Boolean).join(', '));
+        
         template = templates.find((t: any) => 
           t._id === templateId || t.id === templateId || t.oid === templateId
         );
@@ -112,8 +120,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (template._id && template._id !== templateId) templateIdVariants.push(template._id);
           if (template.id && template.id !== templateId) templateIdVariants.push(template.id);
           
+          console.log(`[AppTrove] ✅ Template "${templateId}" found!`);
+          console.log(`[AppTrove] Template name: ${template.name}`);
+          console.log(`[AppTrove] Template ID variants: ${templateIdVariants.join(', ')}`);
+          
           // Log template data for debugging - including Play Store configuration
-          console.log('[AppTrove] Template found:', {
+          console.log('[AppTrove] Template details:', {
             name: template.name,
             domain: template.domain,
             androidAppID: template.androidAppID || template.androidAppId || template.packageName || template.androidPackage,
@@ -129,10 +141,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.warn('⚠️ Links created from this template may not redirect to Play Store.');
             console.warn('⚠️ Please configure Play Store URL in AppTrove dashboard for template:', templateId);
           }
+        } else {
+          console.error(`[AppTrove] ❌ Template "${templateId}" NOT FOUND in available templates!`);
+          console.error(`[AppTrove] Available template IDs:`, templates.map((t: any) => ({
+            _id: t._id,
+            id: t.id,
+            oid: t.oid,
+            name: t.name
+          })));
+          console.error(`[AppTrove] This is likely why all endpoints return 404 - template doesn't exist!`);
         }
+      } else if (!templateFetchFailed) {
+        console.warn(`[AppTrove] ⚠️ Template fetch returned ${templateResponse!.status} - will try with provided templateId only`);
       }
-    } catch (e) {
-      console.log('[AppTrove] Could not fetch template variants, using provided templateId only');
+    } catch (e: any) {
+      console.warn('[AppTrove] ⚠️ Could not fetch template variants:', e.message);
+      console.warn('[AppTrove] Will try with provided templateId only');
     }
 
     // Build endpoints matching old backend EXACTLY
