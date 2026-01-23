@@ -36,30 +36,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`;
 
     // Try authentication methods in order
-    // Based on old backend and user's credentials, try multiple approaches
+    // OLD BACKEND USES: 'api-key' header with APPTROVE_API_KEY (S2S API key)
+    // Match old backend pattern exactly
     const tryHeaders = [
-      // Method 1: Basic Auth with Secret ID/Key (PRIMARY - most reliable)
-      { label: 'basic-auth-secret', headers: {
-        'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
-        'Accept': 'application/json'
-      } },
-      // Method 2: S2S API Key with api-key header
+      // Method 1: S2S API Key with api-key header (MATCHES OLD BACKEND - PRIMARY)
       { label: 's2s-api-key', headers: {
         'api-key': APPTROVE_API_KEY, // S2S API key (82aa3b94-bb98-449d-a372-4a8a98e319f0)
         'Accept': 'application/json'
       } },
-      // Method 3: Secret ID/Key as custom headers
+      // Method 2: Basic Auth with Secret ID/Key
+      { label: 'basic-auth-secret', headers: {
+        'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
+        'Accept': 'application/json'
+      } },
+      // Method 3: SDK Key
+      { label: 'sdk-key', headers: {
+        'api-key': APPTROVE_SDK_KEY,
+        'X-SDK-Key': APPTROVE_SDK_KEY,
+        'Accept': 'application/json'
+      } },
+      // Method 4: Secret ID/Key as custom headers
       { label: 'secret-headers', headers: {
         'secret-id': APPTROVE_SECRET_ID,
         'secret-key': APPTROVE_SECRET_KEY,
         'X-Secret-ID': APPTROVE_SECRET_ID,
         'X-Secret-Key': APPTROVE_SECRET_KEY,
-        'Accept': 'application/json'
-      } },
-      // Method 4: SDK Key
-      { label: 'sdk-key', headers: {
-        'api-key': APPTROVE_SDK_KEY,
-        'X-SDK-Key': APPTROVE_SDK_KEY,
         'Accept': 'application/json'
       } },
       // Method 5: Try S2S API key with X-S2S-API-Key header
@@ -110,6 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (response.ok) {
           console.log(`[AppTrove Templates] ✅ Success with ${attempt.label} authentication!`);
+          console.log(`[AppTrove Templates] Response data structure:`, Object.keys(data || {}));
+          
           // Handle different response structures (matching old backend)
           const linkTemplateList =
             data?.data?.linkTemplateList ??
@@ -117,12 +120,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             (Array.isArray(data) ? data : []) ??
             [];
 
+          console.log(`[AppTrove Templates] Found ${linkTemplateList.length} templates`);
+          if (linkTemplateList.length > 0) {
+            console.log(`[AppTrove Templates] Template IDs:`, linkTemplateList.map((t: any) => t._id || t.id || t.oid).filter(Boolean).join(', '));
+          }
+
           return res.status(200).json({ success: true, templates: linkTemplateList });
         }
 
-        const errorMsg = data?.message || data?.error || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
+        // Log detailed error information
+        const errorMsg = data?.message || data?.error || data?.codeMsg || data?.raw || `HTTP ${response.status}: ${response.statusText}`;
         lastError = typeof errorMsg === 'string' ? errorMsg : JSON.stringify(errorMsg);
+        
         console.log(`[AppTrove Templates] ❌ ${attempt.label} failed: ${errorMsg}`);
+        console.log(`[AppTrove Templates] Status: ${response.status}`);
+        console.log(`[AppTrove Templates] Response:`, JSON.stringify(data, null, 2).substring(0, 500));
+        
+        // If 401/403, authentication is wrong - try next method
+        // If 404, endpoint might be wrong
+        // If 400, might be validation error
       } catch (error: any) {
         lastError = error.message || 'Network error';
         console.error(`[AppTrove Templates] Error with ${attempt.label}:`, error);
