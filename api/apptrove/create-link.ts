@@ -105,12 +105,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
       
-      if (!templateFetchFailed && templateResponse!) {
-        const responseStatus = templateResponse!.status;
-        const responseText = await templateResponse!.text().catch(() => '');
+      if (!templateFetchFailed && templateResponse) {
+        const responseStatus = templateResponse.status;
+        const responseText = await templateResponse.text().catch(() => '');
         
-        if (templateResponse!.ok) {
-          const templateData = JSON.parse(responseText).catch(() => null);
+        if (templateResponse.ok) {
+          let templateData: any = null;
+          try {
+            templateData = JSON.parse(responseText);
+          } catch {
+            templateData = null;
+          }
           const templates = templateData?.data?.linkTemplateList || templateData?.linkTemplateList || [];
           
           console.log(`[AppTrove] Found ${templates.length} templates`);
