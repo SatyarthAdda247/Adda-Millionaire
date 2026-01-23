@@ -117,16 +117,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.log(`[AppTrove Templates] ✅ Success with ${attempt.label} authentication!`);
           console.log(`[AppTrove Templates] Response data structure:`, Object.keys(data || {}));
           
-          // Handle different response structures (matching old backend)
-          const linkTemplateList =
-            data?.data?.linkTemplateList ??
-            data?.linkTemplateList ??
-            (Array.isArray(data) ? data : []) ??
-            [];
+          // Handle different response structures (matching old backend EXACTLY)
+          // Old backend checks: response.data.data.linkTemplateList, then response.data.linkTemplateList, then Array.isArray(response.data)
+          let linkTemplateList: any[] = [];
+          
+          if (data?.data?.linkTemplateList) {
+            linkTemplateList = Array.isArray(data.data.linkTemplateList) ? data.data.linkTemplateList : [];
+          } else if (data?.linkTemplateList) {
+            linkTemplateList = Array.isArray(data.linkTemplateList) ? data.linkTemplateList : [];
+          } else if (Array.isArray(data)) {
+            linkTemplateList = data;
+          } else if (Array.isArray(data?.data)) {
+            linkTemplateList = data.data;
+          }
 
           console.log(`[AppTrove Templates] Found ${linkTemplateList.length} templates`);
           if (linkTemplateList.length > 0) {
             console.log(`[AppTrove Templates] Template IDs:`, linkTemplateList.map((t: any) => t._id || t.id || t.oid).filter(Boolean).join(', '));
+            console.log(`[AppTrove Templates] Template names:`, linkTemplateList.map((t: any) => t.name).filter(Boolean).join(', '));
           }
 
           return res.status(200).json({ success: true, templates: linkTemplateList });
