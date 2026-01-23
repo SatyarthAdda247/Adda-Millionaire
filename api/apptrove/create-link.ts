@@ -91,13 +91,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (template._id && template._id !== templateId) templateIdVariants.push(template._id);
           if (template.id && template.id !== templateId) templateIdVariants.push(template.id);
           
-          // Log template data for debugging
+          // Log template data for debugging - including Play Store configuration
           console.log('[AppTrove] Template found:', {
             name: template.name,
             domain: template.domain,
             androidAppID: template.androidAppID || template.androidAppId || template.packageName || template.androidPackage,
             iosAppID: template.iosAppID || template.iosAppId || template.bundleId || template.iosBundle,
+            hasPlayStoreConfig: !!(template.notInstalled?.androidRdtCUrl || template.androidRdtCUrl),
+            playStoreUrl: template.notInstalled?.androidRdtCUrl || template.androidRdtCUrl || 'Not configured',
+            deepLinkingEnabled: !!(template.installed?.androidRdt || template.androidRdt),
           });
+          
+          // Warn if Play Store configuration is missing
+          if (!template.notInstalled?.androidRdtCUrl && !template.androidRdtCUrl) {
+            console.warn('⚠️ WARNING: Template does not have Play Store URL configured!');
+            console.warn('⚠️ Links created from this template may not redirect to Play Store.');
+            console.warn('⚠️ Please configure Play Store URL in AppTrove dashboard for template:', templateId);
+          }
         }
       }
     } catch (e) {
