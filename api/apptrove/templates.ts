@@ -33,6 +33,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || process.env.VITE_APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
     const APPTROVE_API_URL = (process.env.APPTROVE_API_URL || process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
     
+    // Warn if using fallback values (environment variables not set)
+    if (!process.env.APPTROVE_API_KEY && !process.env.APPTROVE_S2S_API) {
+      console.warn('[AppTrove Templates] ⚠️ WARNING: APPTROVE_API_KEY and APPTROVE_S2S_API are NOT SET in Vercel!');
+      console.warn('[AppTrove Templates] ⚠️ Using fallback API key - this may not work!');
+    }
+    if (!process.env.APPTROVE_SDK_KEY) {
+      console.warn('[AppTrove Templates] ⚠️ WARNING: APPTROVE_SDK_KEY is NOT SET in Vercel!');
+      console.warn('[AppTrove Templates] ⚠️ Using fallback SDK key - this may not work!');
+    }
+    if (!process.env.APPTROVE_SECRET_ID || !process.env.APPTROVE_SECRET_KEY) {
+      console.warn('[AppTrove Templates] ⚠️ WARNING: APPTROVE_SECRET_ID or APPTROVE_SECRET_KEY is NOT SET in Vercel!');
+      console.warn('[AppTrove Templates] ⚠️ Using fallback Secret ID/Key - this may not work!');
+    }
+    
     // Log which variables are being used (for debugging)
     console.log(`[AppTrove Templates] Environment check:`);
     console.log(`  - process.env.APPTROVE_API_KEY: ${process.env.APPTROVE_API_KEY ? `SET (${process.env.APPTROVE_API_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
