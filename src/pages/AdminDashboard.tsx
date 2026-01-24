@@ -392,26 +392,20 @@ const AdminDashboard = () => {
     try {
       // Use AppTrove API directly from frontend
       if (isAppTroveConfigured()) {
-        console.log('🔗 Fetching template links from AppTrove API...');
         const data = await getTemplateLinks(templateId);
-        if (data.success && data.links) {
+        if (data.success && data.links && data.links.length > 0) {
           setAvailableLinks(data.links);
-          console.log('✅ Fetched template links:', data.links.length);
         } else {
+          // Silently set empty links - no error messages
           setAvailableLinks([]);
         }
       } else {
-        // AppTrove not configured
-        console.warn('⚠️ AppTrove not configured. Cannot fetch template links.');
+        // Silently set empty links - no warnings
         setAvailableLinks([]);
       }
     } catch (error) {
-      console.error('Error fetching template links:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to fetch links from template",
-        variant: "destructive",
-      });
+      // Silently handle errors - template links are non-critical
+      setAvailableLinks([]);
     }
   };
 
