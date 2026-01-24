@@ -45,6 +45,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const APPTROVE_REPORTING_API_KEY = process.env.APPTROVE_REPORTING_API_KEY || process.env.VITE_APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
     const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || process.env.VITE_APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
     const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || process.env.VITE_APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
+    const APPTROVE_DOMAIN = process.env.APPTROVE_DOMAIN || process.env.VITE_APPTROVE_DOMAIN || 'applink.reevo.in';
+    const APPTROVE_ANDROID_APP_ID = process.env.APPTROVE_ANDROID_APP_ID || process.env.VITE_APPTROVE_ANDROID_APP_ID || 'com.addaeducation.reevo';
     const APPTROVE_API_URL = (process.env.APPTROVE_API_URL || process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
     
     // Log which variables are being used (for debugging)

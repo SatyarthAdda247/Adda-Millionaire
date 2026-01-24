@@ -19,9 +19,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Get AppTrove credentials from environment variables
-  const APPTROVE_REPORTING_API_KEY = process.env.VITE_APPTROVE_REPORTING_API_KEY || process.env.APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
-  const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY;
-  const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
+  // NOTE: Vercel serverless functions CANNOT access VITE_ prefixed variables
+  // Priority: Non-VITE env vars > VITE_ vars (for local dev) > Hardcoded fallbacks
+  const APPTROVE_REPORTING_API_KEY = process.env.APPTROVE_REPORTING_API_KEY || process.env.VITE_APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
+  const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_API_KEY;
+  const APPTROVE_API_URL = (process.env.APPTROVE_API_URL || process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
   // Try multiple endpoints for stats
   const endpoints = [
