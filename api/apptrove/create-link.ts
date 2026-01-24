@@ -93,8 +93,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.log(`[AppTrove] Fetching templates to verify template ID "${templateId}" exists...`);
         
         // Try multiple auth methods for template fetch (matching templates.ts)
-        // Priority: S2S API Key > Basic Auth > SDK Key
-        const templateAuthHeaders = APPTROVE_API_KEY ? {
+        // Priority: Reporting API Key (works!) > S2S API Key > Basic Auth > SDK Key
+        const templateAuthHeaders = APPTROVE_REPORTING_API_KEY ? {
+          'api-key': APPTROVE_REPORTING_API_KEY,
+          'X-Reporting-API-Key': APPTROVE_REPORTING_API_KEY,
+          'Accept': 'application/json'
+        } : APPTROVE_API_KEY ? {
           'api-key': APPTROVE_API_KEY,
           'Accept': 'application/json'
         } : APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY ? {
@@ -147,10 +151,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           availableTemplateIds = templates.map((t: any) => t._id || t.id || t.oid).filter(Boolean);
           
           if (template) {
-            // Add template ID variants
-            if (template.oid && template.oid !== templateId) templateIdVariants.push(template.oid);
-            if (template._id && template._id !== templateId) templateIdVariants.push(template._id);
-            if (template.id && template.id !== templateId) templateIdVariants.push(template.id);
+            // Add template ID variants - prioritize oid (found in testing: shNYmkCqk9)
+            if (template.oid && template.oid !== templateId) {
+              templateIdVariants.unshift(template.oid); // Add oid first (most likely to work)
+            }
+            if (template._id && template._id !== templateId) {
+              templateIdVariants.push(template._id);
+            }
+            if (template.id && template.id !== templateId) {
+              templateIdVariants.push(template.id);
+            }
             
             console.log(`[AppTrove] ✅ Template "${templateId}" found!`);
             console.log(`[AppTrove] Template name: ${template.name}`);
@@ -263,6 +273,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'api-key': APPTROVE_API_KEY,
+          },
+          payload: basePayload,
+        });
+      }
+    }
+
+    // Method 4: Reporting API Key (works for templates, try for link creation)
+    for (const id of templateIdVariants) {
+      if (APPTROVE_REPORTING_API_KEY) {
+        endpoints.push({
+          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
+          auth: 'reporting-api-key',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': APPTROVE_REPORTING_API_KEY,
+            'X-Reporting-API-Key': APPTROVE_REPORTING_API_KEY,
           },
           payload: basePayload,
         });
