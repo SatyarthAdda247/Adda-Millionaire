@@ -37,14 +37,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Get AppTrove credentials - Match old backend pattern
+    // NOTE: Vercel serverless functions CANNOT access VITE_ prefixed variables
     // Old backend used Secret ID/Key with Basic Auth as PRIMARY method
-    // Priority: Environment variables > Hardcoded fallbacks
-    const APPTROVE_API_KEY = process.env.VITE_APPTROVE_API_KEY || process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || '82aa3b94-bb98-449d-a372-4a8a98e319f0';
-    const APPTROVE_SDK_KEY = process.env.VITE_APPTROVE_SDK_KEY || process.env.APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
-    const APPTROVE_REPORTING_API_KEY = process.env.VITE_APPTROVE_REPORTING_API_KEY || process.env.APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
-    const APPTROVE_SECRET_ID = process.env.VITE_APPTROVE_SECRET_ID || process.env.APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
-    const APPTROVE_SECRET_KEY = process.env.VITE_APPTROVE_SECRET_KEY || process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
-    const APPTROVE_API_URL = (process.env.VITE_APPTROVE_API_URL || process.env.APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
+    // Priority: Non-VITE env vars > VITE_ vars (for local dev) > Hardcoded fallbacks
+    const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_API_KEY || '82aa3b94-bb98-449d-a372-4a8a98e319f0';
+    const APPTROVE_SDK_KEY = process.env.APPTROVE_SDK_KEY || process.env.VITE_APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
+    const APPTROVE_REPORTING_API_KEY = process.env.APPTROVE_REPORTING_API_KEY || process.env.VITE_APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
+    const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || process.env.VITE_APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
+    const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || process.env.VITE_APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
+    const APPTROVE_API_URL = (process.env.APPTROVE_API_URL || process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
+    
+    // Log which variables are being used (for debugging)
+    console.log(`[AppTrove Create Link] Environment check:`);
+    console.log(`  - APPTROVE_SECRET_ID: ${APPTROVE_SECRET_ID ? `SET (${APPTROVE_SECRET_ID.substring(0, 8)}...)` : 'NOT SET'}`);
+    console.log(`  - APPTROVE_SECRET_KEY: ${APPTROVE_SECRET_KEY ? 'SET' : 'NOT SET'}`);
+    console.log(`  - APPTROVE_API_KEY: ${APPTROVE_API_KEY ? `SET (${APPTROVE_API_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
+    console.log(`  - API URL: ${APPTROVE_API_URL}`);
 
     // Build payload matching old backend format exactly
     // Match working link format: pid=Affiliate (simple string, not UUID)
