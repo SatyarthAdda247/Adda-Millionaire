@@ -435,7 +435,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
           // If we got success but no URL, try to construct it from linkId
           if (linkId) {
-            const domain = data?.domain || data?.data?.domain || template?.domain || process.env.APPTROVE_DOMAIN || 'applink.reevo.in';
+            const domain = data?.domain || data?.data?.domain || template?.domain || APPTROVE_DOMAIN;
             const constructedUrl = `https://${domain}/d/${linkId}`;
             console.log(`✅ Link created with ID ${linkId}, constructed URL: ${constructedUrl}`);
             return res.status(200).json({
