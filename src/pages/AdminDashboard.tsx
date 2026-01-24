@@ -370,21 +370,20 @@ const AdminDashboard = () => {
     try {
       // Use AppTrove API directly from frontend
       if (isAppTroveConfigured()) {
-        console.log('📋 Fetching templates from AppTrove API...');
         const data = await getTemplates();
-        if (data.success && data.templates) {
+        if (data.success && data.templates && data.templates.length > 0) {
           setTemplates(data.templates);
           console.log('✅ Fetched templates from AppTrove:', data.templates.length);
         } else {
+          // Silently set empty templates - no error messages
           setTemplates([]);
         }
       } else {
-        // AppTrove not configured - templates not available
-        console.warn('⚠️ AppTrove not configured. Link assignment will use manual URL entry.');
+        // Silently set empty templates - no warnings
         setTemplates([]);
       }
     } catch (error) {
-      console.error('Error fetching templates:', error);
+      // Silently handle errors - templates are non-critical
       setTemplates([]);
     }
   };

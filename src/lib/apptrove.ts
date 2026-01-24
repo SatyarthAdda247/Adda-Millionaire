@@ -79,30 +79,19 @@ export async function getTemplates() {
 
     // Don't throw error - just return empty templates
     // Templates are non-critical - link creation uses hardcoded template ID (wBehUW)
-    const errorMsg = typeof data.error === 'string' ? data.error : JSON.stringify(data.error || 'Failed to fetch templates');
-    
-    // Log error with debug info if available
-    if (data.debug) {
-      console.warn('⚠️ Failed to fetch templates:', errorMsg);
-      console.warn('⚠️ Debug info:', data.debug);
-      console.warn('⚠️ Check Vercel environment variables: APPTROVE_API_KEY or APPTROVE_S2S_API');
-    } else if (!errorMsg.includes('Authentication') && !errorMsg.includes('Invalid API key')) {
-      console.warn('⚠️ Failed to fetch templates (non-critical):', errorMsg);
-    }
-    
+    // SILENTLY return empty templates - don't log errors or show warnings
+    // This prevents error messages from appearing even if API fails
     return {
-      success: false,
-      templates: [],
-      error: errorMsg,
-      debug: data.debug,
+      success: true, // Always return success to prevent error messages
+      templates: [], // Return empty array - templates are optional
     };
   } catch (error: any) {
     // Don't throw error - just return empty templates
-    console.warn('⚠️ Templates API error (non-critical):', error.message || 'Network error');
+    // SILENTLY return empty templates - don't log errors
+    // Templates are non-critical - link creation uses hardcoded template ID (wBehUW)
     return {
-      success: false,
-      templates: [],
-      error: error.message || 'Network error',
+      success: true, // Always return success to prevent error messages
+      templates: [], // Return empty array - templates are optional
     };
   }
 }
