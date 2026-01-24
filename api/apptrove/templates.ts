@@ -51,17 +51,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`[AppTrove Templates] Using S2S API Key: ${APPTROVE_API_KEY ? 'Set' : 'Not set'}`);
 
     // Try authentication methods in order
-    // OLD BACKEND USES: 'api-key' header with APPTROVE_API_KEY (S2S API key)
-    // But Basic Auth works better for other endpoints, so try it first
+    // OLD BACKEND USES: 'api-key' header with APPTROVE_API_KEY (S2S API key) for templates
+    // Try S2S API Key FIRST (matches old backend), then Basic Auth
     const tryHeaders = [
-      // Method 1: Basic Auth with Secret ID/Key (PRIMARY - matches create-link and template-links)
-      { label: 'basic-auth-secret', headers: {
-        'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
-        'Accept': 'application/json'
-      } },
-      // Method 2: S2S API Key with api-key header (MATCHES OLD BACKEND - SECONDARY)
+      // Method 1: S2S API Key with api-key header (PRIMARY - MATCHES OLD BACKEND EXACTLY)
       { label: 's2s-api-key', headers: {
         'api-key': APPTROVE_API_KEY, // S2S API key (82aa3b94-bb98-449d-a372-4a8a98e319f0)
+        'Accept': 'application/json'
+      } },
+      // Method 2: Basic Auth with Secret ID/Key (SECONDARY)
+      { label: 'basic-auth-secret', headers: {
+        'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
         'Accept': 'application/json'
       } },
       // Method 3: SDK Key
