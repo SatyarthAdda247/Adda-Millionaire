@@ -88,6 +88,9 @@ const AdminLogin = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Hidden username field for accessibility (password forms should have username fields) */}
+              <input type="text" name="username" autoComplete="username" style={{ display: 'none' }} tabIndex={-1} aria-hidden="true" />
+              
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
