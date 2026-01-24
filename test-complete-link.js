@@ -14,16 +14,16 @@
  *   VITE_AWS_ACCESS_KEY_ID=xxx VITE_AWS_SECRET_ACCESS_KEY=yyy node test-complete-link.js
  */
 
+// ES Module imports
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+
 // Node.js 18+ has built-in fetch
-// For older versions, install: npm install node-fetch
 const fetch = globalThis.fetch;
 if (!fetch) {
   console.error('Error: fetch is not available. Use Node.js 18+ or install node-fetch');
   process.exit(1);
 }
-
-const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
 
 // Configuration
 const AWS_REGION = process.env.VITE_AWS_REGION || 'ap-south-1';
@@ -274,8 +274,9 @@ async function main() {
 }
 
 // Run if called directly
-if (require.main === module) {
-  main();
-}
+main().catch(error => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});
 
-module.exports = { createExampleAffiliate, createAppTroveLink, saveLinkToDynamoDB };
+export { createExampleAffiliate, createAppTroveLink, saveLinkToDynamoDB };
