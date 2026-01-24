@@ -29,6 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Priority: APPTROVE_API_KEY > APPTROVE_S2S_API > VITE_ vars (for local dev) > Hardcoded fallbacks
     const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_API_KEY || '82aa3b94-bb98-449d-a372-4a8a98e319f0';
     const APPTROVE_SDK_KEY = process.env.APPTROVE_SDK_KEY || process.env.VITE_APPTROVE_SDK_KEY || '5d11fe82-cab7-4b00-87d0-65a5fa40232f';
+    const APPTROVE_REPORTING_API_KEY = process.env.APPTROVE_REPORTING_API_KEY || process.env.VITE_APPTROVE_REPORTING_API_KEY || '297c9ed1-c4b7-4879-b80a-1504140eb65e';
     const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || process.env.VITE_APPTROVE_SECRET_ID || '696dd5aa03258f6b929b7e97';
     const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || process.env.VITE_APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
     const APPTROVE_API_URL = (process.env.APPTROVE_API_URL || process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
@@ -52,57 +53,79 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`  - process.env.APPTROVE_API_KEY: ${process.env.APPTROVE_API_KEY ? `SET (${process.env.APPTROVE_API_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
     console.log(`  - process.env.APPTROVE_S2S_API: ${process.env.APPTROVE_S2S_API ? `SET (${process.env.APPTROVE_S2S_API.substring(0, 8)}...)` : 'NOT SET'}`);
     console.log(`  - process.env.APPTROVE_SDK_KEY: ${process.env.APPTROVE_SDK_KEY ? `SET (${process.env.APPTROVE_SDK_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
+    console.log(`  - process.env.APPTROVE_REPORTING_API_KEY: ${process.env.APPTROVE_REPORTING_API_KEY ? `SET (${process.env.APPTROVE_REPORTING_API_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
     console.log(`  - process.env.APPTROVE_SECRET_ID: ${process.env.APPTROVE_SECRET_ID ? `SET (${process.env.APPTROVE_SECRET_ID.substring(0, 8)}...)` : 'NOT SET'}`);
     console.log(`  - process.env.APPTROVE_SECRET_KEY: ${process.env.APPTROVE_SECRET_KEY ? 'SET' : 'NOT SET'}`);
     console.log(`  - Final APPTROVE_API_KEY: ${APPTROVE_API_KEY.substring(0, 8)}...`);
     console.log(`  - Final APPTROVE_SDK_KEY: ${APPTROVE_SDK_KEY.substring(0, 8)}...`);
+    console.log(`  - Final APPTROVE_REPORTING_API_KEY: ${APPTROVE_REPORTING_API_KEY.substring(0, 8)}...`);
     console.log(`  - Final APPTROVE_SECRET_ID: ${APPTROVE_SECRET_ID.substring(0, 8)}...`);
     console.log(`  - API URL: ${APPTROVE_API_URL}`);
 
     // Build URL with query params (matching old backend format EXACTLY)
     // Old backend uses: /internal/link-template with params: status=active&limit=100
-    const url = `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`;
+    // Try multiple endpoint variations
+    const urlVariations = [
+      `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`,
+      `${APPTROVE_API_URL}/api/internal/link-template?status=active&limit=100`,
+      `${APPTROVE_API_URL}/link-template?status=active&limit=100`,
+      `${APPTROVE_API_URL}/api/link-template?status=active&limit=100`,
+    ];
+    const url = urlVariations[0]; // Primary endpoint
     
     console.log(`[AppTrove Templates] Fetching from: ${url}`);
+    console.log(`[AppTrove Templates] Using Reporting API Key: ${APPTROVE_REPORTING_API_KEY ? 'Set' : 'Not set'}`);
+    console.log(`[AppTrove Templates] Using SDK Key: ${APPTROVE_SDK_KEY ? 'Set' : 'Not set'}`);
     console.log(`[AppTrove Templates] Using S2S API Key: ${APPTROVE_API_KEY ? 'Set' : 'Not set'}`);
 
     // Try authentication methods in order
-    // Try SDK Key FIRST (might be required for templates endpoint)
-    // Then S2S API Key, then Basic Auth
+    // Try Reporting API Key FIRST (might be required for templates endpoint)
+    // Then SDK Key, S2S API Key, then Basic Auth
     const tryHeaders = [
-      // Method 1: SDK Key (PRIMARY - might be required for templates)
+      // Method 1: Reporting API Key (PRIMARY - for internal API endpoints)
+      { label: 'reporting-api-key', headers: {
+        'api-key': APPTROVE_REPORTING_API_KEY,
+        'X-Reporting-API-Key': APPTROVE_REPORTING_API_KEY,
+        'Accept': 'application/json'
+      } },
+      // Method 2: Reporting API Key with just api-key header
+      { label: 'reporting-api-key-simple', headers: {
+        'api-key': APPTROVE_REPORTING_API_KEY,
+        'Accept': 'application/json'
+      } },
+      // Method 3: SDK Key
       { label: 'sdk-key', headers: {
         'api-key': APPTROVE_SDK_KEY,
         'X-SDK-Key': APPTROVE_SDK_KEY,
         'Accept': 'application/json'
       } },
-      // Method 2: S2S API Key with api-key header (SECONDARY - matches old backend)
+      // Method 4: SDK Key with just api-key header
+      { label: 'sdk-key-simple', headers: {
+        'api-key': APPTROVE_SDK_KEY,
+        'Accept': 'application/json'
+      } },
+      // Method 5: S2S API Key with api-key header (SECONDARY - matches old backend)
       { label: 's2s-api-key', headers: {
         'api-key': APPTROVE_API_KEY, // S2S API key (82aa3b94-bb98-449d-a372-4a8a98e319f0)
         'Accept': 'application/json'
       } },
-      // Method 3: Basic Auth with Secret ID/Key
-      { label: 'basic-auth-secret', headers: {
-        'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
-        'Accept': 'application/json'
-      } },
-      // Method 4: Secret ID/Key as custom headers
-      { label: 'secret-headers', headers: {
-        'secret-id': APPTROVE_SECRET_ID,
-        'secret-key': APPTROVE_SECRET_KEY,
-        'X-Secret-ID': APPTROVE_SECRET_ID,
-        'X-Secret-Key': APPTROVE_SECRET_KEY,
-        'Accept': 'application/json'
-      } },
-      // Method 5: Try S2S API key with X-S2S-API-Key header
+      // Method 6: S2S API key with X-S2S-API-Key header
       { label: 's2s-api-key-alt', headers: {
         'api-key': APPTROVE_API_KEY,
         'X-S2S-API-Key': APPTROVE_API_KEY,
         'Accept': 'application/json'
       } },
-      // Method 6: Try SDK Key with just api-key header (no X-SDK-Key)
-      { label: 'sdk-key-simple', headers: {
-        'api-key': APPTROVE_SDK_KEY,
+      // Method 7: Basic Auth with Secret ID/Key
+      { label: 'basic-auth-secret', headers: {
+        'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
+        'Accept': 'application/json'
+      } },
+      // Method 8: Secret ID/Key as custom headers
+      { label: 'secret-headers', headers: {
+        'secret-id': APPTROVE_SECRET_ID,
+        'secret-key': APPTROVE_SECRET_KEY,
+        'X-Secret-ID': APPTROVE_SECRET_ID,
+        'X-Secret-Key': APPTROVE_SECRET_KEY,
         'Accept': 'application/json'
       } },
     ];
@@ -178,7 +201,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         console.log(`[AppTrove Templates] ❌ ${attempt.label} failed: ${errorMsg}`);
         console.log(`[AppTrove Templates] Status: ${response.status}`);
-        console.log(`[AppTrove Templates] Response:`, JSON.stringify(data, null, 2).substring(0, 500));
+        console.log(`[AppTrove Templates] Full Response:`, JSON.stringify(data, null, 2));
+        console.log(`[AppTrove Templates] Response Headers:`, Object.fromEntries(response.headers.entries()));
         
         // If 401/403, authentication is wrong - try next method
         // If 404, endpoint might be wrong
@@ -189,6 +213,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.log(`[AppTrove Templates] 403 Forbidden - ${attempt.label} auth failed, trying next method...`);
         } else if (response.status === 404) {
           console.log(`[AppTrove Templates] 404 Not Found - endpoint may be wrong or API structure changed`);
+        } else if (response.status === 400) {
+          console.log(`[AppTrove Templates] 400 Bad Request - validation error or wrong API key format`);
         }
       } catch (error: any) {
         lastError = error.message || 'Network error';
