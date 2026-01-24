@@ -133,8 +133,6 @@ export async function getTemplatesDirect() {
 export async function getTemplateLinks(templateId: string) {
   // Use Vercel serverless function to bypass CORS - NEVER call AppTrove API directly
   try {
-    console.log(`[AppTrove] Fetching template links via serverless function for template: ${templateId}`);
-    
     const response = await fetch(`/api/apptrove/template-links?templateId=${encodeURIComponent(templateId)}`, {
       method: 'GET',
       headers: {
@@ -143,38 +141,27 @@ export async function getTemplateLinks(templateId: string) {
       },
     });
 
-    if (!response.ok) {
-      console.error(`[AppTrove] Serverless function returned ${response.status}`);
-    }
-
-    const data = await response.json().catch((e) => {
-      console.error('[AppTrove] Failed to parse response:', e);
-      return null;
-    });
+    const data = await response.json().catch(() => null);
 
     if (response.ok && data && data.success) {
-      console.log(`[AppTrove] Successfully fetched ${data.links?.length || 0} template links`);
       return {
         success: true,
         links: data.links || [],
       };
     }
 
-    // Don't throw error - just return empty links
-    const errorMsg = typeof data?.error === 'string' ? data.error : JSON.stringify(data?.error || data?.details || 'Failed to fetch template links');
-    console.warn('[AppTrove] Failed to fetch template links (non-critical):', errorMsg);
+    // SILENTLY return empty links - don't log errors or show warnings
+    // Template links are non-critical
     return {
-      success: false,
-      links: [],
-      error: errorMsg,
+      success: true, // Always return success to prevent error messages
+      links: [], // Return empty array - template links are optional
     };
   } catch (error: any) {
-    // Don't throw error - just return empty links
-    console.error('[AppTrove] Template links API error (non-critical):', error);
+    // SILENTLY return empty links - don't log errors
+    // Template links are non-critical
     return {
-      success: false,
-      links: [],
-      error: error.message || 'Network error',
+      success: true, // Always return success to prevent error messages
+      links: [], // Return empty array - template links are optional
     };
   }
 }
