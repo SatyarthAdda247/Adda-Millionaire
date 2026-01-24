@@ -37,10 +37,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`[AppTrove Templates] Environment check:`);
     console.log(`  - process.env.APPTROVE_API_KEY: ${process.env.APPTROVE_API_KEY ? `SET (${process.env.APPTROVE_API_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
     console.log(`  - process.env.APPTROVE_S2S_API: ${process.env.APPTROVE_S2S_API ? `SET (${process.env.APPTROVE_S2S_API.substring(0, 8)}...)` : 'NOT SET'}`);
+    console.log(`  - process.env.APPTROVE_SDK_KEY: ${process.env.APPTROVE_SDK_KEY ? `SET (${process.env.APPTROVE_SDK_KEY.substring(0, 8)}...)` : 'NOT SET'}`);
     console.log(`  - process.env.APPTROVE_SECRET_ID: ${process.env.APPTROVE_SECRET_ID ? `SET (${process.env.APPTROVE_SECRET_ID.substring(0, 8)}...)` : 'NOT SET'}`);
     console.log(`  - process.env.APPTROVE_SECRET_KEY: ${process.env.APPTROVE_SECRET_KEY ? 'SET' : 'NOT SET'}`);
-    console.log(`  - Using API Key: ${APPTROVE_API_KEY.substring(0, 8)}...`);
-    console.log(`  - Using Secret ID: ${APPTROVE_SECRET_ID.substring(0, 8)}...`);
+    console.log(`  - Final APPTROVE_API_KEY: ${APPTROVE_API_KEY.substring(0, 8)}...`);
+    console.log(`  - Final APPTROVE_SDK_KEY: ${APPTROVE_SDK_KEY.substring(0, 8)}...`);
+    console.log(`  - Final APPTROVE_SECRET_ID: ${APPTROVE_SECRET_ID.substring(0, 8)}...`);
     console.log(`  - API URL: ${APPTROVE_API_URL}`);
 
     // Build URL with query params (matching old backend format EXACTLY)
