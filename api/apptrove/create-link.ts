@@ -89,16 +89,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let templateResponse: Response;
       try {
         console.log(`[AppTrove] Fetching templates to verify template ID "${templateId}" exists...`);
+        
+        // Try multiple auth methods for template fetch (matching templates.ts)
+        // Priority: S2S API Key > Basic Auth > SDK Key
+        const templateAuthHeaders = APPTROVE_API_KEY ? {
+          'api-key': APPTROVE_API_KEY,
+          'Accept': 'application/json'
+        } : APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY ? {
+          'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
+          'Accept': 'application/json'
+        } : APPTROVE_SDK_KEY ? {
+          'api-key': APPTROVE_SDK_KEY,
+          'Accept': 'application/json'
+        } : {};
+        
         templateResponse = await fetch(
           `${APPTROVE_API_URL}/internal/link-template?status=active&limit=100`,
           {
-            headers: APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY ? {
-              'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
-              'Accept': 'application/json'
-            } : APPTROVE_SDK_KEY ? {
-              'api-key': APPTROVE_SDK_KEY,
-              'Accept': 'application/json'
-            } : {},
+            headers: templateAuthHeaders,
             signal: templateController.signal,
           }
         );
