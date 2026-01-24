@@ -296,7 +296,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Alternative endpoints (matching old backend)
+    // Alternative endpoints (matching old backend + API docs patterns)
     if (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
       const authString = Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64');
       
@@ -324,6 +324,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         payload: { ...basePayload, templateId: templateId },
       });
 
+      // /internal/template-link (based on API docs "POST Add template link")
+      endpoints.push({
+        url: `${APPTROVE_API_URL}/internal/template-link`,
+        auth: 'basic',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': `Basic ${authString}`,
+        },
+        payload: { ...basePayload, templateId: templateId },
+      });
+
       // v2 API endpoints
       for (const id of templateIdVariants) {
         endpoints.push({
@@ -337,6 +349,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           payload: basePayload,
         });
       }
+    }
+    
+    // Try S2S API Key (may require IP whitelisting but worth trying)
+    if (APPTROVE_API_KEY) {
+      for (const id of templateIdVariants) {
+        endpoints.push({
+          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
+          auth: 's2s-api-key',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'api-key': APPTROVE_API_KEY,
+            'X-S2S-API-Key': APPTROVE_API_KEY,
+          },
+          payload: basePayload,
+        });
+      }
+      
+      // Also try /internal/template-link with S2S API Key
+      endpoints.push({
+        url: `${APPTROVE_API_URL}/internal/template-link`,
+        auth: 's2s-api-key',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'api-key': APPTROVE_API_KEY,
+          'X-S2S-API-Key': APPTROVE_API_KEY,
+        },
+        payload: { ...basePayload, templateId: templateId },
+      });
     }
 
     // Try SDK Key as last resort
