@@ -20,7 +20,12 @@ app = FastAPI(title="Millionaires Adda API")
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update with your domain
+    allow_origins=[
+        "http://localhost:8080",
+        "http://localhost:3000",
+        "https://partners.addaeducation.com",
+        "https://api.partners.addaeducation.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
