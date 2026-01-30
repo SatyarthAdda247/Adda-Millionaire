@@ -8,7 +8,7 @@
 ## Health Check Paths
 
 **Backend:** https://api.partners.addaeducation.com/health  
-**Frontend:** https://partners.addaeducation.com/health
+**Frontend:** https://partners.addaeducation.com/health.json
 
 ## Deployment Location
 

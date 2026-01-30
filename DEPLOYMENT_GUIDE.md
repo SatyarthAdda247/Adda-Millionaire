@@ -27,7 +27,7 @@ curl https://api.partners.addaeducation.com/health
 
 **Frontend:**
 ```bash
-curl https://partners.addaeducation.com/health
+curl https://partners.addaeducation.com/health.json
 # Expected: {"status":"ok","service":"Partners Portal Frontend"}
 ```
 
