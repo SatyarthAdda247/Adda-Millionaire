@@ -28,8 +28,8 @@ RUN npm run build
 
 # Expose ports
 EXPOSE 3000 8000
-# Frontend: 3000 (internal) -> 80 (external)
-# Backend: 8000 (internal) -> 8000 (external)
+# Frontend: 3000 (container) -> 8080 (host, matches dev)
+# Backend: 8000 (container) -> 3001 (host, matches dev)
 
 # Install serve for frontend
 RUN npm install -g serve
