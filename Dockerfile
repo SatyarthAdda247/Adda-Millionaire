@@ -27,12 +27,12 @@ RUN rm -rf node_modules package-lock.json 2>/dev/null || true && \
 RUN npm run build
 
 # Expose ports
-EXPOSE 3000 8000
-# Frontend: 3000 (container) -> 8080 (host, matches dev)
-# Backend: 8000 (container) -> 3001 (host, matches dev)
+EXPOSE 8080 3001
+# Frontend: 8080 (container, matches dev)
+# Backend: 3001 (container, matches dev)
 
 # Install serve for frontend
 RUN npm install -g serve
 
 # Start both services
-CMD bash -c "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 8000 & cd /app/frontend && serve -s dist -l 3000"
+CMD bash -c "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && serve -s dist -l 8080"

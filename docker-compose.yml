@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     container_name: millionaires-backend
     ports:
-      - "8080:3000"  # Frontend (matches dev port 8080)
-      - "3001:8000"  # Backend API (matches dev port 3001)
+      - "8080:8080"  # Frontend (matches dev port 8080)
+      - "3001:3001"  # Backend API (matches dev port 3001)
     environment:
       # AWS
       - AWS_REGION=${AWS_REGION}
