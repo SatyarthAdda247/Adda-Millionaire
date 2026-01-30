@@ -3,7 +3,7 @@
  * All API calls go through the old backend (localhost:3001)
  */
 
-const BACKEND_URL = process.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 interface ApiResponse<T = any> {
   success?: boolean;
