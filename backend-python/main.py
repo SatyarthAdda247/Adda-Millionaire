@@ -306,6 +306,7 @@ async def root():
 
 @app.get("/health")
 async def health():
+    """Backend health check endpoint"""
     return {
         "status": "ok",
         "dynamodb": "configured" if dynamodb else "not configured",

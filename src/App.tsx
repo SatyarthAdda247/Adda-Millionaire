@@ -10,6 +10,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserLogin from "./pages/UserLogin";
 import UserDashboard from "./pages/UserDashboard";
 import NotFound from "./pages/NotFound";
+import Health from "./pages/Health";
 
 const queryClient = new QueryClient();
 
