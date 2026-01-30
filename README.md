@@ -1,53 +1,45 @@
-# EduRise Affiliate Program
+# Millionaires Adda - Affiliate Platform
 
-Affiliate program landing page for AddaEducation.
+Production-ready affiliate management platform with AppTrove integration.
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
+### Development
 
-- Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-### Installation
-
-```sh
-# Step 1: Navigate to the project directory
-cd adda-creator-path-main
-
-# Step 2: Install the necessary dependencies
+```bash
+# Install dependencies
 npm install
 
-# Step 3: Start the development server
+# Start frontend
 npm run dev
+
+# Start backend
+cd backend-python
+pip install -r requirements.txt
+python main.py
 ```
 
-The application will be available at `http://localhost:8080`
+### Production (AWS)
 
-## Technologies
+```bash
+# Configure environment
+cp .env.example .env
 
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-- Framer Motion
-
-## Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-## Project Structure
-
+# Deploy
+chmod +x deploy.sh
+./deploy.sh
 ```
-src/
-├── components/     # React components
-├── pages/          # Page components
-├── hooks/          # Custom React hooks
-├── lib/            # Utility functions
-└── main.tsx        # Application entry point
-```
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+- AWS credentials
+- DynamoDB tables
+- AppTrove API keys
+
+## Tech Stack
+
+- **Frontend:** React + TypeScript + Vite
+- **Backend:** Python FastAPI
+- **Database:** AWS DynamoDB
+- **Deployment:** Docker + AWS EC2
