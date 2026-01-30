@@ -3,7 +3,11 @@
  * All API calls go through the old backend (localhost:3001)
  */
 
-const BACKEND_URL = process.env.VITE_BACKEND_URL || 'http://localhost:3001';
+// Use production API URL or fallback to localhost for development
+const BACKEND_URL = process.env.VITE_BACKEND_URL || 
+  (window.location.hostname === 'partners.addaeducation.com' 
+    ? 'https://api.partners.addaeducation.com'
+    : 'http://localhost:3001');
 
 interface ApiResponse<T = any> {
   success?: boolean;
