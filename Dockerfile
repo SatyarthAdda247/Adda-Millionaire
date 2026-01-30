@@ -1,32 +1,33 @@
-# Production Dockerfile for AWS
-FROM mcr.microsoft.com/playwright/python:v1.40.0-jammy
+FROM python:3.10
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies for Node
+RUN apt-get update && apt-get install -y curl git gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY backend-python/requirements.txt .
+# Copy code from build context
+COPY . .
+
+# Backend setup
+WORKDIR /app/backend
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir playwright==1.40.0
 
-# Install Playwright browsers
-RUN playwright install chromium
-RUN playwright install-deps chromium
+# Frontend setup
+WORKDIR /app/frontend
 
-# Copy application
-COPY backend-python/main.py .
+# Install frontend dependencies
+RUN rm -rf node_modules package-lock.json 2>/dev/null || true && \
+    npm install --legacy-peer-deps
 
-# Expose port
-EXPOSE 8000
+# Build frontend for production
+RUN npm run build
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+# Expose ports
+EXPOSE 3000 8000
 
-# Run
-CMD ["python", "-u", "main.py"]
+# Start both services
+CMD bash -c "cd /app/backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000 & cd /app/frontend && npx serve -s dist -l 3000"
