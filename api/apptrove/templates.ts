@@ -79,48 +79,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`[AppTrove Templates] Using S2S API Key: ${APPTROVE_API_KEY ? 'Set' : 'Not set'}`);
 
     // Try authentication methods in order
-    // Try Reporting API Key FIRST (might be required for templates endpoint)
-    // Then SDK Key, S2S API Key, then Basic Auth
+    // Priority: Match old backend EXACTLY - lowercase 'api-key' header
     const tryHeaders = [
-      // Method 1: Reporting API Key (PRIMARY - for internal API endpoints)
-      { label: 'reporting-api-key', headers: {
-        'api-key': APPTROVE_REPORTING_API_KEY,
-        'X-Reporting-API-Key': APPTROVE_REPORTING_API_KEY,
+      // Method 1: S2S API Key with lowercase 'api-key' header (PRIMARY - matches old backend EXACTLY)
+      { label: 's2s-api-key', headers: {
+        'api-key': APPTROVE_API_KEY,
         'Accept': 'application/json'
       } },
-      // Method 2: Reporting API Key with just api-key header
+      // Method 2: Reporting API Key with lowercase 'api-key' (SECONDARY)
       { label: 'reporting-api-key-simple', headers: {
         'api-key': APPTROVE_REPORTING_API_KEY,
         'Accept': 'application/json'
       } },
-      // Method 3: SDK Key
-      { label: 'sdk-key', headers: {
-        'api-key': APPTROVE_SDK_KEY,
-        'X-SDK-Key': APPTROVE_SDK_KEY,
-        'Accept': 'application/json'
-      } },
-      // Method 4: SDK Key with just api-key header
+      // Method 3: SDK Key with lowercase 'api-key'
       { label: 'sdk-key-simple', headers: {
         'api-key': APPTROVE_SDK_KEY,
         'Accept': 'application/json'
       } },
-      // Method 5: S2S API Key with api-key header (SECONDARY - matches old backend)
-      { label: 's2s-api-key', headers: {
-        'api-key': APPTROVE_API_KEY, // S2S API key (82aa3b94-bb98-449d-a372-4a8a98e319f0)
-        'Accept': 'application/json'
-      } },
-      // Method 6: S2S API key with X-S2S-API-Key header
-      { label: 's2s-api-key-alt', headers: {
-        'api-key': APPTROVE_API_KEY,
-        'X-S2S-API-Key': APPTROVE_API_KEY,
-        'Accept': 'application/json'
-      } },
-      // Method 7: Basic Auth with Secret ID/Key
+      // Method 4: Basic Auth with Secret ID/Key
       { label: 'basic-auth-secret', headers: {
         'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
         'Accept': 'application/json'
       } },
-      // Method 8: Secret ID/Key as custom headers
+      // Method 5: Secret ID/Key as custom headers
       { label: 'secret-headers', headers: {
         'secret-id': APPTROVE_SECRET_ID,
         'secret-key': APPTROVE_SECRET_KEY,

@@ -224,10 +224,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Build endpoints matching old backend EXACTLY
-    // Old backend tried: Basic Auth (Secret ID/Key) FIRST, then secret headers, then API key
+    // Old backend priority: Basic Auth (Secret ID/Key) > Secret Headers > API Key
     const endpoints: Array<{ url: string; auth: string; headers: Record<string, string>; payload: any }> = [];
 
-    // Method 1: Basic Auth with Secret ID/Key (PRIMARY - matches old backend)
+    // Method 1: Basic Auth with Secret ID/Key (PRIMARY - matches old backend EXACTLY)
     for (const id of templateIdVariants) {
       if (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
         const authString = Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64');
@@ -263,7 +263,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Method 3: API Key (fallback)
+    // Method 3: API Key with lowercase 'api-key' header (matches old backend)
     for (const id of templateIdVariants) {
       if (APPTROVE_API_KEY) {
         endpoints.push({
@@ -273,23 +273,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'api-key': APPTROVE_API_KEY,
-          },
-          payload: basePayload,
-        });
-      }
-    }
-
-    // Method 4: Reporting API Key (works for templates, try for link creation)
-    for (const id of templateIdVariants) {
-      if (APPTROVE_REPORTING_API_KEY) {
-        endpoints.push({
-          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
-          auth: 'reporting-api-key',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'api-key': APPTROVE_REPORTING_API_KEY,
-            'X-Reporting-API-Key': APPTROVE_REPORTING_API_KEY,
           },
           payload: basePayload,
         });
@@ -351,52 +334,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
     
-    // Try S2S API Key (may require IP whitelisting but worth trying)
-    if (APPTROVE_API_KEY) {
-      for (const id of templateIdVariants) {
-        endpoints.push({
-          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
-          auth: 's2s-api-key',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'api-key': APPTROVE_API_KEY,
-            'X-S2S-API-Key': APPTROVE_API_KEY,
-          },
-          payload: basePayload,
-        });
-      }
-      
-      // Also try /internal/template-link with S2S API Key
-      endpoints.push({
-        url: `${APPTROVE_API_URL}/internal/template-link`,
-        auth: 's2s-api-key',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'api-key': APPTROVE_API_KEY,
-          'X-S2S-API-Key': APPTROVE_API_KEY,
-        },
-        payload: { ...basePayload, templateId: templateId },
-      });
-    }
-
-    // Try SDK Key as last resort
-    if (APPTROVE_SDK_KEY && endpoints.length === 0) {
-      for (const id of templateIdVariants) {
-        endpoints.push({
-          url: `${APPTROVE_API_URL}/internal/link-template/${encodeURIComponent(id)}/link`,
-          auth: 'sdk-key',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'api-key': APPTROVE_SDK_KEY,
-            'X-SDK-Key': APPTROVE_SDK_KEY,
-          },
-          payload: basePayload,
-        });
-      }
-    }
 
     let lastError: any = null;
     let lastResponse: any = null;

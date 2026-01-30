@@ -57,11 +57,13 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return qs ? `?${qs}` : "";
 }
 
-/** Templates (Link Templates) - Uses Vercel serverless function to bypass CORS */
+/** Templates (Link Templates) - Uses old backend API */
 export async function getTemplates() {
-  // Use Vercel serverless function to bypass CORS
+  // Use old backend API (localhost:3001) - matches working implementation
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  
   try {
-    const response = await fetch('/api/apptrove/templates', {
+    const response = await fetch(`${BACKEND_URL}/api/apptrove/templates`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -79,16 +81,12 @@ export async function getTemplates() {
 
     // Don't throw error - just return empty templates
     // Templates are non-critical - link creation uses hardcoded template ID (wBehUW)
-    // SILENTLY return empty templates - don't log errors or show warnings
-    // This prevents error messages from appearing even if API fails
     return {
       success: true, // Always return success to prevent error messages
       templates: [], // Return empty array - templates are optional
     };
   } catch (error: any) {
     // Don't throw error - just return empty templates
-    // SILENTLY return empty templates - don't log errors
-    // Templates are non-critical - link creation uses hardcoded template ID (wBehUW)
     return {
       success: true, // Always return success to prevent error messages
       templates: [], // Return empty array - templates are optional
@@ -129,11 +127,13 @@ export async function getTemplatesDirect() {
   throw new Error(`Failed to fetch templates: ${lastErr?.message || "Unknown error"}`);
 }
 
-/** Links within a template - Uses Vercel serverless function to bypass CORS */
+/** Links within a template - Uses old backend API */
 export async function getTemplateLinks(templateId: string) {
-  // Use Vercel serverless function to bypass CORS - NEVER call AppTrove API directly
+  // Use old backend API (localhost:3001) - matches working implementation
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  
   try {
-    const response = await fetch(`/api/apptrove/template-links?templateId=${encodeURIComponent(templateId)}`, {
+    const response = await fetch(`${BACKEND_URL}/api/apptrove/template-links?templateId=${encodeURIComponent(templateId)}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -150,15 +150,11 @@ export async function getTemplateLinks(templateId: string) {
       };
     }
 
-    // SILENTLY return empty links - don't log errors or show warnings
-    // Template links are non-critical
     return {
       success: true, // Always return success to prevent error messages
       links: [], // Return empty array - template links are optional
     };
   } catch (error: any) {
-    // SILENTLY return empty links - don't log errors
-    // Template links are non-critical
     return {
       success: true, // Always return success to prevent error messages
       links: [], // Return empty array - template links are optional
@@ -168,12 +164,14 @@ export async function getTemplateLinks(templateId: string) {
 
 /**
  * Create UniLink within a template.
- * Uses Vercel serverless function to bypass CORS restrictions.
+ * Uses old backend API - matches working implementation.
  */
 export async function createLink(templateId: string, linkData: { name?: string; userId?: string; [key: string]: any }) {
-  // Use Vercel serverless function to bypass CORS - NEVER call AppTrove API directly
+  // Use old backend API (localhost:3001) - matches working implementation
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  
   try {
-    console.log(`[AppTrove] Creating link via serverless function for template: ${templateId}`);
+    console.log(`[AppTrove] Creating link via backend for template: ${templateId}`);
     // Extract affiliate data for tracking
     const affiliateData = {
       id: linkData.userId || linkData.affiliateId || '',
@@ -181,7 +179,7 @@ export async function createLink(templateId: string, linkData: { name?: string; 
       email: linkData.email || linkData.affiliateEmail || '',
     };
 
-    const response = await fetch('/api/apptrove/create-link', {
+    const response = await fetch(`${BACKEND_URL}/api/apptrove/create-link`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -216,7 +214,7 @@ export async function createLink(templateId: string, linkData: { name?: string; 
     });
 
     if (!response.ok) {
-      console.error(`[AppTrove] Serverless function returned ${response.status}`);
+      console.error(`[AppTrove] Backend API returned ${response.status}`);
     }
 
     const data = await response.json().catch((e) => {
@@ -361,11 +359,13 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
   };
 }
 
-/** Stats - Uses Vercel serverless function with Reporting API Key */
+/** Stats - Uses old backend API with Reporting API Key */
 export async function getUniLinkStats(linkId: string) {
-  // Use Vercel serverless function to bypass CORS and use Reporting API Key
+  // Use old backend API (localhost:3001) - matches working implementation
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+  
   try {
-    const response = await fetch(`/api/apptrove/stats?linkId=${encodeURIComponent(linkId)}`, {
+    const response = await fetch(`${BACKEND_URL}/api/apptrove/stats?linkId=${encodeURIComponent(linkId)}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',

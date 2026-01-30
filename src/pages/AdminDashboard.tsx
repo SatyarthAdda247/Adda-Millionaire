@@ -70,8 +70,18 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { getAllUsers, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured, updateUser, deleteUser, saveLink } from "@/lib/dynamodb";
 import { getTemplates, getTemplateLinks, createLink, isAppTroveConfigured } from "@/lib/apptrove";
+import { 
+  getAllAffiliates, 
+  updateAffiliate, 
+  approveAffiliate, 
+  rejectAffiliate, 
+  deleteAffiliate,
+  getAffiliateAnalytics,
+  getDashboardStats,
+  getDashboardAnalytics,
+  assignLinkToAffiliate
+} from "@/lib/backend-api";
 import { v4 as uuidv4 } from "uuid";
 
 interface SocialHandle {
@@ -263,60 +273,12 @@ const AdminDashboard = () => {
 
   const fetchOverallStats = async () => {
     try {
-      const useDynamoDB = isDynamoDBConfigured();
+      console.log('📊 Fetching stats from backend...');
+      const response = await getDashboardStats();
       
-      if (useDynamoDB) {
-        // Calculate stats from DynamoDB
-        console.log('📊 Calculating stats from DynamoDB...');
-        const allUsers = await getAllUsers();
-        const allLinks = await Promise.all(
-          allUsers.map(user => getLinksByUserId(user.id))
-        ).then(results => results.flat());
-        
-        const allAnalytics = await Promise.all(
-          allUsers.map(user => getAnalyticsByUserId(user.id))
-        ).then(results => results.flat());
-        
-        // Calculate totals
-        const totalClicks = allAnalytics.reduce((sum, a) => sum + (a.clicks || 0), 0);
-        const totalConversions = allAnalytics.reduce((sum, a) => sum + (a.conversions || 0), 0);
-        const totalEarnings = allAnalytics.reduce((sum, a) => sum + (a.earnings || 0), 0);
-        const totalInstalls = allAnalytics.reduce((sum, a) => sum + (a.installs || 0), 0);
-        const totalPurchases = allAnalytics.reduce((sum, a) => sum + (a.purchases || 0), 0);
-        
-        const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks) * 100 : 0;
-        const installRate = totalClicks > 0 ? (totalInstalls / totalClicks) * 100 : 0;
-        const purchaseRate = totalInstalls > 0 ? (totalPurchases / totalInstalls) * 100 : 0;
-        
-        const approvedUsers = allUsers.filter(u => u.approvalStatus === 'approved');
-        const averageEarningsPerAffiliate = approvedUsers.length > 0 ? totalEarnings / approvedUsers.length : 0;
-        
-        setOverallStats({
-          totalClicks,
-          totalConversions,
-          totalEarnings,
-          conversionRate,
-          totalInstalls,
-          totalPurchases,
-          installRate,
-          purchaseRate,
-          averageEarningsPerAffiliate
-        });
-        console.log('✅ Calculated stats from DynamoDB');
-      } else {
-        // DynamoDB not configured - show error
-        console.error('❌ DynamoDB not configured! Please set AWS credentials in Vercel environment variables.');
-        setOverallStats({
-          totalClicks: 0,
-          totalConversions: 0,
-          totalEarnings: 0,
-          conversionRate: 0,
-          totalInstalls: 0,
-          totalPurchases: 0,
-          installRate: 0,
-          purchaseRate: 0,
-          averageEarningsPerAffiliate: 0
-        });
+      if (response.success && response.stats) {
+        setOverallStats(response.stats);
+        console.log('✅ Fetched stats from backend');
       }
     } catch (error) {
       console.error('Error fetching overall stats:', error);
@@ -325,40 +287,12 @@ const AdminDashboard = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const useDynamoDB = isDynamoDBConfigured();
+      console.log('📈 Fetching analytics from backend...');
+      const response = await getDashboardAnalytics();
       
-      if (useDynamoDB) {
-        // Fetch analytics from DynamoDB
-        console.log('📈 Fetching analytics from DynamoDB...');
-        const allUsers = await getAllUsers();
-        const allAnalytics = await Promise.all(
-          allUsers.map(user => getAnalyticsByUserId(user.id))
-        ).then(results => results.flat());
-        
-        // Group by date for chart
-        const analyticsByDate: Record<string, any> = {};
-        allAnalytics.forEach(a => {
-          const date = a.date || a.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0];
-          if (!analyticsByDate[date]) {
-            analyticsByDate[date] = { date, clicks: 0, conversions: 0, earnings: 0, installs: 0, purchases: 0 };
-          }
-          analyticsByDate[date].clicks += a.clicks || 0;
-          analyticsByDate[date].conversions += a.conversions || 0;
-          analyticsByDate[date].earnings += a.earnings || 0;
-          analyticsByDate[date].installs += a.installs || 0;
-          analyticsByDate[date].purchases += a.purchases || 0;
-        });
-        
-        const analyticsArray = Object.values(analyticsByDate).sort((a: any, b: any) => 
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-        
-        setAnalyticsData(analyticsArray);
-        console.log('✅ Fetched analytics from DynamoDB:', analyticsArray.length);
-      } else {
-        // DynamoDB not configured
-        console.error('❌ DynamoDB not configured! Please set AWS credentials in Vercel environment variables.');
-        setAnalyticsData([]);
+      if (response.success && response.analytics) {
+        setAnalyticsData(response.analytics);
+        console.log('✅ Fetched analytics from backend:', response.analytics.length);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -528,73 +462,29 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       
-      // Check if DynamoDB is configured
-      const useDynamoDB = isDynamoDBConfigured();
+      console.log('📊 Fetching affiliates from backend...');
+      const filters: any = {};
+      if (searchQuery) filters.search = searchQuery;
+      if (approvalFilter && approvalFilter !== "all") filters.approvalStatus = approvalFilter;
       
-      let data;
+      const response = await getAllAffiliates(filters);
+      let data = response.users || response.data || response || [];
       
-      if (useDynamoDB) {
-        // Fetch from DynamoDB directly
-        console.log('📊 Fetching affiliates from DynamoDB...');
-        const filters: any = {};
-        // Note: searchQuery is used for client-side filtering after fetch
-        // approvalFilter is the only server-side filter we need
-        if (approvalFilter !== "all") filters.approvalStatus = approvalFilter;
-        
-        const users = await getAllUsers(filters);
-        
-        // Get links and analytics for each user
-        const usersWithData = await Promise.all(users.map(async (user: any) => {
-          const linksRaw = await getLinksByUserId(user.id);
-          const analytics = await getAnalyticsByUserId(user.id);
-          
-          // Normalize links - ensure they have 'link' property (table expects affiliate.links[0].link)
-          const links = linksRaw.map((link: any) => ({
-            ...link,
-            link: link.link || link.unilink || link.url || link.shortUrl || link.longUrl || '', // Map unilink to link
-          }));
-          
-          // Calculate stats
-          const totalClicks = analytics.reduce((sum: number, a: any) => sum + (a.clicks || 0), 0);
-          const totalConversions = analytics.reduce((sum: number, a: any) => sum + (a.conversions || 0), 0);
-          const totalEarnings = analytics.reduce((sum: number, a: any) => sum + (a.earnings || 0), 0);
-          const conversionRate = totalClicks > 0 ? parseFloat((totalConversions / totalClicks * 100).toFixed(2)) : 0;
-          
-          return {
-            ...user,
-            links,
-            stats: {
-              totalClicks,
-              totalConversions,
-              totalEarnings,
-              conversionRate,
-              lastActivity: analytics.length > 0 ? analytics[analytics.length - 1].date : user.createdAt
-            }
-          };
-        }));
-        
-        // Filter out deleted users
-        data = usersWithData.filter((u: any) => u.status !== 'deleted' && u.approvalStatus !== 'deleted');
-        
-        // Sort by createdAt descending (newest first)
-        data.sort((a: any, b: any) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        
-        console.log('✅ Fetched affiliates from DynamoDB:', data.length);
-      } else {
-        // DynamoDB not configured
-        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
-      }
+      // Sort by createdAt descending
+      data.sort((a: any, b: any) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
       
+      console.log('✅ Fetched affiliates from backend:', data.length);
       setAffiliates(data);
     } catch (error) {
       console.error('Error fetching affiliates:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch affiliates",
+        description: "Failed to fetch affiliates from backend",
         variant: "destructive",
       });
+      setAffiliates([]);
     } finally {
       setLoading(false);
     }
@@ -603,14 +493,12 @@ const AdminDashboard = () => {
   const handleApprove = async () => {
     if (!selectedAffiliate) return;
     
-    // Show loading state
-    toast({
-      title: "Approving affiliate...",
-      description: "Approving affiliate and creating unilink. This may take a moment.",
-    });
-
     try {
-      const useDynamoDB = isDynamoDBConfigured();
+      // Approve user via backend API
+      const response = await approveAffiliate(selectedAffiliate.id, {
+        adminNotes: adminNotes || undefined,
+        approvedBy: 'admin'
+      });
       
       if (useDynamoDB) {
         let unilink = null;
