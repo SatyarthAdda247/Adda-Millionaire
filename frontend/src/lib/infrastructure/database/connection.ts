@@ -470,7 +470,7 @@ export class DynamoDBConfigFactory {
     return {
       region: env.AWS_REGION,
       tablePrefix: env.DYNAMODB_TABLE_PREFIX,
-      endpoint: env.NODE_ENV === 'development' ? 'http://localhost:8000' : undefined,
+      endpoint: env.NODE_ENV === 'development' ? 'http://localhost:3001' : undefined,
       maxRetries: 3,
       timeout: 30000
     };
@@ -483,7 +483,7 @@ export class DynamoDBConfigFactory {
     return {
       region: 'us-east-1',
       tablePrefix,
-      endpoint: 'http://localhost:8000',
+      endpoint: 'http://localhost:3001',
       maxRetries: 2,
       timeout: 10000,
       credentials: {
@@ -500,7 +500,7 @@ export class DynamoDBConfigFactory {
     return {
       region: 'us-east-1',
       tablePrefix,
-      endpoint: 'http://localhost:8000',
+      endpoint: 'http://localhost:3001',
       maxRetries: 1,
       timeout: 5000,
       credentials: {
