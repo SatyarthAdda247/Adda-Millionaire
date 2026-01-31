@@ -67,7 +67,10 @@ export async function getTemplates() {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+      // Production domain detection
+      if (hostname === 'partners.addaeducation.com' || 
+          hostname === 'www.partners.addaeducation.com' ||
+          hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
@@ -152,7 +155,10 @@ export async function getTemplateLinks(templateId: string) {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+      // Production domain detection
+      if (hostname === 'partners.addaeducation.com' || 
+          hostname === 'www.partners.addaeducation.com' ||
+          hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
@@ -205,7 +211,10 @@ export async function createLink(templateId: string, linkData: { name?: string; 
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+      // Production domain detection
+      if (hostname === 'partners.addaeducation.com' || 
+          hostname === 'www.partners.addaeducation.com' ||
+          hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
@@ -414,7 +423,10 @@ export async function getUniLinkStats(linkId: string) {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+      // Production domain detection
+      if (hostname === 'partners.addaeducation.com' || 
+          hostname === 'www.partners.addaeducation.com' ||
+          hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }

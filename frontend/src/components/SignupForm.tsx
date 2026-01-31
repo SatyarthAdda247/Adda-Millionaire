@@ -139,10 +139,10 @@ const SignupForm = () => {
       if (error instanceof Error) {
         errorMessage = error.message;
         // Provide helpful error messages
-        if (errorMessage.includes('AWS credentials not configured')) {
-          errorMessage = 'DynamoDB credentials not found. Please check Vercel environment variables (VITE_AWS_ACCESS_KEY_ID, VITE_AWS_SECRET_ACCESS_KEY).';
-        } else if (errorMessage.includes('Failed to fetch') || errorMessage.includes('CORS')) {
-          errorMessage = 'Unable to connect to server. If using DynamoDB directly, check that credentials are set correctly.';
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('CORS')) {
+          errorMessage = 'Unable to connect to server. Please check your internet connection and try again.';
+        } else if (errorMessage.includes('already exists')) {
+          errorMessage = 'A user with this email already exists. Please use a different email.';
         }
       } else if (typeof error === 'string') {
         errorMessage = error;
@@ -152,7 +152,7 @@ const SignupForm = () => {
         title: "Registration Failed",
         description: errorMessage,
         variant: "destructive",
-        duration: 10000, // Show longer for connection errors
+        duration: 10000,
       });
     } finally {
       setIsSubmitting(false);

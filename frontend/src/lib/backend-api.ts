@@ -5,23 +5,37 @@
 
 // Use production API URL or fallback to localhost for development
 function getBackendUrl(): string {
-  if (process.env.VITE_BACKEND_URL) {
+  // Check environment variable first
+  if (typeof process !== 'undefined' && process.env?.VITE_BACKEND_URL) {
     return process.env.VITE_BACKEND_URL;
   }
   
-  // Check if we're in production
+  // Check if we're in production (browser environment)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
-    if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+    const protocol = window.location.protocol;
+    
+    // Production domain detection
+    if (hostname === 'partners.addaeducation.com' || 
+        hostname === 'www.partners.addaeducation.com' ||
+        hostname.includes('addaeducation.com')) {
       return 'https://api.partners.addaeducation.com';
     }
+    
+    // Development
+    return 'http://localhost:3001';
   }
   
-  // Development fallback
+  // Server-side or fallback
   return 'http://localhost:3001';
 }
 
 const BACKEND_URL = getBackendUrl();
+
+// Debug logging (only in development)
+if (typeof window !== 'undefined' && window.location.hostname !== 'partners.addaeducation.com') {
+  console.log('🔧 Backend URL:', BACKEND_URL);
+}
 
 interface ApiResponse<T = any> {
   success?: boolean;
