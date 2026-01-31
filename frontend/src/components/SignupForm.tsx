@@ -31,7 +31,6 @@ const followerRanges = [
 ];
 
 import { createUser } from "@/lib/backend-api";
-import { v4 as uuidv4 } from "uuid";
 
 interface SocialHandle {
   id: string;
