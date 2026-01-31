@@ -317,6 +317,31 @@ async def health():
 
 # ============ USER ENDPOINTS ============
 
+@app.post("/api/users")
+async def create_user(user_data: dict):
+    """Create a new user/affiliate"""
+    check_dynamodb()
+    try:
+        user_id = str(uuid.uuid4())
+        user = {
+            "id": user_id,
+            "name": user_data.get("name"),
+            "email": user_data.get("email"),
+            "phone": user_data.get("phone"),
+            "platform": user_data.get("platform"),
+            "socialHandle": user_data.get("socialHandle"),
+            "followerCount": user_data.get("followerCount", 0),
+            "status": "pending",
+            "approvalStatus": "pending",
+            "createdAt": datetime.utcnow().isoformat(),
+            "updatedAt": datetime.utcnow().isoformat()
+        }
+        
+        users_table.put_item(Item=user)
+        return {"success": True, "user": user, "message": "User created successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/users")
 async def get_users(
     search: Optional[str] = None,

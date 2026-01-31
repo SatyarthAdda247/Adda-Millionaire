@@ -4,10 +4,24 @@
  */
 
 // Use production API URL or fallback to localhost for development
-const BACKEND_URL = process.env.VITE_BACKEND_URL || 
-  (window.location.hostname === 'partners.addaeducation.com' 
-    ? 'https://api.partners.addaeducation.com'
-    : 'http://localhost:3001');
+function getBackendUrl(): string {
+  if (process.env.VITE_BACKEND_URL) {
+    return process.env.VITE_BACKEND_URL;
+  }
+  
+  // Check if we're in production
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+      return 'https://api.partners.addaeducation.com';
+    }
+  }
+  
+  // Development fallback
+  return 'http://localhost:3001';
+}
+
+const BACKEND_URL = getBackendUrl();
 
 interface ApiResponse<T = any> {
   success?: boolean;
@@ -42,6 +56,21 @@ async function apiCall<T = any>(
     console.error(`API Error [${endpoint}]:`, error);
     throw error;
   }
+}
+
+/** Create new user/affiliate */
+export async function createUser(userData: {
+  name: string;
+  email: string;
+  phone: string;
+  platform: string;
+  socialHandle: string;
+  followerCount?: number;
+}) {
+  return apiCall('/api/users', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+  });
 }
 
 /** Get all affiliates/users */

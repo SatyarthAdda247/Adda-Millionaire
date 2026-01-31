@@ -60,10 +60,22 @@ function buildQuery(params: Record<string, string | number | undefined>) {
 /** Templates (Link Templates) - Uses old backend API */
 export async function getTemplates() {
   // Use production API URL or fallback to localhost for development
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
-    (typeof window !== 'undefined' && window.location.hostname === 'partners.addaeducation.com'
-      ? 'https://api.partners.addaeducation.com'
-      : 'http://localhost:3001');
+  function getBackendUrl(): string {
+    if (import.meta.env.VITE_BACKEND_URL) {
+      return import.meta.env.VITE_BACKEND_URL;
+    }
+    
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+        return 'https://api.partners.addaeducation.com';
+      }
+    }
+    
+    return 'http://localhost:3001';
+  }
+  
+  const BACKEND_URL = getBackendUrl();
   
   try {
     const response = await fetch(`${BACKEND_URL}/api/apptrove/templates`, {
@@ -133,10 +145,22 @@ export async function getTemplatesDirect() {
 /** Links within a template - Uses old backend API */
 export async function getTemplateLinks(templateId: string) {
   // Use production API URL or fallback to localhost for development
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
-    (typeof window !== 'undefined' && window.location.hostname === 'partners.addaeducation.com'
-      ? 'https://api.partners.addaeducation.com'
-      : 'http://localhost:3001');
+  function getBackendUrl(): string {
+    if (import.meta.env.VITE_BACKEND_URL) {
+      return import.meta.env.VITE_BACKEND_URL;
+    }
+    
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+        return 'https://api.partners.addaeducation.com';
+      }
+    }
+    
+    return 'http://localhost:3001';
+  }
+  
+  const BACKEND_URL = getBackendUrl();
   
   try {
     const response = await fetch(`${BACKEND_URL}/api/apptrove/template-links?templateId=${encodeURIComponent(templateId)}`, {
@@ -174,10 +198,22 @@ export async function getTemplateLinks(templateId: string) {
  */
 export async function createLink(templateId: string, linkData: { name?: string; userId?: string; [key: string]: any }) {
   // Use production API URL or fallback to localhost for development
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
-    (typeof window !== 'undefined' && window.location.hostname === 'partners.addaeducation.com'
-      ? 'https://api.partners.addaeducation.com'
-      : 'http://localhost:3001');
+  function getBackendUrl(): string {
+    if (import.meta.env.VITE_BACKEND_URL) {
+      return import.meta.env.VITE_BACKEND_URL;
+    }
+    
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+        return 'https://api.partners.addaeducation.com';
+      }
+    }
+    
+    return 'http://localhost:3001';
+  }
+  
+  const BACKEND_URL = getBackendUrl();
   
   try {
     console.log(`[AppTrove] Creating link via backend for template: ${templateId}`);
@@ -371,10 +407,22 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
 /** Stats - Uses old backend API with Reporting API Key */
 export async function getUniLinkStats(linkId: string) {
   // Use production API URL or fallback to localhost for development
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 
-    (typeof window !== 'undefined' && window.location.hostname === 'partners.addaeducation.com'
-      ? 'https://api.partners.addaeducation.com'
-      : 'http://localhost:3001');
+  function getBackendUrl(): string {
+    if (import.meta.env.VITE_BACKEND_URL) {
+      return import.meta.env.VITE_BACKEND_URL;
+    }
+    
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'partners.addaeducation.com' || hostname === 'www.partners.addaeducation.com') {
+        return 'https://api.partners.addaeducation.com';
+      }
+    }
+    
+    return 'http://localhost:3001';
+  }
+  
+  const BACKEND_URL = getBackendUrl();
   
   try {
     const response = await fetch(`${BACKEND_URL}/api/apptrove/stats?linkId=${encodeURIComponent(linkId)}`, {

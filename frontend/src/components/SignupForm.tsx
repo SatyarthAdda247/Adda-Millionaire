@@ -30,7 +30,7 @@ const followerRanges = [
   "500K+",
 ];
 
-import { saveUser, getUserByEmail, isDynamoDBConfigured } from "@/lib/dynamodb";
+import { createUser } from "@/lib/backend-api";
 import { v4 as uuidv4 } from "uuid";
 
 interface SocialHandle {
@@ -83,70 +83,39 @@ const SignupForm = () => {
     setIsSubmitting(true);
 
     try {
-      // Check if DynamoDB is configured (direct frontend access)
-      const useDirectDynamoDB = isDynamoDBConfigured();
+      console.log('📝 Form submission: Using backend API');
       
-      // Log which method is being used
-      if (typeof window !== 'undefined') {
-        console.log('📝 Form submission:', useDirectDynamoDB ? 'Using DynamoDB directly' : 'Using backend API');
-      }
+      // Process social handles
+      const processedHandles = socialHandles.map(h => ({
+        platform: (h.platform || '').trim(),
+        handle: (h.handle || '').trim(),
+      })).filter(h => h.platform && h.handle);
+
+      // Create user via backend API
+      const sanitizedEmail = formData.email.trim().toLowerCase();
+      const userData = {
+        name: formData.name.trim(),
+        email: sanitizedEmail,
+        phone: formData.phone.trim(),
+        platform: processedHandles[0]?.platform || '',
+        socialHandle: processedHandles[0]?.handle || '',
+        followerCount: parseInt(formData.followerCount) || 0
+      };
+
+      console.log('💾 Creating user via backend API...', { email: sanitizedEmail, name: userData.name });
+      const result = await createUser(userData);
+      console.log('✅ User created:', result);
       
-      let data;
-      
-      if (useDirectDynamoDB) {
-        // Direct DynamoDB access from frontend
-        const sanitizedEmail = formData.email.trim().toLowerCase();
-        
-        // Check if user already exists
-        const existingUser = await getUserByEmail(sanitizedEmail);
-        if (existingUser) {
-          throw new Error('A user with this email already exists');
-        }
-
-        // Process social handles
-        const processedHandles = socialHandles.map(h => ({
-          platform: (h.platform || '').trim(),
-          handle: (h.handle || '').trim(),
-        })).filter(h => h.platform && h.handle);
-
-        // Create new user
-        const newUser = {
-          id: uuidv4(),
-          name: formData.name.trim(),
-          email: sanitizedEmail,
-          phone: formData.phone.trim(),
-          platform: processedHandles[0]?.platform || '',
-          socialHandle: processedHandles[0]?.handle || '',
-          followerCount: formData.followerCount,
-          socialHandles: processedHandles,
-          totalVerifiedFollowers: 0,
-          status: 'pending',
-          approvalStatus: 'pending',
-          adminNotes: '',
-          approvedBy: null,
-          approvedAt: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        // Save directly to DynamoDB
-        console.log('💾 Saving to DynamoDB...', { email: sanitizedEmail, name: newUser.name });
-        const result = await saveUser(newUser);
-        console.log('✅ Saved to DynamoDB:', result);
-        data = {
-          success: true,
-          user: {
-            id: result.user.id,
-            name: result.user.name,
-            email: result.user.email,
-            approvalStatus: 'pending'
-          },
-          message: 'Your application has been submitted successfully. It is pending admin approval. You will receive an email once approved.'
-        };
-      } else {
-        // DynamoDB not configured
-        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables (VITE_AWS_ACCESS_KEY_ID, VITE_AWS_SECRET_ACCESS_KEY).');
-      }
+      const data = {
+        success: result.success,
+        user: {
+          id: result.user?.id || result.data?.user?.id,
+          name: result.user?.name || result.data?.user?.name,
+          email: result.user?.email || result.data?.user?.email,
+          approvalStatus: 'pending'
+        },
+        message: result.message || 'Your application has been submitted successfully. It is pending admin approval. You will receive an email once approved.'
+      };
 
       // Success
       setUserId(data.user.id);
