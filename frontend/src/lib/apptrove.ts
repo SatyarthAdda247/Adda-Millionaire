@@ -67,7 +67,9 @@ export async function getTemplates() {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      // Production domain detection
+      // Production domain detection (AWS deployment)
+      // Frontend: partners.addaeducation.com
+      // Backend: api.partners.addaeducation.com
       if (hostname === 'partners.addaeducation.com' || 
           hostname === 'www.partners.addaeducation.com' ||
           hostname.includes('addaeducation.com')) {
@@ -155,7 +157,9 @@ export async function getTemplateLinks(templateId: string) {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      // Production domain detection
+      // Production domain detection (AWS deployment)
+      // Frontend: partners.addaeducation.com
+      // Backend: api.partners.addaeducation.com
       if (hostname === 'partners.addaeducation.com' || 
           hostname === 'www.partners.addaeducation.com' ||
           hostname.includes('addaeducation.com')) {
@@ -211,7 +215,9 @@ export async function createLink(templateId: string, linkData: { name?: string; 
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      // Production domain detection
+      // Production domain detection (AWS deployment)
+      // Frontend: partners.addaeducation.com
+      // Backend: api.partners.addaeducation.com
       if (hostname === 'partners.addaeducation.com' || 
           hostname === 'www.partners.addaeducation.com' ||
           hostname.includes('addaeducation.com')) {
@@ -423,7 +429,9 @@ export async function getUniLinkStats(linkId: string) {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      // Production domain detection
+      // Production domain detection (AWS deployment)
+      // Frontend: partners.addaeducation.com
+      // Backend: api.partners.addaeducation.com
       if (hostname === 'partners.addaeducation.com' || 
           hostname === 'www.partners.addaeducation.com' ||
           hostname.includes('addaeducation.com')) {

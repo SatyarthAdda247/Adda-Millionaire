@@ -15,14 +15,17 @@ function getBackendUrl(): string {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
     
-    // Production domain detection
+    // Production domain detection (AWS deployment)
+    // Frontend: partners.addaeducation.com
+    // Backend: api.partners.addaeducation.com
     if (hostname === 'partners.addaeducation.com' || 
         hostname === 'www.partners.addaeducation.com' ||
         hostname.includes('addaeducation.com')) {
+      // Always use production API domain for AWS deployment
       return 'https://api.partners.addaeducation.com';
     }
     
-    // Development
+    // Development fallback
     return 'http://localhost:3001';
   }
   
@@ -32,9 +35,9 @@ function getBackendUrl(): string {
 
 const BACKEND_URL = getBackendUrl();
 
-// Debug logging (only in development)
-if (typeof window !== 'undefined' && window.location.hostname !== 'partners.addaeducation.com') {
-  console.log('🔧 Backend URL:', BACKEND_URL);
+// Debug logging
+if (typeof window !== 'undefined') {
+  console.log('🔧 Backend URL:', BACKEND_URL, '(Hostname:', window.location.hostname + ')');
 }
 
 interface ApiResponse<T = any> {
