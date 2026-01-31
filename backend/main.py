@@ -322,15 +322,24 @@ async def create_user(user_data: dict):
     """Create a new user/affiliate"""
     check_dynamodb()
     try:
+        # Check if user already exists
+        email = user_data.get("email", "").strip().lower()
+        if email:
+            response = users_table.scan(
+                FilterExpression=Attr('email').eq(email)
+            )
+            if response.get('Items'):
+                raise HTTPException(status_code=400, detail="A user with this email already exists")
+        
         user_id = str(uuid.uuid4())
         user = {
             "id": user_id,
-            "name": user_data.get("name"),
-            "email": user_data.get("email"),
-            "phone": user_data.get("phone"),
-            "platform": user_data.get("platform"),
-            "socialHandle": user_data.get("socialHandle"),
-            "followerCount": user_data.get("followerCount", 0),
+            "name": user_data.get("name", "").strip(),
+            "email": email,
+            "phone": user_data.get("phone", "").strip(),
+            "platform": user_data.get("platform", "").strip(),
+            "socialHandle": user_data.get("socialHandle", "").strip(),
+            "followerCount": int(user_data.get("followerCount", 0)),
             "status": "pending",
             "approvalStatus": "pending",
             "createdAt": datetime.utcnow().isoformat(),
@@ -338,7 +347,13 @@ async def create_user(user_data: dict):
         }
         
         users_table.put_item(Item=user)
-        return {"success": True, "user": user, "message": "User created successfully"}
+        return {
+            "success": True, 
+            "user": user, 
+            "message": "Your application has been submitted successfully. It is pending admin approval. You will receive an email once approved."
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
