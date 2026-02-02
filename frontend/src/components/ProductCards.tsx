@@ -23,24 +23,6 @@ const products = [
     comingSoon: false,
   },
   {
-    name: "Adda247 App",
-    logo: "/logos/adda247-logo.png",
-    logoAlt: "Adda247 Logo",
-    website: "https://www.adda247.com/?srsltid=AfmBOorLMdhC5gL22BtXITQszW8sg5mzDlnNGnt7KnALbdZK-aqXtxI0",
-    tagline: "Comprehensive exam preparation and learning app",
-    description: "Ideal for creators focusing on: competitive exams, government jobs, banking, SSC, railway, teaching exams, and career guidance.",
-    features: [
-      "Live classes and recorded video courses",
-      "Mock tests and practice papers",
-      "Expert faculty and comprehensive study material",
-    ],
-    gradient: "from-green-50 to-green-100",
-    iconBg: "bg-green-50",
-    iconColor: "text-green-600",
-    fallbackLetter: "A",
-    comingSoon: true,
-  },
-  {
     name: "Learnr's adda",
     logo: "/logos/learners-adda-logo-new.png",
     logoAlt: "Learnr App Logo",
@@ -57,6 +39,24 @@ const products = [
     iconColor: "text-purple-600",
     fallbackLetter: "L",
     comingSoon: false,
+  },
+  {
+    name: "Adda247 App",
+    logo: "/logos/adda247-logo.png",
+    logoAlt: "Adda247 Logo",
+    website: "https://www.adda247.com/?srsltid=AfmBOorLMdhC5gL22BtXITQszW8sg5mzDlnNGnt7KnALbdZK-aqXtxI0",
+    tagline: "Comprehensive exam preparation and learning app",
+    description: "Ideal for creators focusing on: competitive exams, government jobs, banking, SSC, railway, teaching exams, and career guidance.",
+    features: [
+      "Live classes and recorded video courses",
+      "Mock tests and practice papers",
+      "Expert faculty and comprehensive study material",
+    ],
+    gradient: "from-green-50 to-green-100",
+    iconBg: "bg-green-50",
+    iconColor: "text-green-600",
+    fallbackLetter: "A",
+    comingSoon: true,
   },
 ];
 
@@ -149,7 +149,7 @@ const ProductCards = () => {
                 )}
 
                 <div className={`mb-6 flex justify-center ${product.comingSoon ? "blur-none opacity-80" : ""}`}>
-                  <div className={`w-20 h-20 rounded-full ${product.iconBg} flex items-center justify-center shadow-md`}>
+                  <div className={`w-20 h-20 rounded-2xl ${product.iconBg} flex items-center justify-center shadow-md overflow-hidden`}>
                     <LogoDisplay 
                       logo={product.logo} 
                       alt={product.logoAlt}
