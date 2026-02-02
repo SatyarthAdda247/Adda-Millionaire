@@ -31,8 +31,8 @@ EXPOSE 8080 3001
 # Frontend: 8080 (container, matches dev)
 # Backend: 3001 (container, matches dev)
 
-# Install serve for frontend
-RUN npm install -g serve
+# Install express and serve-static for custom frontend server
+RUN npm install -g express serve-static
 
 # Start both services
-CMD bash -c "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && serve -s dist -l 8080 --cors"
+CMD bash -c "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && PORT=8080 node server.js"
