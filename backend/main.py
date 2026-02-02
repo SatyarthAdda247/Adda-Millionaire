@@ -25,7 +25,8 @@ app.add_middleware(
         "http://localhost:3000",
         "https://partners.addaeducation.com",
         "https://www.partners.addaeducation.com",
-        "https://api.partners.addaeducation.com"
+        "https://api.partners.addaeducation.com",
+        "http://localhost:3001",  # For local backend testing
     ],
     allow_credentials=True,
     allow_methods=["*"],
