@@ -35,4 +35,5 @@ EXPOSE 8080 3001
 RUN npm install -g express serve-static
 
 # Start both services
-CMD bash -c "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && PORT=8080 node server.js"
+# Use exec form for proper signal handling
+CMD ["sh", "-c", "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && PORT=8080 node server.js"]
