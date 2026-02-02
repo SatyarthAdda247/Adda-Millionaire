@@ -36,4 +36,5 @@ RUN npm install -g express serve-static
 
 # Start both services
 # Use exec form for proper signal handling
-CMD ["sh", "-c", "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && PORT=8080 node server.js"]
+# Start backend first, wait 2 seconds, then start frontend
+CMD ["sh", "-c", "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 > /tmp/backend.log 2>&1 & sleep 2 && cd /app/frontend && PORT=8080 node server.js"]
