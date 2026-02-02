@@ -84,7 +84,7 @@ const LogoDisplay = ({ logo, alt, name, iconBg, iconColor, fallbackLetter }: {
     <img
       src={logo}
       alt={alt}
-      className="w-full h-full object-contain"
+      className="w-full h-full object-contain rounded-2xl"
       onError={() => setImageError(true)}
     />
   );
