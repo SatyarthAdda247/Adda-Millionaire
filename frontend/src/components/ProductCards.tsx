@@ -42,7 +42,7 @@ const products = [
   },
   {
     name: "Learnr's adda",
-    logo: "/unnamed.webp",
+    logo: "/logos/unnamed.webp",
     logoAlt: "Learnr App Logo",
     website: "https://play.google.com/store/apps/details?id=com.adda247.gold&hl=en_IN",
     tagline: "Personalized learning experience for students",
