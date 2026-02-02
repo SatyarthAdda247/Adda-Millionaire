@@ -68,24 +68,40 @@ async function apiCall<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
+  const url = `${BACKEND_URL}${endpoint}`;
+  console.log(`🌐 ${options.method || 'GET'} ${url}`);
+
   try {
-    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+    const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         ...options.headers,
       },
+      signal: AbortSignal.timeout(10000), // 10 second timeout
     });
 
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
-      throw new Error(data?.error || data?.message || `HTTP ${response.status}`);
+      const errorMsg = data?.error || data?.message || data?.detail || `HTTP ${response.status}`;
+      console.error(`API Error [${endpoint}]:`, errorMsg);
+      throw new Error(errorMsg);
     }
 
     return data;
   } catch (error: any) {
+    // Handle DNS resolution errors
+    if (error?.message?.includes('ERR_NAME_NOT_RESOLVED') || 
+        error?.message?.includes('Failed to fetch') ||
+        (error?.name === 'TypeError' && error?.message?.includes('fetch'))) {
+      console.error(`❌ Backend DNS/Connection Error [${endpoint}]:`, error);
+      console.error(`   Backend URL: ${BACKEND_URL}`);
+      console.error(`   ⚠️ DNS may not be configured for api.partners.addaeducation.com`);
+      console.error(`   ⚠️ Or backend service is not running`);
+      throw new Error(`Backend unavailable. Please check DNS configuration for api.partners.addaeducation.com or ensure backend is running.`);
+    }
     console.error(`API Error [${endpoint}]:`, error);
     throw error;
   }
