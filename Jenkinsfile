@@ -96,19 +96,39 @@ pipeline {
                                 exit 0  # Don't fail the build - config is updated
                             }
                             
-                            echo "Waiting for deployment to complete (with tolerance for Degraded state)..."
-                            # Wait for sync, but don't fail if health is Degraded (could be temporary)
+                            echo "Waiting for deployment sync to complete..."
+                            # Wait for sync only (not health) - sync is what matters
                             argocd --grpc-web app wait ${ARGOCD_APP} --timeout 600 --sync || {
-                                echo "WARNING: Deployment wait completed with warnings"
-                                echo "Checking final status..."
+                                echo "WARNING: Sync wait timed out or failed"
+                                echo "Checking sync status..."
                                 argocd --grpc-web app get ${ARGOCD_APP} || true
-                                echo ""
-                                echo "Deployment sync completed. Health status may be Degraded temporarily."
-                                echo "This is normal during rolling deployments."
-                                echo "Check ArgoCD UI for final deployment status:"
-                                echo "https://argocd-central.adda247.com/applications/${ARGOCD_APP}"
-                                # Don't fail - sync succeeded, health issues are temporary
                             }
+                            
+                            echo "Checking deployment status..."
+                            # Get app status to verify sync succeeded
+                            APP_STATUS=\$(argocd --grpc-web app get ${ARGOCD_APP} -o json 2>/dev/null || echo '{}')
+                            SYNC_STATUS=\$(echo "\$APP_STATUS" | grep -o '"syncStatus":"[^"]*"' | cut -d'"' -f4 || echo "Unknown")
+                            HEALTH_STATUS=\$(echo "\$APP_STATUS" | grep -o '"healthStatus":"[^"]*"' | cut -d'"' -f4 || echo "Unknown")
+                            
+                            echo "Sync Status: \$SYNC_STATUS"
+                            echo "Health Status: \$HEALTH_STATUS"
+                            
+                            if [ "\$SYNC_STATUS" = "Synced" ]; then
+                                echo "✅ Deployment sync completed successfully!"
+                                if [ "\$HEALTH_STATUS" = "Degraded" ]; then
+                                    echo "⚠️  Health is Degraded - this is normal during rolling updates"
+                                    echo "New pods are starting, old pods are terminating"
+                                    echo "Health should improve once new pods are ready"
+                                fi
+                                echo ""
+                                echo "Deployment URL: https://argocd-central.adda247.com/applications/${ARGOCD_APP}"
+                                echo "✅ Build succeeded - deployment is in progress"
+                                exit 0
+                            else
+                                echo "❌ Sync status is not Synced: \$SYNC_STATUS"
+                                echo "Check ArgoCD UI for details: https://argocd-central.adda247.com/applications/${ARGOCD_APP}"
+                                exit 1
+                            fi
                         """
                     }
                 }
