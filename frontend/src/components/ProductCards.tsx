@@ -41,9 +41,9 @@ const products = [
     comingSoon: true,
   },
   {
-    name: "Learner's Adda App",
+    name: "Learnr's adda",
     logo: "/logos/learners-adda-logo.png",
-    logoAlt: "Learner's Adda Logo",
+    logoAlt: "Learnr's adda Logo",
     website: "https://play.google.com/store/apps/details?id=com.adda247.gold&hl=en_IN",
     tagline: "Personalized learning experience for students",
     description: "Great for creators who discuss: academic excellence, skill building, student success stories, exam strategies, and educational tips.",
