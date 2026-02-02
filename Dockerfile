@@ -35,4 +35,4 @@ EXPOSE 8080 3001
 RUN npm install -g serve
 
 # Start both services
-CMD bash -c "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && serve -s dist -l 8080"
+CMD bash -c "cd /app/backend && uvicorn main:app --host 0.0.0.0 --port 3001 & cd /app/frontend && serve -s dist -l 8080 --cors"

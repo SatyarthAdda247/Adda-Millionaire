@@ -1,0 +1,19 @@
+{
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/health.json"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/health.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ]
+}
