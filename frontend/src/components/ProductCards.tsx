@@ -56,7 +56,7 @@ const products = [
     iconBg: "bg-purple-50",
     iconColor: "text-purple-600",
     fallbackLetter: "L",
-    comingSoon: true,
+    comingSoon: false,
   },
 ];
 
