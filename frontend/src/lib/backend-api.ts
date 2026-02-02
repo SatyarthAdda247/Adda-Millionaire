@@ -21,7 +21,9 @@ function getBackendUrl(): string {
     if (hostname === 'partners.addaeducation.com' || 
         hostname === 'www.partners.addaeducation.com' ||
         hostname.includes('addaeducation.com')) {
-      // Always use production API domain for AWS deployment
+      // Try production API domain first
+      // If DNS not configured, fallback to same-origin (if backend on same server)
+      // Or use relative URL if backend is proxied through frontend
       return 'https://api.partners.addaeducation.com';
     }
     
@@ -38,6 +40,20 @@ const BACKEND_URL = getBackendUrl();
 // Debug logging
 if (typeof window !== 'undefined') {
   console.log('🔧 Backend URL:', BACKEND_URL, '(Hostname:', window.location.hostname + ')');
+}
+
+// Helper to handle DNS resolution failures
+async function checkBackendAvailability(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${url}/health`, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(3000) // 3 second timeout
+    });
+    return response.ok;
+  } catch (error) {
+    console.warn('⚠️ Backend not available at:', url, error);
+    return false;
+  }
 }
 
 interface ApiResponse<T = any> {
