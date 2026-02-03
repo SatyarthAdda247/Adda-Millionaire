@@ -277,7 +277,15 @@ export async function getAffiliateAnalytics(id: string, options?: {
   const queryString = params.toString();
   const endpoint = `/api/users/${id}/analytics${queryString ? `?${queryString}` : ''}`;
   
-  return apiCall(endpoint, { method: 'GET' });
+  const result = await apiCall(endpoint, { method: 'GET' });
+  // Ensure consistent response structure
+  return {
+    success: result?.success ?? true,
+    data: result?.data ?? [],
+    clicks: result?.clicks ?? [],
+    conversions: result?.conversions ?? [],
+    ...result
+  };
 }
 
 /** Get dashboard stats */
