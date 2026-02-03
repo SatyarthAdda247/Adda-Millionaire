@@ -994,368 +994,262 @@ const AdminDashboard = () => {
                 <p className="text-gray-500 text-lg">No affiliates found</p>
                 <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
-                      <TableHead className="font-bold text-gray-700 py-4">Name</TableHead>
-                      <TableHead className="font-bold text-gray-700 py-4">Contact</TableHead>
-                      <TableHead className="font-bold text-gray-700 py-4">Platform Info</TableHead>
-                      <TableHead className="font-bold text-gray-700 py-4">Performance</TableHead>
-                      <TableHead className="font-bold text-gray-700 py-4">Status</TableHead>
-                      <TableHead className="font-bold text-gray-700 py-4 text-center">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAffiliates.map((affiliate) => {
-                      const status = affiliate.approvalStatus || 'pending';
-                      const stats = affiliate.stats || {
-                        totalClicks: 0,
-                        totalConversions: 0,
-                        totalEarnings: 0,
-                        conversionRate: 0,
-                        lastActivity: affiliate.createdAt
-                      };
-                      return (
-                        <TableRow 
-                          key={affiliate.id}
-                          className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-blue-50 transition-all duration-200 border-b border-gray-100"
-                        >
-                          <TableCell className="py-4">
-                            <div className="flex items-start gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
-                                {affiliate.name.charAt(0).toUpperCase()}
-                              </div>
-                              <div className="flex-1">
-                                <div className="font-semibold text-gray-900 text-base mb-1">{affiliate.name}</div>
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>Joined {new Date(affiliate.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                </div>
-                              </div>
+                        ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 p-4">
+                {filteredAffiliates.map((affiliate) => {
+                  const status = affiliate.approvalStatus || 'pending';
+                  const stats = affiliate.stats || {
+                    totalClicks: 0,
+                    totalConversions: 0,
+                    totalEarnings: 0,
+                    conversionRate: 0,
+                  };
+
+                  return (
+                    <motion.div
+                      key={affiliate.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200"
+                    >
+                      {/* Card Header with Status Badge */}
+                      <div className="relative bg-gradient-to-r from-blue-500 to-purple-600 p-4">
+                        <div className="absolute top-3 right-3">
+                          <Badge
+                            className={
+                              status === 'approved'
+                                ? 'bg-green-500 text-white'
+                                : status === 'rejected'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-yellow-500 text-white'
+                            }
+                          >
+                            {status === 'approved' && <CheckCircle className="w-3 h-3 mr-1 inline" />}
+                            {status === 'rejected' && <XCircle className="w-3 h-3 mr-1 inline" />}
+                            {status === 'pending' && <Clock className="w-3 h-3 mr-1 inline" />}
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </Badge>
+                        </div>
+                        
+                        {/* User Avatar & Name */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-blue-600 shadow-lg">
+                            {affiliate.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 text-white">
+                            <h3 className="font-bold text-lg mb-1">{affiliate.name}</h3>
+                            <div className="flex items-center gap-1 text-xs opacity-90">
+                              <Calendar className="w-3 h-3" />
+                              <span>Joined {new Date(affiliate.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                             </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="space-y-2">
-                              <div className="flex items-center gap-2 text-sm group">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                                  <Mail className="w-4 h-4 text-blue-600" />
-                                </div>
-                                <span className="text-gray-700 font-medium">{affiliate.email}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm group">
-                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                                  <Phone className="w-4 h-4 text-green-600" />
-                                </div>
-                                <span className="text-gray-700 font-medium">{affiliate.phone}</span>
-                              </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-4 space-y-4">
+                        {/* Contact Info */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                              <Mail className="w-4 h-4 text-blue-600" />
                             </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="space-y-2">
-                              {affiliate.socialHandles && affiliate.socialHandles.length > 0 ? (
-                                affiliate.socialHandles.map((handle: any, idx: number) => {
-                                  const url = getSocialMediaUrl(handle.platform, handle.handle);
-                                  return (
-                                    <div key={idx} className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-2 border-l-4 border-purple-400">
-                                      <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-semibold text-purple-700 text-sm">{handle.platform}</span>
-                                        <a
-                                          href={url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-blue-600 hover:text-blue-800 hover:underline text-sm flex items-center gap-1"
-                                        >
-                                          {handle.handle}
-                                          <ExternalLink className="w-3 h-3" />
-                                        </a>
-                                      </div>
-                                    </div>
-                                  );
-                                })
-                              ) : (
-                                <div className="space-y-2">
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <span className="text-gray-500 font-medium min-w-[70px]">Platform:</span>
-                                    <Badge variant="outline" className="border-purple-300 text-purple-700">
-                                      {affiliate.platform || '-'}
-                                    </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <span className="text-gray-500 font-medium min-w-[70px]">Handle:</span>
-                                    {affiliate.socialHandle ? (
-                                      <a
-                                        href={getSocialMediaUrl(affiliate.platform || 'Other', affiliate.socialHandle)}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-600 hover:text-blue-800 hover:underline font-medium flex items-center gap-1"
-                                      >
-                                        {affiliate.socialHandle}
-                                        <ExternalLink className="w-3 h-3" />
-                                      </a>
-                                    ) : (
-                                      <span className="text-gray-700 font-medium">-</span>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <span className="text-gray-500 font-medium min-w-[70px]">Followers:</span>
-                                    <span className="text-gray-700 font-semibold">{affiliate.followerCount || '-'}</span>
-                                  </div>
+                            <span className="text-gray-700 truncate flex-1">{affiliate.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
+                              <Phone className="w-4 h-4 text-green-600" />
+                            </div>
+                            <span className="text-gray-700">{affiliate.phone}</span>
+                          </div>
+                        </div>
+
+                        {/* Social Handle */}
+                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                          {affiliate.socialHandles && affiliate.socialHandles.length > 0 ? (
+                            affiliate.socialHandles.map((handle: any, idx: number) => {
+                              const url = getSocialMediaUrl(handle.platform, handle.handle);
+                              return (
+                                <div key={idx} className="flex items-center justify-between">
+                                  <span className="font-semibold text-purple-700 text-sm">{handle.platform}</span>
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                                  >
+                                    {handle.handle}
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <div className="text-sm space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-gray-500">Platform:</span>
+                                <span className="font-medium text-gray-700">{affiliate.platform || '-'}</span>
+                              </div>
+                              {affiliate.socialHandle && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Handle:</span>
+                                  <span className="font-medium text-gray-700">{affiliate.socialHandle}</span>
                                 </div>
                               )}
                             </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            {affiliate.links && affiliate.links.length > 0 ? (
-                              <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-                                <div className="flex items-start justify-between gap-4 mb-4">
-                                  {/* UNILINK Section */}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <LinkIcon className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">UNILINK</span>
-                                    </div>
-                                    <a 
-                                      href={affiliate.links[0].link} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-xs text-blue-600 hover:text-blue-800 break-all block leading-relaxed"
-                                    >
-                                      {affiliate.links[0].link}
-                                    </a>
-                                  </div>
-                                  
-                                  {/* Status and Date */}
-                                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                                    {status === 'approved' && (
-                                      <Badge className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-full flex items-center gap-1.5">
-                                        <CheckCircle className="w-3 h-3" />
-                                        Approved
-                                      </Badge>
-                                    )}
-                                    {affiliate.links[0]?.createdAt && (
-                                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                        <Calendar className="w-3 h-3" />
-                                        {new Date(affiliate.links[0].createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                {/* Metrics Grid */}
-                                <div className="grid grid-cols-2 gap-3 mt-4">
-                                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                                    <div className="text-xs text-gray-600 font-medium mb-1.5">Clicks</div>
-                                    <div className="text-xl font-bold text-blue-700">{stats.totalClicks.toLocaleString()}</div>
-                                  </div>
-                                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
-                                    <div className="text-xs text-gray-600 font-medium mb-1.5">Conversions</div>
-                                    <div className="text-xl font-bold text-purple-700">{stats.totalConversions.toLocaleString()}</div>
-                                  </div>
-                                  <div className="bg-green-50 rounded-lg p-3 border border-green-100">
-                                    <div className="text-xs text-gray-600 font-medium mb-1.5">Earnings</div>
-                                    <div className="text-xl font-bold text-green-700">₹{stats.totalEarnings.toLocaleString()}</div>
-                                  </div>
-                                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
-                                    <div className="flex items-center gap-1.5 text-xs text-gray-600 font-medium mb-1.5">
-                                      <BarChart3 className="w-3 h-3" />
-                                      Rate
-                                    </div>
-                                    <div className="text-xl font-bold text-orange-700">{stats.conversionRate.toFixed(2)}%</div>
-                                  </div>
-                                </div>
+                          )}
+                        </div>
+
+                        {/* Link Status & Stats */}
+                        {affiliate.unilink ? (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Check className="w-4 h-4 text-green-600" />
+                                <span className="text-sm font-semibold text-green-700">Link Active</span>
                               </div>
-                            ) : affiliate.unilink ? (
-                              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-                                <div className="flex items-center justify-center gap-2 mb-2">
-                                  <Check className="w-4 h-4 text-green-600" />
-                                  <div className="text-xs text-green-700 font-semibold">Link Active</div>
+                              <a 
+                                href={affiliate.unilink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                              >
+                                View <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                            {stats.totalClicks > 0 && (
+                              <div className="grid grid-cols-2 gap-2 mt-2">
+                                <div className="bg-white rounded p-2 text-center">
+                                  <div className="text-xs text-gray-500">Clicks</div>
+                                  <div className="font-bold text-blue-600">{stats.totalClicks}</div>
                                 </div>
-                                <a 
-                                  href={affiliate.unilink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-600 hover:underline break-all flex items-center justify-center gap-1"
-                                >
-                                  View Link
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                                <div className="text-xs text-gray-500 mt-2">
-                                  {stats ? 'Stats available in View Details' : 'Click View Details for stats'}
+                                <div className="bg-white rounded p-2 text-center">
+                                  <div className="text-xs text-gray-500">Earnings</div>
+                                  <div className="font-bold text-green-600">₹{stats.totalEarnings}</div>
                                 </div>
-                              </div>
-                            ) : status === 'approved' ? (
-                              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
-                                <div className="text-xs text-orange-600 font-medium">UniLink pending creation</div>
-                                <div className="text-xs text-gray-500 mt-1">Click "+ Link" to assign</div>
-                              </div>
-                            ) : (
-                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
-                                <div className="text-xs text-gray-400 font-medium">No link created</div>
-                                <div className="text-xs text-gray-400 mt-1">Approve user first</div>
                               </div>
                             )}
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="flex flex-col items-start gap-2">
-                              <Badge
-                                variant={
-                                  status === 'approved'
-                                    ? 'default'
-                                    : status === 'rejected'
-                                    ? 'destructive'
-                                    : 'secondary'
+                          </div>
+                        ) : status === 'approved' ? (
+                          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                            <div className="text-sm text-orange-600 font-medium">No Link Assigned</div>
+                            <div className="text-xs text-gray-500 mt-1">Click "+ Link" to assign</div>
+                          </div>
+                        ) : (
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                            <div className="text-sm text-gray-400">Pending Approval</div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Card Footer with Actions */}
+                      <div className="p-4 bg-gray-50 border-t border-gray-200 flex gap-2 justify-between">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            setSelectedAffiliate(affiliate);
+                            setAppTroveLinkStats(null);
+                            
+                            if (affiliate.id) {
+                              try {
+                                const response = await getAffiliateAnalytics(affiliate.id);
+                                if (response.success && response.analytics) {
+                                  setUserAnalytics(response.analytics);
+                                } else {
+                                  setUserAnalytics([]);
                                 }
-                                className={
-                                  status === 'approved'
-                                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md px-3 py-1 text-sm font-semibold'
-                                    : status === 'rejected'
-                                    ? 'bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-md px-3 py-1 text-sm font-semibold'
-                                    : 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md px-3 py-1 text-sm font-semibold'
-                                }
-                              >
-                                {status === 'approved' && <CheckCircle className="w-3 h-3 mr-1 inline" />}
-                                {status === 'rejected' && <XCircle className="w-3 h-3 mr-1 inline" />}
-                                {status === 'pending' && <Clock className="w-3 h-3 mr-1 inline" />}
-                                {status.charAt(0).toUpperCase() + status.slice(1)}
-                              </Badge>
-                              {affiliate.approvedAt && (
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>{new Date(affiliate.approvedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="flex gap-2 flex-wrap">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={async () => {
-                                  setSelectedAffiliate(affiliate);
-                                  setAppTroveLinkStats(null); // Reset previous stats
-                                  
-                                  if (affiliate.id) {
-                                    try {
-                                      // Fetch analytics via backend API
-                                      const response = await getAffiliateAnalytics(affiliate.id);
-                                      if (response.success && response.analytics) {
-                                        setUserAnalytics(response.analytics);
-                                      } else {
-                                        setUserAnalytics([]);
-                                      }
-                                    } catch (error) {
-                                      console.error('Error fetching user analytics:', error);
-                                      setUserAnalytics([]);
+                              } catch (error) {
+                                console.error('Error fetching user analytics:', error);
+                                setUserAnalytics([]);
+                              }
+                              
+                              if (affiliate.unilink) {
+                                const actualLinkId = extractLinkIdFromUnilink(affiliate.unilink);
+                                if (actualLinkId) {
+                                  console.log(`📊 Fetching AppTrove stats for link: ${actualLinkId}`);
+                                  try {
+                                    const statsResponse = await fetchLinkStats(actualLinkId);
+                                    if (statsResponse.success && statsResponse.stats) {
+                                      setAppTroveLinkStats(statsResponse.stats);
+                                    } else {
+                                      setAppTroveLinkStats({ error: statsResponse.error });
                                     }
-                                    
-                                    // Fetch AppTrove link stats if unilink exists
-                                    if (affiliate.unilink) {
-                                      // Extract actual linkId from unilink URL
-                                      const actualLinkId = extractLinkIdFromUnilink(affiliate.unilink);
-                                      
-                                      if (actualLinkId) {
-                                        console.log(`📊 Fetching AppTrove stats for link: ${actualLinkId} (from ${affiliate.unilink})`);
-                                        try {
-                                          const statsResponse = await fetchLinkStats(actualLinkId);
-                                          if (statsResponse.success && statsResponse.stats) {
-                                            console.log('✅ AppTrove stats fetched:', statsResponse.stats);
-                                            setAppTroveLinkStats(statsResponse.stats);
-                                          } else {
-                                            console.warn('⚠️ No AppTrove stats available:', statsResponse.error);
-                                            setAppTroveLinkStats({ error: statsResponse.error });
-                                          }
-                                        } catch (error) {
-                                          console.error('❌ Error fetching AppTrove stats:', error);
-                                          setAppTroveLinkStats({ error: 'Failed to fetch stats' });
-                                        }
-                                      } else {
-                                        console.warn('⚠️ Could not extract linkId from unilink:', affiliate.unilink);
-                                        setAppTroveLinkStats({ error: 'Invalid link format' });
-                                      }
-                                    }
+                                  } catch (error) {
+                                    setAppTroveLinkStats({ error: 'Failed to fetch stats' });
                                   }
-                                  setDetailDialogOpen(true);
-                                }}
-                                className="border-gray-300 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 transition-all shadow-sm"
-                                title="View Details"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                              {status === 'approved' && !affiliate.unilink && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:border-blue-600 transition-all shadow-sm"
-                                  onClick={async () => {
-                                    setSelectedAffiliate(affiliate);
-                                    if (templates.length === 0) {
-                                      await fetchTemplates();
-                                    }
-                                    setAssignLinkDialogOpen(true);
-                                  }}
-                                  title="Assign Link"
-                                >
-                                  <Plus className="w-4 h-4 mr-1" />
-                                  Link
-                                </Button>
-                              )}
-                              {status === 'approved' && affiliate.unilink && (
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-md">
-                                  <Check className="w-4 h-4 text-green-600" />
-                                  <span className="text-sm font-medium text-green-700">Link Active</span>
-                                </div>
-                              )}
-                              {status === 'pending' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedAffiliate(affiliate);
-                                      setAdminNotes(affiliate.adminNotes || '');
-                                      setApprovalDialogOpen(true);
-                                    }}
-                                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-md transition-all"
-                                    title="Approve"
-                                  >
-                                    <Check className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
-                                      setSelectedAffiliate(affiliate);
-                                      setAdminNotes(affiliate.adminNotes || '');
-                                      setRejectionDialogOpen(true);
-                                    }}
-                                    className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 shadow-md transition-all"
-                                    title="Reject"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  setSelectedAffiliate(affiliate);
-                                  setDeleteDialogOpen(true);
-                                }}
-                                className="bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white shadow-md transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                                } else {
+                                  setAppTroveLinkStats({ error: 'Invalid link format' });
+                                }
+                              }
+                            }
+                            setDetailDialogOpen(true);
+                          }}
+                          className="flex-1"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                        
+                        {status === 'approved' && !affiliate.unilink && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            className="flex-1 bg-blue-600 hover:bg-blue-700"
+                            onClick={async () => {
+                              setSelectedAffiliate(affiliate);
+                              if (templates.length === 0) {
+                                await fetchTemplates();
+                              }
+                              setAssignLinkDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Link
+                          </Button>
+                        )}
+                        
+                        {status === 'pending' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => {
+                                setSelectedAffiliate(affiliate);
+                                setAdminNotes(affiliate.adminNotes || '');
+                                setApprovalDialogOpen(true);
+                              }}
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setSelectedAffiliate(affiliate);
+                                setAdminNotes(affiliate.adminNotes || '');
+                                setRejectionDialogOpen(true);
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                        
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setSelectedAffiliate(affiliate);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
