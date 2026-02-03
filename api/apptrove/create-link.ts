@@ -432,7 +432,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               linkId: linkId,
               tracking: {
                 affiliateId: affiliateData?.id || linkData?.userId,
-                campaign,
+                campaign: campaignName,
                 templateId,
               },
               createdVia: 'api-registered',
@@ -451,7 +451,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               linkId: linkId,
               tracking: {
                 affiliateId: affiliateData?.id || linkData?.userId,
-                campaign,
+                campaign: campaignName,
                 templateId,
               },
               createdVia: 'api-registered',
