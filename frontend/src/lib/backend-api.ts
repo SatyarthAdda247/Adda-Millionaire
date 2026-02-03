@@ -177,13 +177,6 @@ async function apiCall<T = any>(
   }
 }
 
-// Helper to detect Vercel deployment
-function isVercelDeployment(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.location.hostname.includes('vercel.app') || 
-         window.location.hostname.includes('partners-adda.vercel.app');
-}
-
 /** Create new user/affiliate */
 export async function createUser(userData: {
   name: string;
