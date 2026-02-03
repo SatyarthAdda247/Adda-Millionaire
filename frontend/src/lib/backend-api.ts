@@ -294,6 +294,40 @@ export async function getAffiliateAnalytics(id: string, options?: {
 
 /** Get dashboard stats */
 export async function getDashboardStats() {
+  // On Vercel with DynamoDB, calculate stats from users
+  if (isVercelDeployment() && isDynamoDBConfigured()) {
+    try {
+      const users = await getAllUsers({});
+      const links = users.flatMap(u => u.unilink ? [u.unilink] : []);
+      
+      const totalAffiliates = users.length;
+      const pendingApprovals = users.filter(u => u.approvalStatus === 'pending').length;
+      const approvedAffiliates = users.filter(u => u.approvalStatus === 'approved').length;
+      const totalLinks = links.length;
+      
+      return {
+        success: true,
+        totalAffiliates,
+        pendingApprovals,
+        approvedAffiliates,
+        totalLinks,
+        totalClicks: 0, // Would need analytics table scan
+        totalConversions: 0 // Would need analytics table scan
+      };
+    } catch (error) {
+      console.error('Error calculating dashboard stats:', error);
+      return {
+        success: true,
+        totalAffiliates: 0,
+        pendingApprovals: 0,
+        approvedAffiliates: 0,
+        totalLinks: 0,
+        totalClicks: 0,
+        totalConversions: 0
+      };
+    }
+  }
+  
   const result = await apiCall('/api/dashboard/stats', { method: 'GET' });
   // Ensure consistent response structure
   return {
