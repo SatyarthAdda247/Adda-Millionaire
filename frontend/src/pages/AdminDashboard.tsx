@@ -206,6 +206,15 @@ const AdminDashboard = () => {
   const [userAnalytics, setUserAnalytics] = useState<any[]>([]);
   const [appTroveLinkStats, setAppTroveLinkStats] = useState<any>(null);
 
+  // Helper function to extract linkId from unilink URL
+  const extractLinkIdFromUnilink = (unilink: string): string | null => {
+    if (!unilink) return null;
+    
+    // Extract from URLs like: https://applink.learnr.co.in/d/Smritibisht
+    const match = unilink.match(/\/d\/([^?&#]+)/);
+    return match ? match[1] : null;
+  };
+
   useEffect(() => {
     // Check authentication from sessionStorage
     const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
@@ -417,10 +426,14 @@ const AdminDashboard = () => {
     }
 
     try {
+      // Extract linkId from unilink URL (e.g., "Smritibisht" from "https://applink.learnr.co.in/d/Smritibisht")
+      const extractedLinkId = extractLinkIdFromUnilink(unilink);
+      console.log(`📎 Extracted linkId from unilink: ${extractedLinkId}`);
+      
       // Assign link via backend API (handles DynamoDB internally)
       await assignLinkToAffiliate(selectedAffiliate.id, {
         unilink,
-        linkId: linkId || uuidv4(),
+        linkId: extractedLinkId || linkId || null,
         templateId: templateId || null,
       });
       
@@ -1238,21 +1251,29 @@ const AdminDashboard = () => {
                                       setUserAnalytics([]);
                                     }
                                     
-                                    // Fetch AppTrove link stats if linkId exists
-                                    if (affiliate.linkId) {
-                                      console.log(`📊 Fetching AppTrove stats for link: ${affiliate.linkId}`);
-                                      try {
-                                        const statsResponse = await fetchLinkStats(affiliate.linkId);
-                                        if (statsResponse.success && statsResponse.stats) {
-                                          console.log('✅ AppTrove stats fetched:', statsResponse.stats);
-                                          setAppTroveLinkStats(statsResponse.stats);
-                                        } else {
-                                          console.warn('⚠️ No AppTrove stats available:', statsResponse.error);
-                                          setAppTroveLinkStats(null);
+                                    // Fetch AppTrove link stats if unilink exists
+                                    if (affiliate.unilink) {
+                                      // Extract actual linkId from unilink URL
+                                      const actualLinkId = extractLinkIdFromUnilink(affiliate.unilink);
+                                      
+                                      if (actualLinkId) {
+                                        console.log(`📊 Fetching AppTrove stats for link: ${actualLinkId} (from ${affiliate.unilink})`);
+                                        try {
+                                          const statsResponse = await fetchLinkStats(actualLinkId);
+                                          if (statsResponse.success && statsResponse.stats) {
+                                            console.log('✅ AppTrove stats fetched:', statsResponse.stats);
+                                            setAppTroveLinkStats(statsResponse.stats);
+                                          } else {
+                                            console.warn('⚠️ No AppTrove stats available:', statsResponse.error);
+                                            setAppTroveLinkStats({ error: statsResponse.error });
+                                          }
+                                        } catch (error) {
+                                          console.error('❌ Error fetching AppTrove stats:', error);
+                                          setAppTroveLinkStats({ error: 'Failed to fetch stats' });
                                         }
-                                      } catch (error) {
-                                        console.error('❌ Error fetching AppTrove stats:', error);
-                                        setAppTroveLinkStats(null);
+                                      } else {
+                                        console.warn('⚠️ Could not extract linkId from unilink:', affiliate.unilink);
+                                        setAppTroveLinkStats({ error: 'Invalid link format' });
                                       }
                                     }
                                   }
@@ -1598,7 +1619,7 @@ const AdminDashboard = () => {
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
-                    {appTroveLinkStats ? (
+                    {appTroveLinkStats && !appTroveLinkStats.error ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                         <div className="bg-white p-3 rounded border">
                           <label className="text-xs text-gray-500">Clicks</label>
@@ -1625,13 +1646,21 @@ const AdminDashboard = () => {
                           </p>
                         </div>
                       </div>
-                    ) : selectedAffiliate.linkId ? (
-                      <div className="text-center py-4 text-gray-500 text-sm">
-                        Loading stats from AppTrove...
+                    ) : appTroveLinkStats?.error ? (
+                      <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mt-4">
+                        <div className="flex items-center gap-2 text-yellow-700 text-sm mb-2">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                          </svg>
+                          <span className="font-medium">No Stats Available Yet</span>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          Link is active, but no data has been recorded yet. Stats will appear once users click the link.
+                        </p>
                       </div>
                     ) : (
-                      <div className="text-center py-4 text-gray-400 text-sm">
-                        No link ID available
+                      <div className="text-center py-4 text-gray-500 text-sm animate-pulse">
+                        Loading stats from AppTrove...
                       </div>
                     )}
                   </div>
