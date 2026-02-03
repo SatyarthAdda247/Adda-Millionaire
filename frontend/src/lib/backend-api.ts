@@ -210,6 +210,7 @@ async function apiCall<T = any>(
             unilink: linkData.unilink,
             linkId: linkData.linkId,
             templateId: linkData.templateId,
+            approvalStatus: 'approved', // Auto-approve when link is assigned
             linkAssignedAt: new Date().toISOString()
           });
           const user = await getUserById(id);

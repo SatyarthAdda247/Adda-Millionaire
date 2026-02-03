@@ -509,11 +509,12 @@ async def assign_link(user_id: str, link_data: dict):
         
         users_table.update_item(
             Key={'id': user_id},
-            UpdateExpression='SET unilink = :unilink, linkId = :linkId, templateId = :templateId, updatedAt = :updatedAt',
+            UpdateExpression='SET unilink = :unilink, linkId = :linkId, templateId = :templateId, approvalStatus = :approvalStatus, updatedAt = :updatedAt',
             ExpressionAttributeValues={
                 ':unilink': unilink,
                 ':linkId': link_id,
                 ':templateId': update_data['templateId'],
+                ':approvalStatus': 'approved',  # Auto-approve when link is assigned
                 ':updatedAt': datetime.utcnow().isoformat()
             },
             ReturnValues='ALL_NEW'
