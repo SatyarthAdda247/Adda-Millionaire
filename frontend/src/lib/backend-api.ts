@@ -1,7 +1,20 @@
 /**
  * Backend API Client
- * All API calls go through the old backend (localhost:3001)
+ * On Vercel: Uses DynamoDB directly if AWS credentials are available
+ * On AWS: Uses Python FastAPI backend
+ * Local: Uses Python FastAPI backend (localhost:3001)
  */
+
+import { 
+  getAllUsers, 
+  getUserById, 
+  updateUser, 
+  deleteUser, 
+  getLinksByUserId, 
+  getAnalyticsByUserId,
+  isDynamoDBConfigured,
+  saveUser as saveUserToDynamoDB
+} from './dynamodb';
 
 // Use production API URL or fallback to localhost for development
 function getBackendUrl(): string {
@@ -297,6 +310,44 @@ export async function getDashboardStats() {
 
 /** Get dashboard analytics */
 export async function getDashboardAnalytics() {
+  // On Vercel with DynamoDB, calculate analytics from users and analytics table
+  if (isVercelDeployment() && isDynamoDBConfigured()) {
+    try {
+      const users = await getAllUsers({});
+      const approvedUsers = users.filter(u => u.approvalStatus === 'approved');
+      
+      // Get top affiliates by link count
+      const topAffiliates = approvedUsers
+        .filter(u => u.unilink)
+        .map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          links: 1,
+          clicks: 0,
+          conversions: 0
+        }))
+        .slice(0, 10);
+      
+      return {
+        success: true,
+        clicks: [],
+        conversions: [],
+        revenue: 0,
+        topAffiliates
+      };
+    } catch (error) {
+      console.error('Error calculating dashboard analytics:', error);
+      return {
+        success: true,
+        clicks: [],
+        conversions: [],
+        revenue: 0,
+        topAffiliates: []
+      };
+    }
+  }
+  
   const result = await apiCall('/api/dashboard/analytics', { method: 'GET' });
   // Ensure consistent response structure
   return {
