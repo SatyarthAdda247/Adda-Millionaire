@@ -25,25 +25,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const APPTROVE_API_KEY = process.env.APPTROVE_API_KEY || process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_API_KEY;
   const APPTROVE_API_URL = (process.env.APPTROVE_API_URL || process.env.VITE_APPTROVE_API_URL || 'https://api.apptrove.com').replace(/\/$/, '');
 
-  // Try multiple endpoints for stats
+  // Try multiple endpoints for stats (expanded based on common API patterns)
   const endpoints = [
+    // Internal endpoints
     `${APPTROVE_API_URL}/internal/unilink/${encodeURIComponent(linkId)}/stats`,
     `${APPTROVE_API_URL}/internal/link/${encodeURIComponent(linkId)}/stats`,
+    `${APPTROVE_API_URL}/internal/unilink/${encodeURIComponent(linkId)}/analytics`,
+    `${APPTROVE_API_URL}/internal/link/${encodeURIComponent(linkId)}/analytics`,
+    
+    // Reporting endpoints
+    `${APPTROVE_API_URL}/reporting/unilink/${encodeURIComponent(linkId)}/stats`,
+    `${APPTROVE_API_URL}/reporting/link/${encodeURIComponent(linkId)}/stats`,
     `${APPTROVE_API_URL}/api/reporting/link/${encodeURIComponent(linkId)}/stats`,
+    
+    // V1/V2 API endpoints
+    `${APPTROVE_API_URL}/v1/links/${encodeURIComponent(linkId)}/stats`,
+    `${APPTROVE_API_URL}/v2/links/${encodeURIComponent(linkId)}/stats`,
+    
+    // Analytics endpoints
+    `${APPTROVE_API_URL}/analytics/link/${encodeURIComponent(linkId)}`,
+    `${APPTROVE_API_URL}/analytics/unilink/${encodeURIComponent(linkId)}`,
   ];
 
-  // Try authentication methods - Reporting API Key for stats, then regular API Key
+  // Try all possible authentication methods
+  const APPTROVE_S2S_API = process.env.APPTROVE_S2S_API || process.env.VITE_APPTROVE_S2S_API;
+  const APPTROVE_SDK_KEY = process.env.APPTROVE_SDK_KEY || process.env.VITE_APPTROVE_SDK_KEY;
+  const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || process.env.VITE_APPTROVE_SECRET_ID;
+  const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || process.env.VITE_APPTROVE_SECRET_KEY;
+  
   const tryHeaders = [
-    { label: 'reporting-api-key', headers: {
+    { label: 'reporting-api-key-lowercase', headers: {
       'api-key': APPTROVE_REPORTING_API_KEY,
-      'X-Reporting-API-Key': APPTROVE_REPORTING_API_KEY,
       'Accept': 'application/json'
     } },
-    { label: 's2s-api-key', headers: {
-      'api-key': APPTROVE_API_KEY,
+    { label: 'reporting-api-key-uppercase', headers: {
+      'X-Api-Key': APPTROVE_REPORTING_API_KEY,
       'Accept': 'application/json'
     } },
-  ];
+    { label: 'bearer-reporting-key', headers: {
+      'Authorization': `Bearer ${APPTROVE_REPORTING_API_KEY}`,
+      'Accept': 'application/json'
+    } },
+    { label: 's2s-api-key-lowercase', headers: {
+      'api-key': APPTROVE_S2S_API,
+      'Accept': 'application/json'
+    } },
+    { label: 's2s-api-key-uppercase', headers: {
+      'X-Api-Key': APPTROVE_S2S_API,
+      'Accept': 'application/json'
+    } },
+    { label: 'bearer-s2s-key', headers: {
+      'Authorization': `Bearer ${APPTROVE_S2S_API}`,
+      'Accept': 'application/json'
+    } },
+    { label: 'sdk-key-lowercase', headers: {
+      'api-key': APPTROVE_SDK_KEY,
+      'Accept': 'application/json'
+    } },
+    { label: 'sdk-key-uppercase', headers: {
+      'X-Api-Key': APPTROVE_SDK_KEY,
+      'Accept': 'application/json'
+    } },
+    { label: 'basic-auth', headers: {
+      'Authorization': `Basic ${Buffer.from(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`).toString('base64')}`,
+      'Accept': 'application/json'
+    } },
+  ].filter(h => Object.values(h.headers).every(v => v && v !== 'undefined'));
 
   let lastError: any = null;
   const attemptLog: any[] = [];
