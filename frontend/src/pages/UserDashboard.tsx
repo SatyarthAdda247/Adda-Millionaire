@@ -34,6 +34,7 @@ import {
 } from "recharts";
 
 import { getUserById, getLinksByUserId, getAnalyticsByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
+import { fetchLinkStats } from "@/lib/apptrove";
 
 interface SocialHandle {
   platform: string;
@@ -56,6 +57,8 @@ interface UserData {
   createdAt: string;
   status?: string;
   approvalStatus?: string;
+  unilink?: string; // Added: AppTrove unilink
+  linkId?: string; // Added: AppTrove linkId
   links?: Array<{ id: string; link: string; createdAt?: string }>;
   stats?: {
     totalClicks: number;
@@ -85,6 +88,8 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsData[]>([]);
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
+  const [appTroveStats, setAppTroveStats] = useState<any>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in
@@ -104,6 +109,13 @@ const UserDashboard = () => {
     fetchAnalytics(sessionUser.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
+
+  // Helper function to extract linkId from unilink URL
+  const extractLinkIdFromUnilink = (unilink: string): string | null => {
+    if (!unilink) return null;
+    const match = unilink.match(/\/d\/([^?&#]+)/);
+    return match ? match[1] : null;
+  };
 
   const fetchUserData = async (userId: string) => {
     try {
@@ -139,6 +151,11 @@ const UserDashboard = () => {
       }
       
       setUser(userData);
+      
+      // Fetch AppTrove stats if unilink exists
+      if (userData.unilink) {
+        fetchAppTroveStats(userData.unilink);
+      }
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast({
@@ -148,6 +165,32 @@ const UserDashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAppTroveStats = async (unilink: string) => {
+    setLoadingStats(true);
+    try {
+      const linkId = extractLinkIdFromUnilink(unilink);
+      
+      if (!linkId) {
+        console.warn('⚠️ Could not extract linkId from unilink:', unilink);
+        return;
+      }
+      
+      console.log(`📊 Fetching AppTrove stats for link: ${linkId}`);
+      const statsResponse = await fetchLinkStats(linkId);
+      
+      if (statsResponse.success && statsResponse.stats) {
+        console.log('✅ AppTrove stats fetched:', statsResponse.stats);
+        setAppTroveStats(statsResponse.stats);
+      } else {
+        console.warn('⚠️ No AppTrove stats available:', statsResponse.error);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching AppTrove stats:', error);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
@@ -223,7 +266,15 @@ const UserDashboard = () => {
     return null;
   }
 
-  const stats = user.stats || {
+  // Use AppTrove stats if available, otherwise use stored stats
+  const stats = appTroveStats ? {
+    totalClicks: appTroveStats.clicks || 0,
+    totalConversions: appTroveStats.conversions || 0,
+    totalEarnings: appTroveStats.revenue || 0,
+    totalInstalls: appTroveStats.installs || 0,
+    conversionRate: appTroveStats.clicks > 0 ? ((appTroveStats.conversions / appTroveStats.clicks) * 100) : 0,
+    lastActivity: user.createdAt,
+  } : user.stats || {
     totalClicks: 0,
     totalConversions: 0,
     totalEarnings: 0,
@@ -466,9 +517,62 @@ const UserDashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {user.links && user.links.length > 0 ? (
+              {user.unilink || (user.links && user.links.length > 0) ? (
                 <div className="space-y-4">
-                  {user.links.map((link) => (
+                  {/* Show assigned unilink */}
+                  {user.unilink && (
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                          <span className="font-semibold text-green-700">Your Affiliate Link</span>
+                          {loadingStats && (
+                            <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                          )}
+                        </div>
+                        <a
+                          href={user.unilink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 hover:underline break-all flex items-center gap-2"
+                        >
+                          {user.unilink}
+                          <ExternalLink className="w-4 h-4 flex-shrink-0" />
+                        </a>
+                        {appTroveStats && (
+                          <div className="grid grid-cols-3 gap-2 mt-3">
+                            <div className="bg-white rounded p-2 text-center border border-green-100">
+                              <div className="text-xs text-gray-500">Clicks</div>
+                              <div className="font-bold text-blue-600">{appTroveStats.clicks || 0}</div>
+                            </div>
+                            <div className="bg-white rounded p-2 text-center border border-green-100">
+                              <div className="text-xs text-gray-500">Installs</div>
+                              <div className="font-bold text-cyan-600">{appTroveStats.installs || 0}</div>
+                            </div>
+                            <div className="bg-white rounded p-2 text-center border border-green-100">
+                              <div className="text-xs text-gray-500">Revenue</div>
+                              <div className="font-bold text-green-600">₹{appTroveStats.revenue || 0}</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(user.unilink!)}
+                        className="ml-4 bg-white hover:bg-green-50 border-green-300"
+                      >
+                        {copiedLink === user.unilink ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {/* Show old links if any */}
+                  {user.links && user.links.map((link) => (
                     <div
                       key={link.id}
                       className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border"
