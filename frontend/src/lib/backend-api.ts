@@ -87,9 +87,7 @@ async function apiCall<T = any>(
   // On Vercel, backend endpoints are not available (only AppTrove API routes exist)
   // Return empty/default responses for non-AppTrove endpoints
   if (isVercelDeployment() && !endpoint.startsWith('/api/apptrove')) {
-    console.warn(`⚠️ Backend endpoint not available on Vercel: ${endpoint}`);
-    console.warn(`   Admin dashboard requires AWS backend deployment`);
-    
+    // Silently return empty data on Vercel (no console warnings to reduce noise)
     // Return empty/default data based on endpoint
     if (endpoint.includes('/api/users') && options.method === 'GET') {
       return { success: true, users: [], data: [] };
