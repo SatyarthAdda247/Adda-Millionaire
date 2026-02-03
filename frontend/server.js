@@ -31,7 +31,4 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Frontend server running on port ${PORT}`);
-}).on('error', (err) => {
-  console.error('Failed to start frontend server:', err);
-  process.exit(1);
 });
