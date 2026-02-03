@@ -1153,13 +1153,34 @@ const AdminDashboard = () => {
                                   </div>
                                 </div>
                               </div>
+                            ) : affiliate.unilink ? (
+                              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                                <div className="flex items-center justify-center gap-2 mb-2">
+                                  <Check className="w-4 h-4 text-green-600" />
+                                  <div className="text-xs text-green-700 font-semibold">Link Active</div>
+                                </div>
+                                <a 
+                                  href={affiliate.unilink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-600 hover:underline break-all flex items-center justify-center gap-1"
+                                >
+                                  View Link
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                                <div className="text-xs text-gray-500 mt-2">
+                                  {stats ? 'Stats available in View Details' : 'Click View Details for stats'}
+                                </div>
+                              </div>
                             ) : status === 'approved' ? (
                               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
                                 <div className="text-xs text-orange-600 font-medium">UniLink pending creation</div>
+                                <div className="text-xs text-gray-500 mt-1">Click "+ Link" to assign</div>
                               </div>
                             ) : (
                               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
                                 <div className="text-xs text-gray-400 font-medium">No link created</div>
+                                <div className="text-xs text-gray-400 mt-1">Approve user first</div>
                               </div>
                             )}
                           </TableCell>
