@@ -26,7 +26,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ANDROID_APP_ID: process.env.APPTROVE_ANDROID_APP_ID,
   };
 
-  const baseUrl = credentials.DOMAIN.replace(/\/$/, '');
+  // Fix domain: ensure https:// protocol and use API domain, not link domain
+  let baseUrl = credentials.DOMAIN;
+  
+  // If domain is a link domain (applink.*), use api.apptrove.com instead
+  if (baseUrl.includes('applink.')) {
+    console.warn(`[Test Stats] Domain is a link domain (${baseUrl}), using api.apptrove.com instead`);
+    baseUrl = 'https://api.apptrove.com';
+  }
+  
+  // Ensure https:// protocol
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = 'https://' + baseUrl;
+  }
+  
+  baseUrl = baseUrl.replace(/\/$/, '');
 
   // Test all possible endpoint patterns
   const endpoints = [
