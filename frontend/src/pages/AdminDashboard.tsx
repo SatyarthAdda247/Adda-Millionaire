@@ -1157,19 +1157,16 @@ const AdminDashboard = () => {
                                   setSelectedAffiliate(affiliate);
                                   if (affiliate.id) {
                                     try {
-                                      const useDynamoDB = isDynamoDBConfigured();
-                                      
-                                      if (useDynamoDB) {
-                                        // Fetch analytics from DynamoDB
-                                        const analytics = await getAnalyticsByUserId(affiliate.id);
-                                        setUserAnalytics(analytics);
+                                      // Fetch analytics via backend API
+                                      const response = await getAffiliateAnalytics(affiliate.id);
+                                      if (response.success && response.analytics) {
+                                        setUserAnalytics(response.analytics);
                                       } else {
-                                        // DynamoDB not configured
-                                        console.error('❌ DynamoDB not configured!');
                                         setUserAnalytics([]);
                                       }
                                     } catch (error) {
                                       console.error('Error fetching user analytics:', error);
+                                      setUserAnalytics([]);
                                     }
                                   }
                                   setDetailDialogOpen(true);
