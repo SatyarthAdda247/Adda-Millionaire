@@ -244,29 +244,32 @@ const AdminDashboard = () => {
     }
   }, [selectedTemplate]);
 
-  // Auto-select template when dialog opens (Millionaires Adda template ID: wBehUW)
+  // Auto-select template when dialog opens (Mehak Instagram Influencers - applink.learnr.co.in)
   useEffect(() => {
     if (!assignLinkDialogOpen) return;
 
-    // Always prefer the known Template ID from AppTrove: "Millionaires Adda" => wBehUW
-    if (!selectedTemplate) {
-      setSelectedTemplate("wBehUW");
-    }
-
-    // If templates are loaded, still try to match by name/id and keep selection consistent
+    // If templates are loaded, try to find "Mehak Instagram Influencers" template
     if (templates.length > 0 && !selectedTemplate) {
       const defaultTemplate = templates.find(
         (t) =>
-          t._id === "wBehUW" ||
-          t.id === "wBehUW" ||
-          t.name?.toLowerCase().includes("millionaire") ||
-          t.name?.toLowerCase().includes("adda") ||
-          t.name?.toLowerCase().includes("edurise"),
+          t.name?.toLowerCase().includes("mehak") ||
+          t.name?.toLowerCase().includes("learnr") ||
+          t.name?.toLowerCase().includes("instagram influencer") ||
+          t.domain?.includes("learnr.co.in") ||
+          t.domain?.includes("applink.learnr")
       );
 
       if (defaultTemplate) {
         const templateId = defaultTemplate._id || defaultTemplate.id;
+        console.log('✅ Auto-selected Mehak Instagram template:', templateId, defaultTemplate.name);
         setSelectedTemplate(templateId);
+      } else {
+        // Fallback: select first available template
+        console.log('⚠️ Mehak template not found, using first available template');
+        const firstTemplate = templates[0];
+        if (firstTemplate) {
+          setSelectedTemplate(firstTemplate._id || firstTemplate.id);
+        }
       }
     }
   }, [assignLinkDialogOpen, templates]);
