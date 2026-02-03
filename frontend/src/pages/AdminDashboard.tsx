@@ -70,7 +70,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { getTemplates, getTemplateLinks, createLink, isAppTroveConfigured } from "@/lib/apptrove";
+import { getTemplates, getTemplateLinks, createLink, isAppTroveConfigured, fetchLinkStats } from "@/lib/apptrove";
 import { 
   getAllAffiliates, 
   updateAffiliate, 
@@ -204,6 +204,7 @@ const AdminDashboard = () => {
   const [selectedLink, setSelectedLink] = useState<string>("");
   const [manualUnilink, setManualUnilink] = useState("");
   const [userAnalytics, setUserAnalytics] = useState<any[]>([]);
+  const [appTroveLinkStats, setAppTroveLinkStats] = useState<any>(null);
 
   useEffect(() => {
     // Check authentication from sessionStorage
@@ -1200,6 +1201,8 @@ const AdminDashboard = () => {
                                 variant="outline"
                                 onClick={async () => {
                                   setSelectedAffiliate(affiliate);
+                                  setAppTroveLinkStats(null); // Reset previous stats
+                                  
                                   if (affiliate.id) {
                                     try {
                                       // Fetch analytics via backend API
@@ -1212,6 +1215,24 @@ const AdminDashboard = () => {
                                     } catch (error) {
                                       console.error('Error fetching user analytics:', error);
                                       setUserAnalytics([]);
+                                    }
+                                    
+                                    // Fetch AppTrove link stats if linkId exists
+                                    if (affiliate.linkId) {
+                                      console.log(`📊 Fetching AppTrove stats for link: ${affiliate.linkId}`);
+                                      try {
+                                        const statsResponse = await fetchLinkStats(affiliate.linkId);
+                                        if (statsResponse.success && statsResponse.stats) {
+                                          console.log('✅ AppTrove stats fetched:', statsResponse.stats);
+                                          setAppTroveLinkStats(statsResponse.stats);
+                                        } else {
+                                          console.warn('⚠️ No AppTrove stats available:', statsResponse.error);
+                                          setAppTroveLinkStats(null);
+                                        }
+                                      } catch (error) {
+                                        console.error('❌ Error fetching AppTrove stats:', error);
+                                        setAppTroveLinkStats(null);
+                                      }
                                     }
                                   }
                                   setDetailDialogOpen(true);
@@ -1530,12 +1551,72 @@ const AdminDashboard = () => {
                 </div>
               )}
 
+              {/* AppTrove Link Stats */}
+              {selectedAffiliate.unilink && (
+                <div>
+                  <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
+                    <LinkIcon className="w-5 h-5" />
+                    AppTrove Link
+                  </h3>
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                    <div>
+                      <label className="text-sm text-gray-500">UniLink URL</label>
+                      <a
+                        href={selectedAffiliate.unilink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline break-all flex items-center gap-1 mt-1"
+                      >
+                        {selectedAffiliate.unilink}
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    {appTroveLinkStats ? (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                        <div className="bg-white p-3 rounded border">
+                          <label className="text-xs text-gray-500">Clicks</label>
+                          <p className="text-xl font-bold text-blue-600">
+                            {appTroveLinkStats.clicks || 0}
+                          </p>
+                        </div>
+                        <div className="bg-white p-3 rounded border">
+                          <label className="text-xs text-gray-500">Installs</label>
+                          <p className="text-xl font-bold text-cyan-600">
+                            {appTroveLinkStats.installs || 0}
+                          </p>
+                        </div>
+                        <div className="bg-white p-3 rounded border">
+                          <label className="text-xs text-gray-500">Conversions</label>
+                          <p className="text-xl font-bold text-purple-600">
+                            {appTroveLinkStats.conversions || 0}
+                          </p>
+                        </div>
+                        <div className="bg-white p-3 rounded border">
+                          <label className="text-xs text-gray-500">Revenue</label>
+                          <p className="text-xl font-bold text-green-600">
+                            ₹{appTroveLinkStats.revenue || 0}
+                          </p>
+                        </div>
+                      </div>
+                    ) : selectedAffiliate.linkId ? (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        Loading stats from AppTrove...
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-gray-400 text-sm">
+                        No link ID available
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Performance Stats */}
               {selectedAffiliate.stats && (
                 <div>
                   <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
-                    Performance Statistics
+                    Performance Statistics (DynamoDB)
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg mb-4">
                     <div className="bg-white p-3 rounded border">
