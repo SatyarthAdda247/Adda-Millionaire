@@ -1033,14 +1033,14 @@ const AdminDashboard = () => {
                         
                         {/* User Avatar & Name */}
                         <div className="flex items-start gap-3">
-                          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-blue-600 shadow-lg">
+                          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-blue-600 shadow-lg flex-shrink-0">
                             {affiliate.name.charAt(0).toUpperCase()}
                           </div>
-                          <div className="flex-1 text-white">
-                            <h3 className="font-bold text-lg mb-1">{affiliate.name}</h3>
+                          <div className="flex-1 text-white min-w-0">
+                            <h3 className="font-bold text-lg mb-1 truncate">{affiliate.name}</h3>
                             <div className="flex items-center gap-1 text-xs opacity-90">
-                              <Calendar className="w-3 h-3" />
-                              <span>Joined {new Date(affiliate.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                              <Calendar className="w-3 h-3 flex-shrink-0" />
+                              <span className="truncate">Joined {new Date(affiliate.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                             </div>
                           </div>
                         </div>
@@ -1050,17 +1050,17 @@ const AdminDashboard = () => {
                       <div className="p-4 space-y-4">
                         {/* Contact Info */}
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                          <div className="flex items-center gap-2 text-sm min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                               <Mail className="w-4 h-4 text-blue-600" />
                             </div>
-                            <span className="text-gray-700 truncate flex-1">{affiliate.email}</span>
+                            <span className="text-gray-700 truncate flex-1 min-w-0" title={affiliate.email}>{affiliate.email}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center">
+                          <div className="flex items-center gap-2 text-sm min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
                               <Phone className="w-4 h-4 text-green-600" />
                             </div>
-                            <span className="text-gray-700">{affiliate.phone}</span>
+                            <span className="text-gray-700 truncate flex-1 min-w-0">{affiliate.phone}</span>
                           </div>
                         </div>
 
@@ -1070,30 +1070,33 @@ const AdminDashboard = () => {
                             affiliate.socialHandles.map((handle: any, idx: number) => {
                               const url = getSocialMediaUrl(handle.platform, handle.handle);
                               return (
-                                <div key={idx} className="flex items-center justify-between">
-                                  <span className="font-semibold text-purple-700 text-sm">{handle.platform}</span>
+                                <div key={idx} className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-purple-700 text-sm flex-shrink-0">{handle.platform}</span>
+                                    <ExternalLink className="w-3 h-3 text-purple-400 flex-shrink-0" />
+                                  </div>
                                   <a
                                     href={url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline text-sm flex items-center gap-1"
+                                    className="text-blue-600 hover:underline text-xs block truncate"
+                                    title={handle.handle}
                                   >
                                     {handle.handle}
-                                    <ExternalLink className="w-3 h-3" />
                                   </a>
                                 </div>
                               );
                             })
                           ) : (
                             <div className="text-sm space-y-1">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Platform:</span>
-                                <span className="font-medium text-gray-700">{affiliate.platform || '-'}</span>
+                              <div className="flex items-center justify-between gap-2 min-w-0">
+                                <span className="text-gray-500 flex-shrink-0">Platform:</span>
+                                <span className="font-medium text-gray-700 truncate">{affiliate.platform || '-'}</span>
                               </div>
                               {affiliate.socialHandle && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">Handle:</span>
-                                  <span className="font-medium text-gray-700">{affiliate.socialHandle}</span>
+                                <div className="flex items-center justify-between gap-2 min-w-0">
+                                  <span className="text-gray-500 flex-shrink-0">Handle:</span>
+                                  <span className="font-medium text-gray-700 truncate" title={affiliate.socialHandle}>{affiliate.socialHandle}</span>
                                 </div>
                               )}
                             </div>
@@ -1103,8 +1106,8 @@ const AdminDashboard = () => {
                         {/* Link Status & Stats */}
                         {affiliate.unilink ? (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-between mb-2 gap-2">
+                              <div className="flex items-center gap-2 flex-shrink-0">
                                 <Check className="w-4 h-4 text-green-600" />
                                 <span className="text-sm font-semibold text-green-700">Link Active</span>
                               </div>
@@ -1112,10 +1115,13 @@ const AdminDashboard = () => {
                                 href={affiliate.unilink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                                className="text-xs text-blue-600 hover:underline flex items-center gap-1 flex-shrink-0"
                               >
                                 View <ExternalLink className="w-3 h-3" />
                               </a>
+                            </div>
+                            <div className="text-xs text-gray-600 truncate mb-2" title={affiliate.unilink}>
+                              {affiliate.unilink}
                             </div>
                             {stats.totalClicks > 0 && (
                               <div className="grid grid-cols-2 gap-2 mt-2">
