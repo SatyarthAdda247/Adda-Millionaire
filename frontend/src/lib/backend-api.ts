@@ -43,9 +43,19 @@ function getBackendUrl(): string {
 
 const BACKEND_URL = getBackendUrl();
 
+// Helper to detect Vercel deployment
+function isVercelDeployment(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname;
+  return hostname.includes('vercel.app') || hostname.includes('partners-adda.vercel.app');
+}
+
 // Debug logging
 if (typeof window !== 'undefined') {
   console.log('🔧 Backend URL:', BACKEND_URL, '(Hostname:', window.location.hostname + ')');
+  if (isVercelDeployment()) {
+    console.log('⚠️ Vercel deployment detected - backend endpoints will return empty data');
+  }
 }
 
 // Helper to handle DNS resolution failures
@@ -74,6 +84,44 @@ async function apiCall<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
+  // On Vercel, backend endpoints are not available (only AppTrove API routes exist)
+  // Return empty/default responses for non-AppTrove endpoints
+  if (isVercelDeployment() && !endpoint.startsWith('/api/apptrove')) {
+    console.warn(`⚠️ Backend endpoint not available on Vercel: ${endpoint}`);
+    console.warn(`   Admin dashboard requires AWS backend deployment`);
+    
+    // Return empty/default data based on endpoint
+    if (endpoint.includes('/api/users') && options.method === 'GET') {
+      return { success: true, users: [], data: [] };
+    }
+    if (endpoint.includes('/api/dashboard/stats')) {
+      return { 
+        success: true, 
+        totalAffiliates: 0,
+        pendingApprovals: 0,
+        approvedAffiliates: 0,
+        totalLinks: 0,
+        totalClicks: 0,
+        totalConversions: 0
+      };
+    }
+    if (endpoint.includes('/api/dashboard/analytics')) {
+      return { 
+        success: true, 
+        clicks: [],
+        conversions: [],
+        revenue: 0,
+        topAffiliates: []
+      };
+    }
+    if (endpoint.includes('/analytics')) {
+      return { success: true, data: [] };
+    }
+    
+    // Default empty response
+    return { success: true, data: null };
+  }
+  
   const url = `${BACKEND_URL}${endpoint}`;
   console.log(`🌐 ${options.method || 'GET'} ${url}`);
 
@@ -96,7 +144,7 @@ async function apiCall<T = any>(
       throw new Error(errorMsg);
     }
 
-    return data;
+    return data || { success: true, data: null };
   } catch (error: any) {
     // Handle DNS resolution errors
     if (error?.message?.includes('ERR_NAME_NOT_RESOLVED') || 
@@ -106,11 +154,34 @@ async function apiCall<T = any>(
       console.error(`   Backend URL: ${BACKEND_URL}`);
       console.error(`   ⚠️ DNS may not be configured for api.partners.addaeducation.com`);
       console.error(`   ⚠️ Or backend service is not running`);
+      
+      // On Vercel, return empty data instead of throwing
+      if (isVercelDeployment()) {
+        console.warn(`   Returning empty data for Vercel deployment`);
+        if (endpoint.includes('/api/users') && options.method === 'GET') {
+          return { success: true, users: [], data: [] };
+        }
+        if (endpoint.includes('/api/dashboard/stats')) {
+          return { success: true, totalAffiliates: 0, pendingApprovals: 0, approvedAffiliates: 0, totalLinks: 0 };
+        }
+        if (endpoint.includes('/api/dashboard/analytics')) {
+          return { success: true, clicks: [], conversions: [], revenue: 0 };
+        }
+        return { success: true, data: null };
+      }
+      
       throw new Error(`Backend unavailable. Please check DNS configuration for api.partners.addaeducation.com or ensure backend is running.`);
     }
     console.error(`API Error [${endpoint}]:`, error);
     throw error;
   }
+}
+
+// Helper to detect Vercel deployment
+function isVercelDeployment(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.includes('vercel.app') || 
+         window.location.hostname.includes('partners-adda.vercel.app');
 }
 
 /** Create new user/affiliate */
@@ -205,12 +276,32 @@ export async function getAffiliateAnalytics(id: string, options?: {
 
 /** Get dashboard stats */
 export async function getDashboardStats() {
-  return apiCall('/api/dashboard/stats', { method: 'GET' });
+  const result = await apiCall('/api/dashboard/stats', { method: 'GET' });
+  // Ensure consistent response structure
+  return {
+    success: result?.success ?? true,
+    totalAffiliates: result?.totalAffiliates ?? 0,
+    pendingApprovals: result?.pendingApprovals ?? 0,
+    approvedAffiliates: result?.approvedAffiliates ?? 0,
+    totalLinks: result?.totalLinks ?? 0,
+    totalClicks: result?.totalClicks ?? 0,
+    totalConversions: result?.totalConversions ?? 0,
+    ...result
+  };
 }
 
 /** Get dashboard analytics */
 export async function getDashboardAnalytics() {
-  return apiCall('/api/dashboard/analytics', { method: 'GET' });
+  const result = await apiCall('/api/dashboard/analytics', { method: 'GET' });
+  // Ensure consistent response structure
+  return {
+    success: result?.success ?? true,
+    clicks: result?.clicks ?? [],
+    conversions: result?.conversions ?? [],
+    revenue: result?.revenue ?? 0,
+    topAffiliates: result?.topAffiliates ?? [],
+    ...result
+  };
 }
 
 /** Assign link to user */
