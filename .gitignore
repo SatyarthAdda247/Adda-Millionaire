@@ -12,6 +12,16 @@ dist
 dist-ssr
 *.local
 
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+backend/.env
+backend-python/.env
+server/.env
+**/.env
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +32,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AWS credentials and secrets
+*credentials*
+*secret*
+*key*
