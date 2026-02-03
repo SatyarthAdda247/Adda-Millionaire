@@ -497,13 +497,37 @@ const AdminDashboard = () => {
     if (!selectedAffiliate) return;
     
     try {
-      // Approve user via backend API
-      const response = await approveAffiliate(selectedAffiliate.id, {
+      // Approve user via backend API (handles DynamoDB internally)
+      await approveAffiliate(selectedAffiliate.id, {
         adminNotes: adminNotes || undefined,
-        approvedBy: 'admin'
+        approvedBy: user?.email || 'admin'
       });
       
-      if (useDynamoDB) {
+      toast({
+        title: "✅ Approved",
+        description: `${selectedAffiliate.name} has been approved. You can assign a link using the "Assign Link" button.`,
+        duration: 5000,
+      });
+      
+      setApprovalDialogOpen(false);
+      setAdminNotes("");
+      setSelectedAffiliate(null);
+      fetchAffiliates();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to approve affiliate",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApproveOLD_BACKUP = async () => {
+    if (!selectedAffiliate) return;
+    
+    try {
+      // OLD CODE - keeping as backup, to be removed later
+      if (false) {
         let unilink = null;
         let linkId = null;
         let templateId = null;
@@ -678,29 +702,20 @@ const AdminDashboard = () => {
     if (!selectedAffiliate) return;
 
     try {
-      const useDynamoDB = isDynamoDBConfigured();
+      // Reject the user via backend API
+      await rejectAffiliate(selectedAffiliate.id, {
+        adminNotes: adminNotes || undefined,
+        approvedBy: user?.email || 'admin',
+      });
       
-      if (useDynamoDB) {
-        // Update user in DynamoDB
-        await updateUser(selectedAffiliate.id, {
-          approvalStatus: 'rejected',
-          rejectedAt: new Date().toISOString(),
-          rejectedBy: user?.email || 'admin',
-          adminNotes: adminNotes || undefined,
-        });
-        
-        toast({
-          title: "Rejected",
-          description: `${selectedAffiliate.name} has been rejected`,
-        });
-        setRejectionDialogOpen(false);
-        setAdminNotes("");
-        setSelectedAffiliate(null);
-        fetchAffiliates();
-      } else {
-        // DynamoDB not configured
-        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
-      }
+      toast({
+        title: "Rejected",
+        description: `${selectedAffiliate.name} has been rejected`,
+      });
+      setRejectionDialogOpen(false);
+      setAdminNotes("");
+      setSelectedAffiliate(null);
+      fetchAffiliates();
     } catch (error) {
       toast({
         title: "Error",
@@ -728,23 +743,16 @@ const AdminDashboard = () => {
     if (!selectedAffiliate) return;
 
     try {
-      const useDynamoDB = isDynamoDBConfigured();
+      // Delete user via backend API
+      await deleteAffiliate(selectedAffiliate.id);
       
-      if (useDynamoDB) {
-        // Delete user from DynamoDB
-        await deleteUser(selectedAffiliate.id);
-        
-        toast({
-          title: "User Deleted",
-          description: `${selectedAffiliate.name} has been deleted successfully`,
-        });
-        setDeleteDialogOpen(false);
-        setSelectedAffiliate(null);
-        fetchAffiliates();
-      } else {
-        // DynamoDB not configured
-        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
-      }
+      toast({
+        title: "User Deleted",
+        description: `${selectedAffiliate.name} has been deleted successfully`,
+      });
+      setDeleteDialogOpen(false);
+      setSelectedAffiliate(null);
+      fetchAffiliates();
     } catch (error) {
       toast({
         title: "Error",
