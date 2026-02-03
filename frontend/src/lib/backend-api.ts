@@ -67,7 +67,11 @@ function isVercelDeployment(): boolean {
 if (typeof window !== 'undefined') {
   console.log('🔧 Backend URL:', BACKEND_URL, '(Hostname:', window.location.hostname + ')');
   if (isVercelDeployment()) {
-    console.log('⚠️ Vercel deployment detected - backend endpoints will return empty data');
+    if (isDynamoDBConfigured()) {
+      console.log('✅ Vercel deployment with DynamoDB - using direct DynamoDB access');
+    } else {
+      console.log('⚠️ Vercel deployment without DynamoDB - backend endpoints will return empty data');
+    }
   }
 }
 
@@ -97,40 +101,144 @@ async function apiCall<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  // On Vercel, backend endpoints are not available (only AppTrove API routes exist)
-  // Return empty/default responses for non-AppTrove endpoints
+  // On Vercel, use DynamoDB directly if configured; otherwise use backend or return empty data
   if (isVercelDeployment() && !endpoint.startsWith('/api/apptrove')) {
-    // Silently return empty data on Vercel (no console warnings to reduce noise)
-    // Return empty/default data based on endpoint
-    if (endpoint.includes('/api/users') && options.method === 'GET') {
-      return { success: true, users: [], data: [] };
+    // Check if DynamoDB is configured
+    if (isDynamoDBConfigured()) {
+      // Use DynamoDB directly for backend endpoints
+      try {
+        const method = options.method || 'GET';
+        console.log(`🔍 DynamoDB Handler: ${method} ${endpoint}`);
+        
+        // Handle GET /api/users
+        if (endpoint.startsWith('/api/users') && method === 'GET' && !endpoint.match(/\/api\/users\/[^\/]+/)) {
+          const url = new URL(endpoint, 'http://localhost');
+          const filters: any = {};
+          url.searchParams.forEach((value, key) => {
+            filters[key] = value;
+          });
+          
+          console.log(`📊 Fetching users from DynamoDB with filters:`, filters);
+          const users = await getAllUsers(filters);
+          console.log(`✅ DynamoDB returned ${users.length} users`);
+          return { success: true, users, data: users };
+        }
+        
+        // Handle GET /api/users/:id
+        if (endpoint.match(/^\/api\/users\/[^\/]+$/) && method === 'GET') {
+          const id = endpoint.split('/api/users/')[1];
+          console.log(`📊 Fetching user ${id} from DynamoDB`);
+          const user = await getUserById(id);
+          return { success: true, user, data: user };
+        }
+        
+        // Handle GET /api/users/:id/analytics
+        if (endpoint.match(/^\/api\/users\/[^\/]+\/analytics/) && method === 'GET') {
+          const id = endpoint.split('/api/users/')[1].split('/')[0];
+          const analytics = await getAnalyticsByUserId(id);
+          return { success: true, data: analytics, analytics };
+        }
+        
+        // Handle POST /api/users
+        if (endpoint === '/api/users' && method === 'POST') {
+          const userData = JSON.parse(options.body as string);
+          console.log(`📝 Saving new user to DynamoDB:`, userData.email);
+          const result = await saveUserToDynamoDB(userData);
+          return { success: true, user: result.user, data: result.user };
+        }
+        
+        // Handle POST /api/users/:id/approve
+        if (endpoint.match(/^\/api\/users\/[^\/]+\/approve$/) && method === 'POST') {
+          const id = endpoint.split('/api/users/')[1].split('/')[0];
+          const body = JSON.parse(options.body as string);
+          await updateUser(id, { 
+            approvalStatus: 'approved',
+            approvedAt: new Date().toISOString(),
+            ...body
+          });
+          const user = await getUserById(id);
+          return { success: true, user, data: user };
+        }
+        
+        // Handle POST /api/users/:id/reject
+        if (endpoint.match(/^\/api\/users\/[^\/]+\/reject$/) && options.method === 'POST') {
+          const id = endpoint.split('/api/users/')[1].split('/')[0];
+          const body = JSON.parse(options.body as string);
+          await updateUser(id, { 
+            approvalStatus: 'rejected',
+            rejectedAt: new Date().toISOString(),
+            ...body
+          });
+          const user = await getUserById(id);
+          return { success: true, user, data: user };
+        }
+        
+        // Handle DELETE /api/users/:id
+        if (endpoint.match(/^\/api\/users\/[^\/]+$/) && options.method === 'DELETE') {
+          const id = endpoint.split('/api/users/')[1];
+          await deleteUser(id);
+          return { success: true, message: 'User deleted' };
+        }
+        
+        // Handle PUT /api/users/:id
+        if (endpoint.match(/^\/api\/users\/[^\/]+$/) && options.method === 'PUT') {
+          const id = endpoint.split('/api/users/')[1];
+          const updates = JSON.parse(options.body as string);
+          await updateUser(id, updates);
+          const user = await getUserById(id);
+          return { success: true, user, data: user };
+        }
+        
+        // Handle POST /api/users/:id/assign-link
+        if (endpoint.match(/^\/api\/users\/[^\/]+\/assign-link$/) && options.method === 'POST') {
+          const id = endpoint.split('/api/users/')[1].split('/')[0];
+          const linkData = JSON.parse(options.body as string);
+          await updateUser(id, { 
+            unilink: linkData.unilink,
+            linkId: linkData.linkId,
+            templateId: linkData.templateId,
+            linkAssignedAt: new Date().toISOString()
+          });
+          const user = await getUserById(id);
+          return { success: true, user, data: user };
+        }
+        
+        // For dashboard endpoints, they're handled in their respective functions
+        // Just fall through to backend call attempt
+      } catch (error: any) {
+        console.error(`DynamoDB Error [${endpoint}]:`, error);
+        throw error;
+      }
+    } else {
+      // DynamoDB not configured - return empty data
+      if (endpoint.includes('/api/users') && options.method === 'GET') {
+        return { success: true, users: [], data: [] };
+      }
+      if (endpoint.includes('/api/dashboard/stats')) {
+        return { 
+          success: true, 
+          totalAffiliates: 0,
+          pendingApprovals: 0,
+          approvedAffiliates: 0,
+          totalLinks: 0,
+          totalClicks: 0,
+          totalConversions: 0
+        };
+      }
+      if (endpoint.includes('/api/dashboard/analytics')) {
+        return { 
+          success: true, 
+          clicks: [],
+          conversions: [],
+          revenue: 0,
+          topAffiliates: []
+        };
+      }
+      if (endpoint.includes('/analytics')) {
+        return { success: true, data: [] };
+      }
+      return { success: true, data: null };
     }
-    if (endpoint.includes('/api/dashboard/stats')) {
-      return { 
-        success: true, 
-        totalAffiliates: 0,
-        pendingApprovals: 0,
-        approvedAffiliates: 0,
-        totalLinks: 0,
-        totalClicks: 0,
-        totalConversions: 0
-      };
-    }
-    if (endpoint.includes('/api/dashboard/analytics')) {
-      return { 
-        success: true, 
-        clicks: [],
-        conversions: [],
-        revenue: 0,
-        topAffiliates: []
-      };
-    }
-    if (endpoint.includes('/analytics')) {
-      return { success: true, data: [] };
-    }
-    
-    // Default empty response
-    return { success: true, data: null };
   }
   
   const url = `${BACKEND_URL}${endpoint}`;
