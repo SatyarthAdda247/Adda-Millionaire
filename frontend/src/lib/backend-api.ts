@@ -218,7 +218,13 @@ export async function getAllAffiliates(filters?: {
   const queryString = params.toString();
   const endpoint = `/api/users${queryString ? `?${queryString}` : ''}`;
   
-  return apiCall(endpoint, { method: 'GET' });
+  const result = await apiCall(endpoint, { method: 'GET' });
+  // Ensure consistent response structure
+  return {
+    success: result?.success ?? true,
+    users: result?.users ?? result?.data ?? [],
+    data: result?.data ?? result?.users ?? []
+  };
 }
 
 /** Get affiliate by ID */
