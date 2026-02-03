@@ -15,6 +15,12 @@ function getBackendUrl(): string {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
     
+    // Vercel deployment detection
+    if (hostname.includes('vercel.app') || hostname.includes('partners-adda.vercel.app')) {
+      // Use relative API routes on Vercel (serverless functions)
+      return '';
+    }
+    
     // Production domain detection (AWS deployment)
     // Frontend: partners.addaeducation.com
     // Backend: api.partners.addaeducation.com

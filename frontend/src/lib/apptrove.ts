@@ -5,11 +5,22 @@
  * AppTrove's working endpoints (used by our previous backend) are under `/internal/*`
  * and use the header key `api-key` (NOT `X-API-Key`) for API key auth.
  *
+ * On Vercel: Uses serverless functions at /api/apptrove/*
+ * On AWS: Uses Python backend at api.partners.addaeducation.com
+ * Local: Uses Python backend at localhost:3001
+ *
  * Env:
  * - VITE_APPTROVE_API_URL (optional, default https://api.apptrove.com)
  * - VITE_APPTROVE_API_KEY (preferred)
  * - VITE_APPTROVE_SECRET_ID + VITE_APPTROVE_SECRET_KEY (fallback; may be blocked by CORS)
  */
+
+// Detect if we're on Vercel
+function isVercelDeployment(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname.includes('vercel.app') || 
+         window.location.hostname.includes('partners-adda.vercel.app');
+}
 
 const APPTROVE_API_URL = (import.meta.env.VITE_APPTROVE_API_URL || "https://api.apptrove.com").replace(/\/$/, "");
 const APPTROVE_API_KEY = import.meta.env.VITE_APPTROVE_API_KEY;
@@ -57,7 +68,7 @@ function buildQuery(params: Record<string, string | number | undefined>) {
   return qs ? `?${qs}` : "";
 }
 
-/** Templates (Link Templates) - Uses old backend API */
+/** Templates (Link Templates) - Uses Vercel API routes or backend */
 export async function getTemplates() {
   // Use production API URL or fallback to localhost for development
   function getBackendUrl(): string {
@@ -67,6 +78,12 @@ export async function getTemplates() {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
+      
+      // Vercel deployment - use relative API routes
+      if (isVercelDeployment()) {
+        return '';
+      }
+      
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
@@ -157,6 +174,12 @@ export async function getTemplateLinks(templateId: string) {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
+      
+      // Vercel deployment - use relative API routes
+      if (isVercelDeployment()) {
+        return '';
+      }
+      
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
@@ -215,6 +238,12 @@ export async function createLink(templateId: string, linkData: { name?: string; 
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
+      
+      // Vercel deployment - use relative API routes
+      if (isVercelDeployment()) {
+        return '';
+      }
+      
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
@@ -429,6 +458,12 @@ export async function getUniLinkStats(linkId: string) {
     
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
+      
+      // Vercel deployment - use relative API routes
+      if (isVercelDeployment()) {
+        return '';
+      }
+      
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
