@@ -161,7 +161,7 @@ async function apiCall<T = any>(
         }
         
         // Handle POST /api/users/:id/reject
-        if (endpoint.match(/^\/api\/users\/[^\/]+\/reject$/) && options.method === 'POST') {
+        if (endpoint.match(/^\/api\/users\/[^\/]+\/reject$/) && method === 'POST') {
           const id = endpoint.split('/api/users/')[1].split('/')[0];
           const body = JSON.parse(options.body as string);
           await updateUser(id, { 
@@ -174,14 +174,14 @@ async function apiCall<T = any>(
         }
         
         // Handle DELETE /api/users/:id
-        if (endpoint.match(/^\/api\/users\/[^\/]+$/) && options.method === 'DELETE') {
+        if (endpoint.match(/^\/api\/users\/[^\/]+$/) && method === 'DELETE') {
           const id = endpoint.split('/api/users/')[1];
           await deleteUser(id);
           return { success: true, message: 'User deleted' };
         }
         
         // Handle PUT /api/users/:id
-        if (endpoint.match(/^\/api\/users\/[^\/]+$/) && options.method === 'PUT') {
+        if (endpoint.match(/^\/api\/users\/[^\/]+$/) && method === 'PUT') {
           const id = endpoint.split('/api/users/')[1];
           const updates = JSON.parse(options.body as string);
           await updateUser(id, updates);
@@ -190,7 +190,7 @@ async function apiCall<T = any>(
         }
         
         // Handle POST /api/users/:id/assign-link
-        if (endpoint.match(/^\/api\/users\/[^\/]+\/assign-link$/) && options.method === 'POST') {
+        if (endpoint.match(/^\/api\/users\/[^\/]+\/assign-link$/) && method === 'POST') {
           const id = endpoint.split('/api/users/')[1].split('/')[0];
           const linkData = JSON.parse(options.body as string);
           await updateUser(id, { 
@@ -211,7 +211,8 @@ async function apiCall<T = any>(
       }
     } else {
       // DynamoDB not configured - return empty data
-      if (endpoint.includes('/api/users') && options.method === 'GET') {
+      const method = options.method || 'GET';
+      if (endpoint.includes('/api/users') && method === 'GET') {
         return { success: true, users: [], data: [] };
       }
       if (endpoint.includes('/api/dashboard/stats')) {
@@ -277,7 +278,8 @@ async function apiCall<T = any>(
       // On Vercel, return empty data instead of throwing
       if (isVercelDeployment()) {
         console.warn(`   Returning empty data for Vercel deployment`);
-        if (endpoint.includes('/api/users') && options.method === 'GET') {
+        const method = options.method || 'GET';
+        if (endpoint.includes('/api/users') && method === 'GET') {
           return { success: true, users: [], data: [] };
         }
         if (endpoint.includes('/api/dashboard/stats')) {
