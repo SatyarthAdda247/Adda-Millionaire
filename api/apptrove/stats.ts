@@ -46,30 +46,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ];
 
   let lastError: any = null;
+  const attemptLog: any[] = [];
 
   for (const url of endpoints) {
     for (const attempt of tryHeaders) {
       try {
+        console.log(`[Stats] Trying: ${attempt.label} at ${url}`);
         const response = await fetch(url, { method: 'GET', headers: attempt.headers });
-        const data = await response.json().catch(() => null);
+        const text = await response.text();
+        let data = null;
+        
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+
+        attemptLog.push({
+          url,
+          method: attempt.label,
+          status: response.status,
+          response: data
+        });
 
         if (response.ok) {
+          console.log(`[Stats] ✅ Success with ${attempt.label}`);
           return res.status(200).json({
             success: true,
             stats: data?.data || data?.stats || data,
           });
         }
 
-        lastError = data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`;
+        lastError = data?.message || data?.error || text || `HTTP ${response.status}: ${response.statusText}`;
+        console.log(`[Stats] ❌ Failed: ${lastError}`);
       } catch (error: any) {
         lastError = error.message || 'Network error';
+        console.error(`[Stats] ❌ Error:`, error);
+        attemptLog.push({
+          url,
+          method: attempt.label,
+          error: error.message
+        });
       }
     }
   }
 
+  console.error(`[Stats] All attempts failed for linkId: ${linkId}`);
   return res.status(500).json({
     success: false,
     error: `Failed to fetch stats for link ${linkId}`,
     details: lastError || 'Unknown error',
+    attempts: attemptLog,
+    note: 'AppTrove may not support stats API, or the link may not have any activity yet. Consider using Trackier for detailed analytics.'
   });
 }
