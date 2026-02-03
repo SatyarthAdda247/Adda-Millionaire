@@ -435,11 +435,23 @@ const AdminDashboard = () => {
       setSelectedAffiliate(null);
       fetchAffiliates();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to assign link",
-        variant: "destructive",
-      });
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes('isDynamoDBConfigured') || errorMsg.includes('is not defined')) {
+        toast({
+          title: "⚠️ Deployment Error - Old Cached Code",
+          description: "Action Required:\n1. Go to Vercel Dashboard → Deployments\n2. Click 'Redeploy' (disable cache)\n3. Hard reload browser: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)\n\nCode is fixed in GitHub but Vercel needs to rebuild.",
+          variant: "destructive",
+          duration: 20000,
+        });
+        console.error('🚨 DEPLOYMENT ERROR:', errorMsg);
+        console.error('📝 Instructions:', 'See VERCEL_MANUAL_DEPLOY_INSTRUCTIONS.md in repo');
+      } else {
+        toast({
+          title: "Error",
+          description: errorMsg || "Failed to assign link",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -496,11 +508,22 @@ const AdminDashboard = () => {
       setSelectedAffiliate(null);
       fetchAffiliates();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to approve affiliate",
-        variant: "destructive",
-      });
+      // Check if it's the isDynamoDBConfigured error (old cached code)
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes('isDynamoDBConfigured') || errorMsg.includes('is not defined')) {
+        toast({
+          title: "⚠️ Deployment Error",
+          description: "You're running old cached code. Please:\n1. Go to Vercel Dashboard\n2. Click 'Redeploy' (disable cache)\n3. Hard reload browser (Cmd+Shift+R)",
+          variant: "destructive",
+          duration: 15000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: errorMsg || "Failed to approve affiliate",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -524,11 +547,21 @@ const AdminDashboard = () => {
       setSelectedAffiliate(null);
       fetchAffiliates();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to reject affiliate",
-        variant: "destructive",
-      });
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes('isDynamoDBConfigured') || errorMsg.includes('is not defined')) {
+        toast({
+          title: "⚠️ Deployment Error",
+          description: "You're running old cached code. Please:\n1. Go to Vercel Dashboard\n2. Click 'Redeploy' (disable cache)\n3. Hard reload browser (Cmd+Shift+R)",
+          variant: "destructive",
+          duration: 15000,
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: errorMsg || "Failed to reject affiliate",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -561,11 +594,23 @@ const AdminDashboard = () => {
       setSelectedAffiliate(null);
       fetchAffiliates();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete user",
-        variant: "destructive",
-      });
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (errorMsg.includes('isDynamoDBConfigured') || errorMsg.includes('is not defined')) {
+        toast({
+          title: "⚠️ Deployment Error - Old Cached Code",
+          description: "Action Required:\n1. Go to Vercel Dashboard → Deployments\n2. Click 'Redeploy' (disable cache)\n3. Hard reload browser: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)\n\nCode is fixed in GitHub but Vercel needs to rebuild.",
+          variant: "destructive",
+          duration: 20000,
+        });
+        console.error('🚨 DEPLOYMENT ERROR:', errorMsg);
+        console.error('📝 Instructions:', 'See VERCEL_MANUAL_DEPLOY_INSTRUCTIONS.md in repo');
+      } else {
+        toast({
+          title: "Error",
+          description: errorMsg || "Failed to delete user",
+          variant: "destructive",
+        });
+      }
     }
   };
 
