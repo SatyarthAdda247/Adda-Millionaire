@@ -1242,7 +1242,7 @@ const AdminDashboard = () => {
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              {status === 'approved' && (
+                              {status === 'approved' && !affiliate.unilink && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -1259,6 +1259,12 @@ const AdminDashboard = () => {
                                   <Plus className="w-4 h-4 mr-1" />
                                   Link
                                 </Button>
+                              )}
+                              {status === 'approved' && affiliate.unilink && (
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-md">
+                                  <Check className="w-4 h-4 text-green-600" />
+                                  <span className="text-sm font-medium text-green-700">Link Active</span>
+                                </div>
                               )}
                               {status === 'pending' && (
                                 <>
