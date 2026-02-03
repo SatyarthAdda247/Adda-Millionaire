@@ -143,8 +143,21 @@ async function apiCall<T = any>(
         if (endpoint === '/api/users' && method === 'POST') {
           const userData = JSON.parse(options.body as string);
           console.log(`📝 Saving new user to DynamoDB:`, userData.email);
-          const result = await saveUserToDynamoDB(userData);
-          return { success: true, user: result.user, data: result.user };
+          
+          // Generate unique ID for new user
+          const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+          const userWithId = {
+            id: userId,
+            ...userData,
+            approvalStatus: 'pending',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          
+          console.log(`✅ Generated user ID: ${userId}`);
+          const result = await saveUserToDynamoDB(userWithId);
+          return { success: true, user: result.user, data: result.user, message: 'User created successfully' };
         }
         
         // Handle POST /api/users/:id/approve
