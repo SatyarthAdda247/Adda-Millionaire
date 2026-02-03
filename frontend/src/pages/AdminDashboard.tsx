@@ -416,42 +416,24 @@ const AdminDashboard = () => {
     }
 
     try {
-      const useDynamoDB = isDynamoDBConfigured();
+      // Assign link via backend API (handles DynamoDB internally)
+      await assignLinkToAffiliate(selectedAffiliate.id, {
+        unilink,
+        linkId: linkId || uuidv4(),
+        templateId: templateId || null,
+      });
       
-      if (useDynamoDB) {
-        // Save link to DynamoDB
-        const linkData = {
-          id: linkId || uuidv4(),
-          userId: selectedAffiliate.id,
-          unilink,
-          templateId: templateId || null,
-          createdAt: new Date().toISOString(),
-        };
-        
-        await saveLink(linkData);
-        
-        // Update user with link assignment
-        await updateUser(selectedAffiliate.id, {
-          assignedLink: unilink,
-          linkId: linkData.id,
-          templateId: templateId || null,
-        });
-        
-        toast({
-          title: "Success",
-          description: `Link assigned to ${selectedAffiliate.name}`,
-        });
-        setAssignLinkDialogOpen(false);
-        setSelectedLink("");
-        setManualUnilink("");
-        setSelectedTemplate("");
-        setAvailableLinks([]);
-        setSelectedAffiliate(null);
-        fetchAffiliates();
-      } else {
-        // DynamoDB not configured
-        throw new Error('DynamoDB not configured. Please set AWS credentials in Vercel environment variables.');
-      }
+      toast({
+        title: "Success",
+        description: `Link assigned to ${selectedAffiliate.name}`,
+      });
+      setAssignLinkDialogOpen(false);
+      setSelectedLink("");
+      setManualUnilink("");
+      setSelectedTemplate("");
+      setAvailableLinks([]);
+      setSelectedAffiliate(null);
+      fetchAffiliates();
     } catch (error) {
       toast({
         title: "Error",
