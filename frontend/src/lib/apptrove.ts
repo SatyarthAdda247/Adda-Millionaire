@@ -513,3 +513,6 @@ export async function getUniLinkStats(linkId: string) {
 export function isAppTroveConfigured(): boolean {
   return !!(APPTROVE_API_KEY || (APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY));
 }
+
+// Alias for backward compatibility
+export { getUniLinkStats as fetchLinkStats };
