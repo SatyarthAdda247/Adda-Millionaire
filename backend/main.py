@@ -14,6 +14,10 @@ import os
 from datetime import datetime
 import uuid
 from playwright.async_api import async_playwright
+import time
+
+# Track startup time for health checks
+STARTUP_TIME = time.time()
 
 app = FastAPI(title="Millionaires Adda API")
 
@@ -309,12 +313,17 @@ async def root():
 
 @app.get("/health")
 async def health():
-    """Backend health check endpoint"""
+    """
+    Backend health check endpoint - optimized for Kubernetes probes
+    Returns immediately without DB checks for fast response
+    """
+    uptime = int(time.time() - STARTUP_TIME)
     return {
         "status": "ok",
-        "dynamodb": "configured" if dynamodb else "not configured",
-        "apptrove": "configured" if APPTROVE_API_KEY else "not configured",
-        "automation": "configured" if APPTROVE_DASHBOARD_EMAIL else "not configured"
+        "service": "Partners Portal Backend",
+        "timestamp": datetime.utcnow().isoformat(),
+        "uptime": uptime,
+        "ready": uptime > 5  # Ready after 5 seconds
     }
 
 # ============ USER ENDPOINTS ============
