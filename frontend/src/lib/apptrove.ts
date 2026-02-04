@@ -448,8 +448,16 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
   };
 }
 
-/** Stats - Uses old backend API with Reporting API Key */
-export async function getUniLinkStats(linkId: string) {
+/**
+ * Get Stats for Unilink - Uses Trackier API
+ * 
+ * AppTrove unilinks are tracked by Trackier. This function fetches
+ * installs, conversions, clicks, and revenue from Trackier API.
+ * 
+ * @param unilink - Full unilink URL (e.g., https://applink.reevo.in/d/Smritibisht?pid=...)
+ * @param linkId - Optional link identifier (extracted from unilink if not provided)
+ */
+export async function getUniLinkStats(unilink: string | null, linkId?: string) {
   // Use production API URL or fallback to localhost for development
   function getBackendUrl(): string {
     if (import.meta.env.VITE_BACKEND_URL) {
@@ -479,8 +487,37 @@ export async function getUniLinkStats(linkId: string) {
   
   const BACKEND_URL = getBackendUrl();
   
+  // If no unilink provided, try AppTrove stats API as fallback
+  if (!unilink && linkId) {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/apptrove/stats?linkId=${encodeURIComponent(linkId)}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          stats: data.stats,
+          source: 'apptrove',
+        };
+      }
+    } catch (error: any) {
+      // Fall through to Trackier API
+    }
+  }
+  
+  // Use Trackier API for unilink stats
   try {
-    const response = await fetch(`${BACKEND_URL}/api/apptrove/stats?linkId=${encodeURIComponent(linkId)}`, {
+    const params = new URLSearchParams();
+    if (unilink) params.set('unilink', unilink);
+    if (linkId) params.set('linkId', linkId);
+    
+    const response = await fetch(`${BACKEND_URL}/api/trackier/stats?${params.toString()}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -493,13 +530,95 @@ export async function getUniLinkStats(linkId: string) {
       return {
         success: true,
         stats: data.stats,
+        source: data.source || 'trackier',
+        period: data.period,
       };
     }
 
     return {
       success: false,
       stats: null,
-      error: data.error || data.details || 'Failed to fetch stats',
+      error: data.error || data.details || 'Failed to fetch stats from Trackier',
+      source: 'trackier',
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      stats: null,
+      error: error.message || 'Network error',
+      source: 'trackier',
+    };
+  }
+}
+
+/**
+ * Get Trackier Stats - Direct Trackier API call
+ * 
+ * @param affiliateId - Affiliate identifier
+ * @param campaignId - Optional campaign identifier
+ * @param startDate - Optional start date (YYYY-MM-DD)
+ * @param endDate - Optional end date (YYYY-MM-DD)
+ */
+export async function getTrackierStats(
+  affiliateId: string,
+  campaignId?: string,
+  startDate?: string,
+  endDate?: string
+) {
+  function getBackendUrl(): string {
+    if (import.meta.env.VITE_BACKEND_URL) {
+      return import.meta.env.VITE_BACKEND_URL;
+    }
+    
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      
+      if (isVercelDeployment()) {
+        return '';
+      }
+      
+      if (hostname === 'partners.addaeducation.com' || 
+          hostname === 'www.partners.addaeducation.com' ||
+          hostname.includes('addaeducation.com')) {
+        return 'https://api.partners.addaeducation.com';
+      }
+    }
+    
+    return 'http://localhost:3001';
+  }
+  
+  const BACKEND_URL = getBackendUrl();
+  
+  try {
+    const params = new URLSearchParams({
+      affiliateId,
+      ...(campaignId && { campaignId }),
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+    });
+    
+    const response = await fetch(`${BACKEND_URL}/api/trackier/stats?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (response.ok && data.success) {
+      return {
+        success: true,
+        stats: data.stats,
+        source: 'trackier',
+        period: data.period,
+      };
+    }
+
+    return {
+      success: false,
+      stats: null,
+      error: data.error || data.details || 'Failed to fetch Trackier stats',
     };
   } catch (error: any) {
     return {

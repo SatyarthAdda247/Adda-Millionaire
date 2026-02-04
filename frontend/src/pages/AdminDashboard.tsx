@@ -1171,21 +1171,18 @@ const AdminDashboard = () => {
                               }
                               
                               if (affiliate.unilink) {
-                                const actualLinkId = extractLinkIdFromUnilink(affiliate.unilink);
-                                if (actualLinkId) {
-                                  console.log(`📊 Fetching AppTrove stats for link: ${actualLinkId}`);
-                                  try {
-                                    const statsResponse = await fetchLinkStats(actualLinkId);
-                                    if (statsResponse.success && statsResponse.stats) {
-                                      setAppTroveLinkStats(statsResponse.stats);
-                                    } else {
-                                      setAppTroveLinkStats({ error: statsResponse.error });
-                                    }
-                                  } catch (error) {
-                                    setAppTroveLinkStats({ error: 'Failed to fetch stats' });
+                                console.log(`📊 Fetching Trackier stats for unilink: ${affiliate.unilink}`);
+                                // Pass full unilink URL to Trackier API - it will extract affiliate/campaign info
+                                try {
+                                  const statsResponse = await fetchLinkStats(affiliate.unilink);
+                                  if (statsResponse.success && statsResponse.stats) {
+                                    setAppTroveLinkStats(statsResponse.stats);
+                                  } else {
+                                    setAppTroveLinkStats({ error: statsResponse.error || 'No stats available' });
                                   }
-                                } else {
-                                  setAppTroveLinkStats({ error: 'Invalid link format' });
+                                } catch (error) {
+                                  console.error('❌ Error fetching Trackier stats:', error);
+                                  setAppTroveLinkStats({ error: 'Failed to fetch stats' });
                                 }
                               }
                             }

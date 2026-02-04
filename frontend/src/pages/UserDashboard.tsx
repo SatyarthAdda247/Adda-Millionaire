@@ -171,24 +171,18 @@ const UserDashboard = () => {
   const fetchAppTroveStats = async (unilink: string) => {
     setLoadingStats(true);
     try {
-      const linkId = extractLinkIdFromUnilink(unilink);
-      
-      if (!linkId) {
-        console.warn('⚠️ Could not extract linkId from unilink:', unilink);
-        return;
-      }
-      
-      console.log(`📊 Fetching AppTrove stats for link: ${linkId}`);
-      const statsResponse = await fetchLinkStats(linkId);
+      console.log(`📊 Fetching Trackier stats for unilink: ${unilink}`);
+      // Pass full unilink URL to Trackier API - it will extract affiliate/campaign info
+      const statsResponse = await fetchLinkStats(unilink);
       
       if (statsResponse.success && statsResponse.stats) {
-        console.log('✅ AppTrove stats fetched:', statsResponse.stats);
+        console.log('✅ Trackier stats fetched:', statsResponse.stats);
         setAppTroveStats(statsResponse.stats);
       } else {
-        console.warn('⚠️ No AppTrove stats available:', statsResponse.error);
+        console.warn('⚠️ No Trackier stats available:', statsResponse.error);
       }
     } catch (error) {
-      console.error('❌ Error fetching AppTrove stats:', error);
+      console.error('❌ Error fetching Trackier stats:', error);
     } finally {
       setLoadingStats(false);
     }
