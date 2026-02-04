@@ -1,0 +1,55 @@
+# Node modules
+node_modules
+frontend/node_modules
+frontend/dist
+
+# Python virtual environment
+backend/venv
+backend/__pycache__
+**/__pycache__
+**/*.pyc
+
+# Git
+.git
+.gitignore
+.github
+
+# Documentation (keep essential ones)
+*.md
+!README.md
+!DEPLOYMENT_GUIDE.md
+!QUICKSTART.md
+
+# Test files
+test-*.js
+test-*.py
+**/test_*.py
+**/*_test.py
+*.test.js
+*.spec.js
+
+# Logs
+*.log
+**/*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Build artifacts
+dist
+build
+*.egg-info
+
+# Temporary files
+tmp
+temp
+*.tmp

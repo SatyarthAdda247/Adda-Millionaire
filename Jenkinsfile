@@ -24,7 +24,7 @@ pipeline {
                     sh """
                         docker buildx create --use --name mybuilder || true
                         docker buildx inspect --bootstrap
-                        docker buildx build --platform linux/amd64,linux/arm64 \
+                        docker buildx build --platform linux/amd64 \
                             -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${tag} \
                             --push \
                             -f ./Dockerfile .
