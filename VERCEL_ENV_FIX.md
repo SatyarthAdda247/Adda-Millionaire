@@ -3,7 +3,7 @@
 ## Problem Found
 Your `APPTROVE_DOMAIN` environment variable is set to:
 ```
-applink.reevo.in
+applink.learnr.co.in
 ```
 
 This is your **link domain** (where affiliate links redirect), NOT your **API domain**.
@@ -36,7 +36,7 @@ APPTROVE_API_URL=https://api.apptrove.com
 
 | Domain | Purpose | Example |
 |--------|---------|---------|
-| `applink.reevo.in` | **Link Domain** - Where your affiliate links redirect users | `https://applink.reevo.in/d/Smritibisht` |
+| `applink.learnr.co.in` | **Link Domain** - Where your affiliate links redirect users | `https://applink.learnr.co.in/d/Smritibisht` |
 | `api.apptrove.com` | **API Domain** - Where your code makes API requests for templates, stats, etc. | `https://api.apptrove.com/internal/link-template` |
 
 ## Temporary Fix (Already Applied)
@@ -52,4 +52,4 @@ After updating, test again:
 https://partners-adda.vercel.app/api/apptrove/test-stats?linkId=Smritibisht
 ```
 
-This should now make real API requests to `api.apptrove.com` instead of `applink.reevo.in`! 🎯
+This should now make real API requests to `api.apptrove.com` instead of the link domain (`applink.*`)! 🎯

@@ -47,7 +47,7 @@ Some Trackier accounts require IP whitelisting:
 After deploying, test the Trackier stats endpoint:
 
 ```
-https://partners-adda.vercel.app/api/trackier/stats?unilink=https://applink.reevo.in/d/Smritibisht
+https://partners-adda.vercel.app/api/trackier/stats?unilink=https://applink.learnr.co.in/d/Smritibisht
 ```
 
 Or with affiliate ID:
@@ -61,7 +61,7 @@ https://partners-adda.vercel.app/api/trackier/stats?affiliateId=Smritibisht
 ### Unilink Format
 Your unilinks look like:
 ```
-https://applink.reevo.in/d/Smritibisht?pid=...&camp=...&cost_value=...
+https://applink.learnr.co.in/d/Smritibisht?pid=...&camp=...&cost_value=...
 ```
 
 The Trackier API endpoint will:

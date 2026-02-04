@@ -419,7 +419,7 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
           const linkId = data?.data?.link?.id || data?.data?.link?._id;
           if (linkId) {
             // Try common AppTrove URL patterns
-            const domain = data?.data?.link?.domain || 'applink.reevo.in';
+            const domain = data?.data?.link?.domain || 'applink.learnr.co.in';
             return { 
               success: true, 
               link: data?.data?.link || data?.link || data, 

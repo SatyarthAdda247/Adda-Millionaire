@@ -26,7 +26,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Extract campaign/affiliate info from unilink if provided
-  // Unilink format: https://applink.reevo.in/d/Smritibisht?pid=...&camp=...
+  // Unilink format: https://applink.learnr.co.in/d/Smritibisht?pid=...&camp=...
   let campaignIdToUse = campaignId as string;
   let affiliateIdToUse = affiliateId as string;
 

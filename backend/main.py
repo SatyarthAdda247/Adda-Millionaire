@@ -44,7 +44,8 @@ APPTROVE_SECRET_ID = os.getenv("APPTROVE_SECRET_ID")
 APPTROVE_SECRET_KEY = os.getenv("APPTROVE_SECRET_KEY")
 APPTROVE_SDK_KEY = os.getenv("APPTROVE_SDK_KEY")
 APPTROVE_REPORTING_API_KEY = os.getenv("APPTROVE_REPORTING_API_KEY")
-APPTROVE_DOMAIN = os.getenv("APPTROVE_DOMAIN", "applink.reevo.in")
+# Link domain (NOT API domain). Used only to construct/validate Unilinks when needed.
+APPTROVE_DOMAIN = os.getenv("APPTROVE_DOMAIN", "applink.learnr.co.in")
 
 # AppTrove Dashboard Credentials (for automation)
 APPTROVE_DASHBOARD_EMAIL = os.getenv("APPTROVE_DASHBOARD_EMAIL")
