@@ -2,14 +2,14 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy Frontend package files
 COPY Frontend/package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copy Frontend source
 COPY Frontend/ .
 RUN npm run build
 
+
+# ---------- Runtime stage ----------
 FROM node:20-alpine
 
 WORKDIR /app
