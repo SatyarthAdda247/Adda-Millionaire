@@ -21,6 +21,8 @@ pipeline {
                     env.IMAGE_TAG = tag
                     env.VERSION = tag
                     
+                    echo "DEBUG: Starting build with restored monolithic Dockerfile"
+                    
                     sh """
                         docker buildx create --use --name mybuilder || true
                         docker buildx inspect --bootstrap
