@@ -3,7 +3,7 @@ FROM python:3.10
 WORKDIR /app
 
 # Install system dependencies for Node and curl
-RUN apt-get update && apt-get install -y curl git gnupg && \
+RUN apt-get update && apt-get install -y curl git gnupg net-tools && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm && \
@@ -41,33 +41,22 @@ set -e
 
 echo "🚀 Starting Partners Portal..."
 
-# Function to check if port is listening
-check_port() {
-    local port=$1
-    local service=$2
-    for i in {1..60}; do
-        if netstat -tuln 2>/dev/null | grep -q ":$port " || ss -tuln 2>/dev/null | grep -q ":$port "; then
-            echo "✅ $service is listening on port $port"
-            return 0
-        fi
-        sleep 1
-    done
-    echo "❌ $service failed to start on port $port"
-    return 1
-}
-
 # Function to check health endpoint
 check_health() {
     local port=$1
     local service=$2
-    for i in {1..30}; do
+    # Retry for up to 120 seconds
+    for i in {1..120}; do
         if curl -f -s http://localhost:$port/health > /dev/null 2>&1; then
             echo "✅ $service health check passed"
             return 0
         fi
+        if [ $((i % 5)) -eq 0 ]; then
+            echo "Waiting for $service (attempt $i/120)..."
+        fi
         sleep 1
     done
-    echo "❌ $service health check failed"
+    echo "❌ $service health check failed after 120s"
     return 1
 }
 
@@ -78,17 +67,9 @@ uvicorn main:app --host 0.0.0.0 --port 3001 > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 echo "Backend started (PID: $BACKEND_PID)"
 
-# Wait for backend to be ready
-sleep 5
-if ! check_port 3001 "Backend"; then
-    echo "Backend logs:"
-    cat /tmp/backend.log
-    exit 1
-fi
-
 # Verify backend health endpoint
 if ! check_health 3001 "Backend"; then
-    echo "Backend logs:"
+    echo "❌ Backend failed to start. Logs:"
     cat /tmp/backend.log
     exit 1
 fi
@@ -100,17 +81,9 @@ PORT=8080 node server.js > /tmp/frontend.log 2>&1 &
 FRONTEND_PID=$!
 echo "Frontend started (PID: $FRONTEND_PID)"
 
-# Wait for frontend to be ready
-sleep 3
-if ! check_port 8080 "Frontend"; then
-    echo "Frontend logs:"
-    cat /tmp/frontend.log
-    exit 1
-fi
-
 # Verify frontend health endpoint
 if ! check_health 8080 "Frontend"; then
-    echo "Frontend logs:"
+    echo "❌ Frontend failed to start. Logs:"
     cat /tmp/frontend.log
     exit 1
 fi
