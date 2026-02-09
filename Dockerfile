@@ -33,7 +33,7 @@ EXPOSE 8080 3001
 # Backend: 3001 (container, matches dev)
 
 # Install express and serve-static for custom frontend server
-RUN npm install -g express serve-static
+RUN npm install express serve-static
 
 # Copy startup script
 COPY <<'EOF' /app/start.sh
