@@ -64,13 +64,38 @@ pipeline {
                             echo "Updated values.yaml:"
                             cat ${VALUES_PATH} | grep tagGreen
                             
-                            # Commit and push changes
+                            # Commit and push changes with retry logic
                             git config --global user.email "build@adda247.com"
                             git config --global user.name "buildsystem"
-                            git add .
-                            git commit --allow-empty -m "Update image tag to ${env.VERSION} using build number ${env.VERSION}-${env.BUILD_NUMBER}"
-                            git pull origin main || true
-                            git push origin main
+                            
+                            MAX_RETRIES=5
+                            RETRY_COUNT=0
+                            
+                            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+                                git pull --rebase origin main || {
+                                    echo "Git pull failed, retrying..."
+                                    git rebase --abort || true
+                                }
+                                
+                                # Re-apply change if needed (in case rebase wiped it or conflict)
+                                sed -i 's|tagGreen: ".*"|tagGreen: "${env.VERSION}"|' ${VALUES_PATH}
+                                git add .
+                                git commit --allow-empty -m "Update image tag to ${env.VERSION} using build number ${env.VERSION}-${env.BUILD_NUMBER}" || echo "Nothing to commit"
+                                
+                                if git push origin main; then
+                                    echo "✅ Git push successful"
+                                    break
+                                else
+                                    echo "⚠️  Git push failed (attempt $((RETRY_COUNT+1))/$MAX_RETRIES). Retrying in 5s..."
+                                    sleep 5
+                                    RETRY_COUNT=$((RETRY_COUNT+1))
+                                fi
+                            done
+                            
+                            if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+                                echo "❌ Failed to push to config repo after $MAX_RETRIES attempts"
+                                exit 1
+                            fi
                         """
                         
                         // ArgoCD operations with proper credential handling
