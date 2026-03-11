@@ -412,6 +412,7 @@ export async function getAffiliateAnalytics(id: string, options?: {
     data: result?.data ?? [],
     clicks: result?.clicks ?? [],
     conversions: result?.conversions ?? [],
+    analytics: result?.analytics ?? result?.data ?? [],
     ...result
   };
 }
@@ -436,7 +437,22 @@ export async function getDashboardStats() {
         approvedAffiliates,
         totalLinks,
         totalClicks: 0, // Would need analytics table scan
-        totalConversions: 0 // Would need analytics table scan
+        totalConversions: 0, // Would need analytics table scan
+        stats: {
+          totalAffiliates,
+          pendingApprovals,
+          approvedAffiliates,
+          totalLinks,
+          totalClicks: 0,
+          totalConversions: 0,
+          totalEarnings: 0,
+          conversionRate: 0,
+          totalInstalls: 0,
+          totalPurchases: 0,
+          installRate: 0,
+          purchaseRate: 0,
+          averageEarningsPerAffiliate: 0
+        }
       };
     } catch (error) {
       console.error('Error calculating dashboard stats:', error);
@@ -447,7 +463,8 @@ export async function getDashboardStats() {
         approvedAffiliates: 0,
         totalLinks: 0,
         totalClicks: 0,
-        totalConversions: 0
+        totalConversions: 0,
+        stats: null
       };
     }
   }
@@ -492,7 +509,8 @@ export async function getDashboardAnalytics() {
         clicks: [],
         conversions: [],
         revenue: 0,
-        topAffiliates
+        topAffiliates,
+        analytics: []
       };
     } catch (error) {
       console.error('Error calculating dashboard analytics:', error);
@@ -501,7 +519,8 @@ export async function getDashboardAnalytics() {
         clicks: [],
         conversions: [],
         revenue: 0,
-        topAffiliates: []
+        topAffiliates: [],
+        analytics: []
       };
     }
   }

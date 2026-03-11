@@ -71,11 +71,11 @@ import {
 } from "recharts";
 
 import { getTemplates, getTemplateLinks, createLink, isAppTroveConfigured, fetchLinkStats } from "@/lib/apptrove";
-import { 
-  getAllAffiliates, 
-  updateAffiliate, 
-  approveAffiliate, 
-  rejectAffiliate, 
+import {
+  getAllAffiliates,
+  updateAffiliate,
+  approveAffiliate,
+  rejectAffiliate,
   deleteAffiliate,
   getAffiliateAnalytics,
   getDashboardStats,
@@ -92,7 +92,7 @@ interface SocialHandle {
 // Helper function to convert handle to clickable URL
 function getSocialMediaUrl(platform: string, handle: string): string {
   const cleanHandle = handle.trim().replace(/^@/, '').replace(/^https?:\/\//, '');
-  
+
   switch (platform.toLowerCase()) {
     case 'instagram':
       if (handle.includes('instagram.com/')) {
@@ -156,6 +156,8 @@ interface Affiliate {
   approvedBy?: string;
   approvedAt?: string;
   status?: string;
+  tracker_token?: string;
+  unilink?: string;
   links?: Array<{ id: string; link: string; createdAt?: string }>;
   stats?: {
     totalClicks: number;
@@ -209,7 +211,7 @@ const AdminDashboard = () => {
   // Helper function to extract linkId from unilink URL
   const extractLinkIdFromUnilink = (unilink: string): string | null => {
     if (!unilink) return null;
-    
+
     // Extract from URLs like: https://applink.learnr.co.in/d/Smritibisht
     const match = unilink.match(/\/d\/([^?&#]+)/);
     return match ? match[1] : null;
@@ -218,13 +220,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     // Check authentication from sessionStorage
     const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
-    
+
     if (!isAuthenticated) {
       // Redirect to login if not authenticated
       navigate('/admin/login');
       return;
     }
-    
+
     // Set authenticated state
     setAuthenticated(true);
     setUser({ email: 'admin@edurise.com', name: 'Admin' });
@@ -234,12 +236,12 @@ const AdminDashboard = () => {
   useEffect(() => {
     // Check authentication on every render
     const isAuthenticated = sessionStorage.getItem('adminAuthenticated') === 'true';
-    
+
     if (!isAuthenticated) {
       navigate('/admin/login');
       return;
     }
-    
+
     if (authenticated) {
       fetchAffiliates();
       fetchOverallStats();
@@ -288,7 +290,7 @@ const AdminDashboard = () => {
     try {
       console.log('📊 Fetching stats from backend...');
       const response = await getDashboardStats();
-      
+
       if (response.success && response.stats) {
         setOverallStats(response.stats);
         console.log('✅ Fetched stats from backend');
@@ -302,7 +304,7 @@ const AdminDashboard = () => {
     try {
       console.log('📈 Fetching analytics from backend...');
       const response = await getDashboardAnalytics();
-      
+
       if (response.success && response.analytics) {
         setAnalyticsData(response.analytics);
         console.log('✅ Fetched analytics from backend:', response.analytics.length);
@@ -386,11 +388,11 @@ const AdminDashboard = () => {
             name: `${selectedAffiliate.name} - Affiliate Link`,
             userId: selectedAffiliate.id
           });
-          
+
           if (createData.success && createData.unilink) {
             unilink = createData.unilink;
             linkId = createData.link?.id || null;
-            
+
             toast({
               title: "✅ Link Created",
               description: `New unilink created: ${unilink}`,
@@ -429,14 +431,14 @@ const AdminDashboard = () => {
       // Extract linkId from unilink URL (e.g., "Smritibisht" from "https://applink.learnr.co.in/d/Smritibisht")
       const extractedLinkId = extractLinkIdFromUnilink(unilink);
       console.log(`📎 Extracted linkId from unilink: ${extractedLinkId}`);
-      
+
       // Assign link via backend API (handles DynamoDB internally)
       await assignLinkToAffiliate(selectedAffiliate.id, {
         unilink,
         linkId: extractedLinkId || linkId || null,
         templateId: templateId || null,
       });
-      
+
       toast({
         title: "Success",
         description: `Link assigned to ${selectedAffiliate.name}`,
@@ -472,20 +474,20 @@ const AdminDashboard = () => {
   const fetchAffiliates = async () => {
     try {
       setLoading(true);
-      
+
       console.log('📊 Fetching affiliates from backend...');
       const filters: any = {};
       if (searchQuery) filters.search = searchQuery;
       if (approvalFilter && approvalFilter !== "all") filters.approvalStatus = approvalFilter;
-      
+
       const response = await getAllAffiliates(filters);
       let data = response.users || response.data || response || [];
-      
+
       // Sort by createdAt descending
-      data.sort((a: any, b: any) => 
+      data.sort((a: any, b: any) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      
+
       console.log('✅ Fetched affiliates from backend:', data.length);
       setAffiliates(data);
     } catch (error) {
@@ -503,20 +505,20 @@ const AdminDashboard = () => {
 
   const handleApprove = async () => {
     if (!selectedAffiliate) return;
-    
+
     try {
       // Approve user via backend API (handles DynamoDB internally)
       await approveAffiliate(selectedAffiliate.id, {
         adminNotes: adminNotes || undefined,
         approvedBy: user?.email || 'admin'
       });
-      
+
       toast({
         title: "✅ Approved",
         description: `${selectedAffiliate.name} has been approved. You can assign a link using the "Assign Link" button.`,
         duration: 5000,
       });
-      
+
       setApprovalDialogOpen(false);
       setAdminNotes("");
       setSelectedAffiliate(null);
@@ -551,7 +553,7 @@ const AdminDashboard = () => {
         adminNotes: adminNotes || undefined,
         approvedBy: user?.email || 'admin',
       });
-      
+
       toast({
         title: "Rejected",
         description: `${selectedAffiliate.name} has been rejected`,
@@ -583,12 +585,12 @@ const AdminDashboard = () => {
     // Clear authentication
     sessionStorage.removeItem('adminAuthenticated');
     sessionStorage.removeItem('adminLoginTime');
-    
+
     toast({
       title: "Logged Out",
       description: "You have been logged out successfully.",
     });
-    
+
     // Redirect to login page
     navigate('/admin/login');
   };
@@ -599,7 +601,7 @@ const AdminDashboard = () => {
     try {
       // Delete user via backend API
       await deleteAffiliate(selectedAffiliate.id);
-      
+
       toast({
         title: "User Deleted",
         description: `${selectedAffiliate.name} has been deleted successfully`,
@@ -680,7 +682,7 @@ const AdminDashboard = () => {
               <div className="text-xs text-yellow-600 mt-1">Awaiting review</div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-green-800">Approved</CardTitle>
@@ -691,7 +693,7 @@ const AdminDashboard = () => {
               <div className="text-xs text-green-600 mt-1">Active affiliates</div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-blue-800">Total Clicks</CardTitle>
@@ -704,7 +706,7 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-purple-800">Installs</CardTitle>
@@ -717,7 +719,7 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-emerald-800">Purchases</CardTitle>
@@ -746,7 +748,7 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-indigo-300 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-indigo-800">Conversion Rate</CardTitle>
@@ -759,7 +761,7 @@ const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="bg-gradient-to-br from-rose-50 to-rose-100 border-rose-300 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-rose-800">Performance Funnel</CardTitle>
@@ -794,16 +796,16 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analyticsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       stroke="#6b7280"
                       style={{ fontSize: '12px' }}
                       tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     />
                     <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
@@ -811,18 +813,18 @@ const AdminDashboard = () => {
                       labelFormatter={(value) => new Date(value).toLocaleDateString()}
                     />
                     <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="clicks" 
-                      stroke="#3b82f6" 
+                    <Line
+                      type="monotone"
+                      dataKey="clicks"
+                      stroke="#3b82f6"
                       strokeWidth={3}
                       dot={{ fill: '#3b82f6', r: 4 }}
                       name="Clicks"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="conversions" 
-                      stroke="#8b5cf6" 
+                    <Line
+                      type="monotone"
+                      dataKey="conversions"
+                      stroke="#8b5cf6"
                       strokeWidth={3}
                       dot={{ fill: '#8b5cf6', r: 4 }}
                       name="Conversions"
@@ -843,16 +845,16 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={analyticsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       stroke="#6b7280"
                       style={{ fontSize: '12px' }}
                       tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     />
                     <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
@@ -860,18 +862,18 @@ const AdminDashboard = () => {
                       labelFormatter={(value) => new Date(value).toLocaleDateString()}
                     />
                     <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="installs" 
-                      stroke="#06b6d4" 
+                    <Line
+                      type="monotone"
+                      dataKey="installs"
+                      stroke="#06b6d4"
                       strokeWidth={3}
                       dot={{ fill: '#06b6d4', r: 4 }}
                       name="Installs"
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="purchases" 
-                      stroke="#10b981" 
+                    <Line
+                      type="monotone"
+                      dataKey="purchases"
+                      stroke="#10b981"
                       strokeWidth={3}
                       dot={{ fill: '#10b981', r: 4 }}
                       name="Purchases"
@@ -892,16 +894,16 @@ const AdminDashboard = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={analyticsData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       stroke="#6b7280"
                       style={{ fontSize: '12px' }}
                       tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     />
                     <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #e5e7eb',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
@@ -910,9 +912,9 @@ const AdminDashboard = () => {
                       labelFormatter={(value) => new Date(value).toLocaleDateString()}
                     />
                     <Legend />
-                    <Bar 
-                      dataKey="earnings" 
-                      fill="#10b981" 
+                    <Bar
+                      dataKey="earnings"
+                      fill="#10b981"
                       radius={[8, 8, 0, 0]}
                       name="Earnings (₹)"
                     />
@@ -994,7 +996,7 @@ const AdminDashboard = () => {
                 <p className="text-gray-500 text-lg">No affiliates found</p>
                 <p className="text-gray-400 text-sm mt-2">Try adjusting your search or filter criteria</p>
               </div>
-                        ) : (
+            ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 p-4">
                 {filteredAffiliates.map((affiliate) => {
                   const status = affiliate.approvalStatus || 'pending';
@@ -1004,6 +1006,8 @@ const AdminDashboard = () => {
                     totalEarnings: 0,
                     conversionRate: 0,
                   };
+
+                  const displayLink = affiliate.unilink || (affiliate.tracker_token ? `https://app.adjust.com/${affiliate.tracker_token}` : null);
 
                   return (
                     <motion.div
@@ -1020,8 +1024,8 @@ const AdminDashboard = () => {
                               status === 'approved'
                                 ? 'bg-green-500 text-white'
                                 : status === 'rejected'
-                                ? 'bg-red-500 text-white'
-                                : 'bg-yellow-500 text-white'
+                                  ? 'bg-red-500 text-white'
+                                  : 'bg-yellow-500 text-white'
                             }
                           >
                             {status === 'approved' && <CheckCircle className="w-3 h-3 mr-1 inline" />}
@@ -1030,7 +1034,7 @@ const AdminDashboard = () => {
                             {status.charAt(0).toUpperCase() + status.slice(1)}
                           </Badge>
                         </div>
-                        
+
                         {/* User Avatar & Name */}
                         <div className="flex items-start gap-3">
                           <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-2xl font-bold text-blue-600 shadow-lg flex-shrink-0">
@@ -1104,15 +1108,15 @@ const AdminDashboard = () => {
                         </div>
 
                         {/* Link Status & Stats */}
-                        {affiliate.unilink ? (
+                        {displayLink ? (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                             <div className="flex items-center justify-between mb-2 gap-2">
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <Check className="w-4 h-4 text-green-600" />
                                 <span className="text-sm font-semibold text-green-700">Link Active</span>
                               </div>
-                              <a 
-                                href={affiliate.unilink}
+                              <a
+                                href={displayLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-blue-600 hover:underline flex items-center gap-1 flex-shrink-0"
@@ -1120,8 +1124,8 @@ const AdminDashboard = () => {
                                 View <ExternalLink className="w-3 h-3" />
                               </a>
                             </div>
-                            <div className="text-xs text-gray-600 truncate mb-2" title={affiliate.unilink}>
-                              {affiliate.unilink}
+                            <div className="text-xs text-gray-600 truncate mb-2" title={displayLink}>
+                              {displayLink}
                             </div>
                             {stats.totalClicks > 0 && (
                               <div className="grid grid-cols-2 gap-2 mt-2">
@@ -1156,7 +1160,7 @@ const AdminDashboard = () => {
                           onClick={async () => {
                             setSelectedAffiliate(affiliate);
                             setAppTroveLinkStats(null);
-                            
+
                             if (affiliate.id) {
                               try {
                                 const response = await getAffiliateAnalytics(affiliate.id);
@@ -1169,12 +1173,12 @@ const AdminDashboard = () => {
                                 console.error('Error fetching user analytics:', error);
                                 setUserAnalytics([]);
                               }
-                              
-                              if (affiliate.unilink) {
-                                console.log(`📊 Fetching Trackier stats for unilink: ${affiliate.unilink}`);
+
+                              if (displayLink) {
+                                console.log(`📊 Fetching Trackier stats for unilink: ${displayLink}`);
                                 // Pass full unilink URL to Trackier API - it will extract affiliate/campaign info
                                 try {
-                                  const statsResponse = await fetchLinkStats(affiliate.unilink);
+                                  const statsResponse = await fetchLinkStats(displayLink);
                                   if (statsResponse.success && statsResponse.stats) {
                                     setAppTroveLinkStats(statsResponse.stats);
                                   } else {
@@ -1193,8 +1197,8 @@ const AdminDashboard = () => {
                           <Eye className="w-4 h-4 mr-1" />
                           View
                         </Button>
-                        
-                        {status === 'approved' && !affiliate.unilink && (
+
+                        {status === 'approved' && !displayLink && (
                           <Button
                             size="sm"
                             variant="default"
@@ -1211,7 +1215,7 @@ const AdminDashboard = () => {
                             Link
                           </Button>
                         )}
-                        
+
                         {status === 'pending' && (
                           <>
                             <Button
@@ -1238,7 +1242,7 @@ const AdminDashboard = () => {
                             </Button>
                           </>
                         )}
-                        
+
                         <Button
                           size="sm"
                           variant="destructive"
@@ -1451,12 +1455,12 @@ const AdminDashboard = () => {
                             (selectedAffiliate.approvalStatus || 'pending') === 'approved'
                               ? 'bg-green-600'
                               : (selectedAffiliate.approvalStatus || 'pending') === 'rejected'
-                              ? 'bg-red-600'
-                              : 'bg-yellow-600'
+                                ? 'bg-red-600'
+                                : 'bg-yellow-600'
                           }
                         >
-                          {(selectedAffiliate.approvalStatus || 'pending').charAt(0).toUpperCase() + 
-                           (selectedAffiliate.approvalStatus || 'pending').slice(1)}
+                          {(selectedAffiliate.approvalStatus || 'pending').charAt(0).toUpperCase() +
+                            (selectedAffiliate.approvalStatus || 'pending').slice(1)}
                         </Badge>
                       </div>
                     </div>
@@ -1547,7 +1551,7 @@ const AdminDashboard = () => {
                       <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mt-4">
                         <div className="flex items-center gap-2 text-yellow-700 text-sm mb-2">
                           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                           <span className="font-medium">No Stats Available Yet</span>
                         </div>
@@ -1800,8 +1804,8 @@ const AdminDashboard = () => {
                 className="font-mono text-sm"
               />
               <p className="text-xs text-gray-500 mt-1">
-                {selectedLink 
-                  ? 'Selected link will override this entry.' 
+                {selectedLink
+                  ? 'Selected link will override this entry.'
                   : 'Paste the unilink URL from AppTrove dashboard here. You can find it after creating a link in the default template (Millionaire\'s Adda/EduRise).'}
               </p>
             </div>
@@ -1816,8 +1820,8 @@ const AdminDashboard = () => {
             }}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleAssignLink} 
+            <Button
+              onClick={handleAssignLink}
               className="bg-blue-600 hover:bg-blue-700"
               disabled={!selectedTemplate && !manualUnilink.trim() && !selectedLink}
             >
