@@ -5,12 +5,12 @@
  * Local: Uses Python FastAPI backend (localhost:3001)
  */
 
-import { 
-  getAllUsers, 
-  getUserById, 
-  updateUser, 
-  deleteUser, 
-  getLinksByUserId, 
+import {
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  getLinksByUserId,
   getAnalyticsByUserId,
   isDynamoDBConfigured,
   saveUser as saveUserToDynamoDB
@@ -22,34 +22,34 @@ function getBackendUrl(): string {
   if (typeof process !== 'undefined' && process.env?.VITE_BACKEND_URL) {
     return process.env.VITE_BACKEND_URL;
   }
-  
+
   // Check if we're in production (browser environment)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const protocol = window.location.protocol;
-    
+
     // Vercel deployment detection
     if (hostname.includes('vercel.app') || hostname.includes('partners-adda.vercel.app')) {
       // Use relative API routes on Vercel (serverless functions)
       return '';
     }
-    
+
     // Production domain detection (AWS deployment)
     // Frontend: partners.addaeducation.com
     // Backend: api.partners.addaeducation.com
-    if (hostname === 'partners.addaeducation.com' || 
-        hostname === 'www.partners.addaeducation.com' ||
-        hostname.includes('addaeducation.com')) {
+    if (hostname === 'partners.addaeducation.com' ||
+      hostname === 'www.partners.addaeducation.com' ||
+      hostname.includes('addaeducation.com')) {
       // Try production API domain first
       // If DNS not configured, fallback to same-origin (if backend on same server)
       // Or use relative URL if backend is proxied through frontend
       return 'https://api.partners.addaeducation.com';
     }
-    
+
     // Development fallback
     return 'http://localhost:3001';
   }
-  
+
   // Server-side or fallback
   return 'http://localhost:3001';
 }
@@ -78,7 +78,7 @@ if (typeof window !== 'undefined') {
 // Helper to handle DNS resolution failures
 async function checkBackendAvailability(url: string): Promise<boolean> {
   try {
-    const response = await fetch(`${url}/health`, { 
+    const response = await fetch(`${url}/health`, {
       method: 'GET',
       signal: AbortSignal.timeout(3000) // 3 second timeout
     });
@@ -109,7 +109,7 @@ async function apiCall<T = any>(
       try {
         const method = options.method || 'GET';
         console.log(`🔍 DynamoDB Handler: ${method} ${endpoint}`);
-        
+
         // Handle GET /api/users
         if (endpoint.startsWith('/api/users') && method === 'GET' && !endpoint.match(/\/api\/users\/[^\/]+/)) {
           const url = new URL(endpoint, 'http://localhost');
@@ -117,13 +117,13 @@ async function apiCall<T = any>(
           url.searchParams.forEach((value, key) => {
             filters[key] = value;
           });
-          
+
           console.log(`📊 Fetching users from DynamoDB with filters:`, filters);
           const users = await getAllUsers(filters);
           console.log(`✅ DynamoDB returned ${users.length} users`);
           return { success: true, users, data: users };
         }
-        
+
         // Handle GET /api/users/:id
         if (endpoint.match(/^\/api\/users\/[^\/]+$/) && method === 'GET') {
           const id = endpoint.split('/api/users/')[1];
@@ -131,19 +131,19 @@ async function apiCall<T = any>(
           const user = await getUserById(id);
           return { success: true, user, data: user };
         }
-        
+
         // Handle GET /api/users/:id/analytics
         if (endpoint.match(/^\/api\/users\/[^\/]+\/analytics/) && method === 'GET') {
           const id = endpoint.split('/api/users/')[1].split('/')[0];
           const analytics = await getAnalyticsByUserId(id);
           return { success: true, data: analytics, analytics };
         }
-        
+
         // Handle POST /api/users
         if (endpoint === '/api/users' && method === 'POST') {
           const userData = JSON.parse(options.body as string);
           console.log(`📝 Saving new user to DynamoDB:`, userData.email);
-          
+
           // Generate unique ID for new user
           const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
           const userWithId = {
@@ -154,17 +154,17 @@ async function apiCall<T = any>(
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
-          
+
           console.log(`✅ Generated user ID: ${userId}`);
           const result = await saveUserToDynamoDB(userWithId);
           return { success: true, user: result.user, data: result.user, message: 'User created successfully' };
         }
-        
+
         // Handle POST /api/users/:id/approve
         if (endpoint.match(/^\/api\/users\/[^\/]+\/approve$/) && method === 'POST') {
           const id = endpoint.split('/api/users/')[1].split('/')[0];
           const body = JSON.parse(options.body as string);
-          await updateUser(id, { 
+          await updateUser(id, {
             approvalStatus: 'approved',
             approvedAt: new Date().toISOString(),
             ...body
@@ -172,12 +172,12 @@ async function apiCall<T = any>(
           const user = await getUserById(id);
           return { success: true, user, data: user };
         }
-        
+
         // Handle POST /api/users/:id/reject
         if (endpoint.match(/^\/api\/users\/[^\/]+\/reject$/) && method === 'POST') {
           const id = endpoint.split('/api/users/')[1].split('/')[0];
           const body = JSON.parse(options.body as string);
-          await updateUser(id, { 
+          await updateUser(id, {
             approvalStatus: 'rejected',
             rejectedAt: new Date().toISOString(),
             ...body
@@ -185,14 +185,14 @@ async function apiCall<T = any>(
           const user = await getUserById(id);
           return { success: true, user, data: user };
         }
-        
+
         // Handle DELETE /api/users/:id
         if (endpoint.match(/^\/api\/users\/[^\/]+$/) && method === 'DELETE') {
           const id = endpoint.split('/api/users/')[1];
           await deleteUser(id);
           return { success: true, message: 'User deleted' };
         }
-        
+
         // Handle PUT /api/users/:id
         if (endpoint.match(/^\/api\/users\/[^\/]+$/) && method === 'PUT') {
           const id = endpoint.split('/api/users/')[1];
@@ -201,12 +201,12 @@ async function apiCall<T = any>(
           const user = await getUserById(id);
           return { success: true, user, data: user };
         }
-        
+
         // Handle POST /api/users/:id/assign-link
         if (endpoint.match(/^\/api\/users\/[^\/]+\/assign-link$/) && method === 'POST') {
           const id = endpoint.split('/api/users/')[1].split('/')[0];
           const linkData = JSON.parse(options.body as string);
-          await updateUser(id, { 
+          await updateUser(id, {
             unilink: linkData.unilink,
             linkId: linkData.linkId,
             templateId: linkData.templateId,
@@ -216,7 +216,7 @@ async function apiCall<T = any>(
           const user = await getUserById(id);
           return { success: true, user, data: user };
         }
-        
+
         // For dashboard endpoints, they're handled in their respective functions
         // Just fall through to backend call attempt
       } catch (error: any) {
@@ -230,8 +230,8 @@ async function apiCall<T = any>(
         return { success: true, users: [], data: [] };
       }
       if (endpoint.includes('/api/dashboard/stats')) {
-        return { 
-          success: true, 
+        return {
+          success: true,
           totalAffiliates: 0,
           pendingApprovals: 0,
           approvedAffiliates: 0,
@@ -241,8 +241,8 @@ async function apiCall<T = any>(
         };
       }
       if (endpoint.includes('/api/dashboard/analytics')) {
-        return { 
-          success: true, 
+        return {
+          success: true,
           clicks: [],
           conversions: [],
           revenue: 0,
@@ -255,7 +255,7 @@ async function apiCall<T = any>(
       return { success: true, data: null };
     }
   }
-  
+
   const url = `${BACKEND_URL}${endpoint}`;
   console.log(`🌐 ${options.method || 'GET'} ${url}`);
 
@@ -281,14 +281,14 @@ async function apiCall<T = any>(
     return data || { success: true, data: null };
   } catch (error: any) {
     // Handle DNS resolution errors
-    if (error?.message?.includes('ERR_NAME_NOT_RESOLVED') || 
-        error?.message?.includes('Failed to fetch') ||
-        (error?.name === 'TypeError' && error?.message?.includes('fetch'))) {
+    if (error?.message?.includes('ERR_NAME_NOT_RESOLVED') ||
+      error?.message?.includes('Failed to fetch') ||
+      (error?.name === 'TypeError' && error?.message?.includes('fetch'))) {
       console.error(`❌ Backend DNS/Connection Error [${endpoint}]:`, error);
       console.error(`   Backend URL: ${BACKEND_URL}`);
       console.error(`   ⚠️ DNS may not be configured for api.partners.addaeducation.com`);
       console.error(`   ⚠️ Or backend service is not running`);
-      
+
       // On Vercel, return empty data instead of throwing
       if (isVercelDeployment()) {
         console.warn(`   Returning empty data for Vercel deployment`);
@@ -304,7 +304,7 @@ async function apiCall<T = any>(
         }
         return { success: true, data: null };
       }
-      
+
       throw new Error(`Backend unavailable. Please check DNS configuration for api.partners.addaeducation.com or ensure backend is running.`);
     }
     console.error(`API Error [${endpoint}]:`, error);
@@ -342,10 +342,10 @@ export async function getAllAffiliates(filters?: {
       if (value) params.set(key, value);
     });
   }
-  
+
   const queryString = params.toString();
   const endpoint = `/api/users${queryString ? `?${queryString}` : ''}`;
-  
+
   const result = await apiCall(endpoint, { method: 'GET' });
   // Ensure consistent response structure
   return {
@@ -401,10 +401,10 @@ export async function getAffiliateAnalytics(id: string, options?: {
       if (value) params.set(key, value);
     });
   }
-  
+
   const queryString = params.toString();
   const endpoint = `/api/users/${id}/analytics${queryString ? `?${queryString}` : ''}`;
-  
+
   const result = await apiCall(endpoint, { method: 'GET' });
   // Ensure consistent response structure
   return {
@@ -423,12 +423,12 @@ export async function getDashboardStats() {
     try {
       const users = await getAllUsers({});
       const links = users.flatMap(u => u.unilink ? [u.unilink] : []);
-      
+
       const totalAffiliates = users.length;
       const pendingApprovals = users.filter(u => u.approvalStatus === 'pending').length;
       const approvedAffiliates = users.filter(u => u.approvalStatus === 'approved').length;
       const totalLinks = links.length;
-      
+
       return {
         success: true,
         totalAffiliates,
@@ -451,7 +451,7 @@ export async function getDashboardStats() {
       };
     }
   }
-  
+
   const result = await apiCall('/api/dashboard/stats', { method: 'GET' });
   // Ensure consistent response structure
   return {
@@ -473,7 +473,7 @@ export async function getDashboardAnalytics() {
     try {
       const users = await getAllUsers({});
       const approvedUsers = users.filter(u => u.approvalStatus === 'approved');
-      
+
       // Get top affiliates by link count
       const topAffiliates = approvedUsers
         .filter(u => u.unilink)
@@ -486,7 +486,7 @@ export async function getDashboardAnalytics() {
           conversions: 0
         }))
         .slice(0, 10);
-      
+
       return {
         success: true,
         clicks: [],
@@ -505,7 +505,7 @@ export async function getDashboardAnalytics() {
       };
     }
   }
-  
+
   const result = await apiCall('/api/dashboard/analytics', { method: 'GET' });
   // Ensure consistent response structure
   return {
@@ -528,4 +528,33 @@ export async function assignLinkToAffiliate(id: string, data: {
     method: 'POST',
     body: JSON.stringify(data),
   });
+}
+/** Get user by email from backend */
+export async function getUserByEmailFromBackend(email: string) {
+  // Use getAllAffiliates with search
+  const result = await getAllAffiliates({ search: email });
+  if (result.success && result.users) {
+    return result.users.find((u: any) => u.email && u.email.toLowerCase() === email.toLowerCase());
+  }
+  return null;
+}
+
+/** Get user by phone from backend */
+export async function getUserByPhoneFromBackend(phone: string) {
+  // Use getAllAffiliates with search (backend now supports phone search)
+  // Strip non-digits for comparison if needed, but backend search is loose
+  const result = await getAllAffiliates({ search: phone });
+  if (result.success && result.users) {
+    // Backend search is partial, so we should filter for exact match if possible
+    // or return the best match. 
+    // Phone numbers can be tricky with formats.
+    const phoneDigits = phone.replace(/\D/g, '');
+    return result.users.find((u: any) => u.phone && u.phone.replace(/\D/g, '').includes(phoneDigits));
+  }
+  return null;
+}
+
+/** Get links by user ID from backend */
+export async function getLinksByUserIdFromBackend(userId: string) {
+  return apiCall(`/api/users/${userId}/links`, { method: 'GET' });
 }

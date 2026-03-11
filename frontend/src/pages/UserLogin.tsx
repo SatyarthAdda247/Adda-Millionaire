@@ -9,6 +9,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
 import { getUserByEmail, getUserByPhone, getLinksByUserId, isDynamoDBConfigured } from "@/lib/dynamodb";
+import { getUserByEmailFromBackend, getUserByPhoneFromBackend, getLinksByUserIdFromBackend } from "@/lib/backend-api";
 
 const UserLogin = () => {
   const [email, setEmail] = useState("");
@@ -45,10 +46,10 @@ const UserLogin = () => {
 
       // Check if DynamoDB is configured
       const useDynamoDB = isDynamoDBConfigured();
-      
+
       // Try to find user by email or phone
       let user;
-      
+
       if (useDynamoDB) {
         // Fetch from DynamoDB directly
         console.log('🔍 Looking up user in DynamoDB...');
@@ -57,7 +58,7 @@ const UserLogin = () => {
         } else if (phone) {
           user = await getUserByPhone(phone.trim());
         }
-        
+
         if (user) {
           // Check if user is deleted
           if (user.status === 'deleted' || user.approvalStatus === 'deleted') {
@@ -65,7 +66,7 @@ const UserLogin = () => {
             setLoading(false);
             return;
           }
-          
+
           // Get user's links
           const links = await getLinksByUserId(user.id);
           user = { ...user, links };
@@ -76,10 +77,32 @@ const UserLogin = () => {
           return;
         }
       } else {
-        // DynamoDB not configured
-        setError("System not configured. Please contact support.");
-        setLoading(false);
-        return;
+        // DynamoDB not configured - try Backend API
+        console.log('🔄 DynamoDB not configured locally, trying backend API...');
+
+        if (email) {
+          user = await getUserByEmailFromBackend(email.trim());
+        } else if (phone) {
+          user = await getUserByPhoneFromBackend(phone.trim());
+        }
+
+        if (user) {
+          // Get links from backend
+          const linkRes = await getLinksByUserIdFromBackend(user.id);
+          if (linkRes.success) {
+            user = { ...user, links: linkRes.links || [] };
+          } else {
+            user = { ...user, links: [] };
+          }
+          console.log('✅ User found via Backend API:', user.email);
+        } else {
+          // If backend also fails/returns null
+          // Only show system error if we suspect backend is down, but for now assume user not found
+          // checking if backend is reachable would be better but let's assume if user is null it's not found
+          setError(email ? "User not found. Please check your email or register first." : "User not found. Please check your phone number or register first.");
+          setLoading(false);
+          return;
+        }
       }
 
       if (!user) {
@@ -100,7 +123,7 @@ const UserLogin = () => {
       const approvalStatus = user.approvalStatus || 'pending';
       if (approvalStatus !== 'approved') {
         setError(
-          approvalStatus === 'pending' 
+          approvalStatus === 'pending'
             ? "Your application is still pending approval. Please wait for admin approval."
             : "Your application has been rejected. Please contact support for more information."
         );

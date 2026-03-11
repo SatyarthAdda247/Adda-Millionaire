@@ -1,12 +1,15 @@
 {
   "users": [
     {
-      "id": "test-user-1768801239857",
-      "name": "Test User",
-      "email": "test@example.com",
-      "phone": "1234567890",
+      "id": "test-user-smriti",
+      "name": "Smritibisht",
+      "email": "smriti@example.com",
+      "phone": "9999999999",
       "approvalStatus": "approved",
-      "createdAt": "2026-01-19T05:40:39.857Z"
+      "status": "active",
+      "unilink": "https://applink.learnr.co.in/d/Smritibisht",
+      "linkId": "Smritibisht",
+      "createdAt": "2026-02-16T12:00:00.000Z"
     }
   ],
   "links": []

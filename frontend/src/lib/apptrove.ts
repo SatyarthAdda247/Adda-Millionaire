@@ -18,8 +18,8 @@
 // Detect if we're on Vercel
 function isVercelDeployment(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.location.hostname.includes('vercel.app') || 
-         window.location.hostname.includes('partners-adda.vercel.app');
+  return window.location.hostname.includes('vercel.app') ||
+    window.location.hostname.includes('partners-adda.vercel.app');
 }
 
 const APPTROVE_API_URL = (import.meta.env.VITE_APPTROVE_API_URL || "https://api.apptrove.com").replace(/\/$/, "");
@@ -75,30 +75,30 @@ export async function getTemplates() {
     if (import.meta.env.VITE_BACKEND_URL) {
       return import.meta.env.VITE_BACKEND_URL;
     }
-    
+
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      
+
       // Vercel deployment - use relative API routes
       if (isVercelDeployment()) {
         return '';
       }
-      
+
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
-      if (hostname === 'partners.addaeducation.com' || 
-          hostname === 'www.partners.addaeducation.com' ||
-          hostname.includes('addaeducation.com')) {
+      if (hostname === 'partners.addaeducation.com' ||
+        hostname === 'www.partners.addaeducation.com' ||
+        hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
-    
+
     return 'http://localhost:3001';
   }
-  
+
   const BACKEND_URL = getBackendUrl();
-  
+
   try {
     const response = await fetch(`${BACKEND_URL}/api/apptrove/templates`, {
       method: 'GET',
@@ -171,30 +171,30 @@ export async function getTemplateLinks(templateId: string) {
     if (import.meta.env.VITE_BACKEND_URL) {
       return import.meta.env.VITE_BACKEND_URL;
     }
-    
+
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      
+
       // Vercel deployment - use relative API routes
       if (isVercelDeployment()) {
         return '';
       }
-      
+
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
-      if (hostname === 'partners.addaeducation.com' || 
-          hostname === 'www.partners.addaeducation.com' ||
-          hostname.includes('addaeducation.com')) {
+      if (hostname === 'partners.addaeducation.com' ||
+        hostname === 'www.partners.addaeducation.com' ||
+        hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
-    
+
     return 'http://localhost:3001';
   }
-  
+
   const BACKEND_URL = getBackendUrl();
-  
+
   try {
     const response = await fetch(`${BACKEND_URL}/api/apptrove/template-links?templateId=${encodeURIComponent(templateId)}`, {
       method: 'GET',
@@ -229,36 +229,36 @@ export async function getTemplateLinks(templateId: string) {
  * Create UniLink within a template.
  * Uses old backend API - matches working implementation.
  */
-export async function createLink(templateId: string, linkData: { name?: string; userId?: string; [key: string]: any }) {
+export async function createLink(templateId: string, linkData: { name?: string; userId?: string;[key: string]: any }) {
   // Use production API URL or fallback to localhost for development
   function getBackendUrl(): string {
     if (import.meta.env.VITE_BACKEND_URL) {
       return import.meta.env.VITE_BACKEND_URL;
     }
-    
+
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      
+
       // Vercel deployment - use relative API routes
       if (isVercelDeployment()) {
         return '';
       }
-      
+
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
-      if (hostname === 'partners.addaeducation.com' || 
-          hostname === 'www.partners.addaeducation.com' ||
-          hostname.includes('addaeducation.com')) {
+      if (hostname === 'partners.addaeducation.com' ||
+        hostname === 'www.partners.addaeducation.com' ||
+        hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
-    
+
     return 'http://localhost:3001';
   }
-  
+
   const BACKEND_URL = getBackendUrl();
-  
+
   try {
     console.log(`[AppTrove] Creating link via backend for template: ${templateId}`);
     // Extract affiliate data for tracking
@@ -345,7 +345,7 @@ export async function createLink(templateId: string, linkData: { name?: string; 
  * Create UniLink within a template.
  * Mirrors backend createUniLinkFromTemplate() - tries multiple endpoints and auth methods.
  */
-export async function createLinkDirect(templateId: string, linkData: { name?: string; [key: string]: any }) {
+export async function createLinkDirect(templateId: string, linkData: { name?: string;[key: string]: any }) {
   // Build payload matching backend format
   const campaign = linkData.campaign || (linkData.name || "Affiliate Link").replace(/\s+/g, '-').toLowerCase().substring(0, 50);
   const payload = {
@@ -378,7 +378,7 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
   for (const ep of endpoints) {
     try {
       let headers: Record<string, string> | null = null;
-      
+
       if (ep.auth === "api-key" && APPTROVE_API_KEY) {
         headers = apiKeyHeaders();
       } else if (ep.auth === "secret" && APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) {
@@ -388,7 +388,7 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
         const authString = btoa(`${APPTROVE_SECRET_ID}:${APPTROVE_SECRET_KEY}`);
         headers = { ...baseHeaders(), Authorization: `Basic ${authString}` };
       }
-      
+
       if (!headers) continue;
 
       const res = await fetch(ep.url, {
@@ -396,9 +396,9 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
         headers,
         body: JSON.stringify(payload),
       });
-      
+
       const data = await safeJson(res);
-      
+
       // Check for success (200-299)
       if (res.ok || res.status === 200 || res.status === 201) {
         // Extract unilink from various response formats
@@ -420,17 +420,17 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
           if (linkId) {
             // Try common AppTrove URL patterns
             const domain = data?.data?.link?.domain || 'applink.learnr.co.in';
-            return { 
-              success: true, 
-              link: data?.data?.link || data?.link || data, 
-              unilink: `https://${domain}/d/${linkId}` 
+            return {
+              success: true,
+              link: data?.data?.link || data?.link || data,
+              unilink: `https://${domain}/d/${linkId}`
             };
           }
         }
 
         return { success: true, link: data?.data?.link || data?.link || data, unilink };
       }
-      
+
       // If not successful, throw to try next endpoint
       throw new Error(data?.message || data?.error || `HTTP ${res.status}: ${res.statusText}`);
     } catch (e: any) {
@@ -441,20 +441,20 @@ export async function createLinkDirect(templateId: string, linkData: { name?: st
   }
 
   // If all endpoints failed, return error (don't throw - let caller handle)
-  return { 
-    success: false, 
+  return {
+    success: false,
     error: `Failed to create link in template ${templateId}. ${lastErr?.message || "AppTrove API may block browser requests (CORS) or not support programmatic link creation from frontend."}`,
-    unilink: null 
+    unilink: null
   };
 }
 
 /**
- * Get Stats for Unilink - Uses Trackier API
+ * Get Stats for Unilink - Uses Adjust API
  * 
- * AppTrove unilinks are tracked by Trackier. This function fetches
- * installs, conversions, clicks, and revenue from Trackier API.
+ * AppTrove unilinks are tracked by Adjust. This function fetches
+ * installs, conversions, clicks, and revenue from Adjust Report Service API.
  * 
- * @param unilink - Full unilink URL (e.g., https://applink.reevo.in/d/Smritibisht?pid=...)
+ * @param unilink - Full unilink URL or fallback tracker token
  * @param linkId - Optional link identifier (extracted from unilink if not provided)
  */
 export async function getUniLinkStats(unilink: string | null, linkId?: string) {
@@ -463,30 +463,30 @@ export async function getUniLinkStats(unilink: string | null, linkId?: string) {
     if (import.meta.env.VITE_BACKEND_URL) {
       return import.meta.env.VITE_BACKEND_URL;
     }
-    
+
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      
+
       // Vercel deployment - use relative API routes
       if (isVercelDeployment()) {
         return '';
       }
-      
+
       // Production domain detection (AWS deployment)
       // Frontend: partners.addaeducation.com
       // Backend: api.partners.addaeducation.com
-      if (hostname === 'partners.addaeducation.com' || 
-          hostname === 'www.partners.addaeducation.com' ||
-          hostname.includes('addaeducation.com')) {
+      if (hostname === 'partners.addaeducation.com' ||
+        hostname === 'www.partners.addaeducation.com' ||
+        hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
-    
+
     return 'http://localhost:3001';
   }
-  
+
   const BACKEND_URL = getBackendUrl();
-  
+
   // If no unilink provided, try AppTrove stats API as fallback
   if (!unilink && linkId) {
     try {
@@ -510,13 +510,14 @@ export async function getUniLinkStats(unilink: string | null, linkId?: string) {
       // Fall through to Trackier API
     }
   }
-  
-  // Use Trackier API for unilink stats
+
+  // Use Adjust API for unilink stats
   try {
     const params = new URLSearchParams();
     if (unilink) params.set('unilink', unilink);
     if (linkId) params.set('linkId', linkId);
-    
+
+    // Using the same backend route for compatibility, but the backend handles Adjust logic now
     const response = await fetch(`${BACKEND_URL}/api/trackier/stats?${params.toString()}`, {
       method: 'GET',
       headers: {
@@ -530,7 +531,7 @@ export async function getUniLinkStats(unilink: string | null, linkId?: string) {
       return {
         success: true,
         stats: data.stats,
-        source: data.source || 'trackier',
+        source: data.source || 'adjust',
         period: data.period,
       };
     }
@@ -538,28 +539,28 @@ export async function getUniLinkStats(unilink: string | null, linkId?: string) {
     return {
       success: false,
       stats: null,
-      error: data.error || data.details || 'Failed to fetch stats from Trackier',
-      source: 'trackier',
+      error: data.error || data.details || 'Failed to fetch stats from Adjust',
+      source: 'adjust',
     };
   } catch (error: any) {
     return {
       success: false,
       stats: null,
       error: error.message || 'Network error',
-      source: 'trackier',
+      source: 'adjust',
     };
   }
 }
 
 /**
- * Get Trackier Stats - Direct Trackier API call
+ * Get Adjust Stats - Direct backend call
  * 
- * @param affiliateId - Affiliate identifier
+ * @param affiliateId - Affiliate tracker token
  * @param campaignId - Optional campaign identifier
  * @param startDate - Optional start date (YYYY-MM-DD)
  * @param endDate - Optional end date (YYYY-MM-DD)
  */
-export async function getTrackierStats(
+export async function getAdjustStats(
   affiliateId: string,
   campaignId?: string,
   startDate?: string,
@@ -569,26 +570,26 @@ export async function getTrackierStats(
     if (import.meta.env.VITE_BACKEND_URL) {
       return import.meta.env.VITE_BACKEND_URL;
     }
-    
+
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      
+
       if (isVercelDeployment()) {
         return '';
       }
-      
-      if (hostname === 'partners.addaeducation.com' || 
-          hostname === 'www.partners.addaeducation.com' ||
-          hostname.includes('addaeducation.com')) {
+
+      if (hostname === 'partners.addaeducation.com' ||
+        hostname === 'www.partners.addaeducation.com' ||
+        hostname.includes('addaeducation.com')) {
         return 'https://api.partners.addaeducation.com';
       }
     }
-    
+
     return 'http://localhost:3001';
   }
-  
+
   const BACKEND_URL = getBackendUrl();
-  
+
   try {
     const params = new URLSearchParams({
       affiliateId,
@@ -596,7 +597,7 @@ export async function getTrackierStats(
       ...(startDate && { startDate }),
       ...(endDate && { endDate }),
     });
-    
+
     const response = await fetch(`${BACKEND_URL}/api/trackier/stats?${params.toString()}`, {
       method: 'GET',
       headers: {
@@ -610,7 +611,7 @@ export async function getTrackierStats(
       return {
         success: true,
         stats: data.stats,
-        source: 'trackier',
+        source: 'adjust',
         period: data.period,
       };
     }
@@ -618,7 +619,7 @@ export async function getTrackierStats(
     return {
       success: false,
       stats: null,
-      error: data.error || data.details || 'Failed to fetch Trackier stats',
+      error: data.error || data.details || 'Failed to fetch Adjust stats',
     };
   } catch (error: any) {
     return {
@@ -634,4 +635,4 @@ export function isAppTroveConfigured(): boolean {
 }
 
 // Alias for backward compatibility
-export { getUniLinkStats as fetchLinkStats };
+export { getUniLinkStats as fetchLinkStats, getAdjustStats as getTrackierStats };

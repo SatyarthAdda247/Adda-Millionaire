@@ -71,7 +71,7 @@ export async function saveUser(user: any) {
     return { success: true, user };
   } catch (error: any) {
     console.error('Error saving user to DynamoDB:', error);
-    
+
     // Provide helpful error messages for common AWS errors
     if (error.name === 'AccessDeniedException' || error.name === 'UnauthorizedOperation') {
       throw new Error('AWS Access Denied: Check that your AWS credentials have DynamoDB permissions (PutItem, GetItem, Scan, Query)');
@@ -82,7 +82,7 @@ export async function saveUser(user: any) {
     } else if (error.$metadata?.httpStatusCode === 403) {
       throw new Error('AWS returned 403 Forbidden. Check IAM permissions for DynamoDB access.');
     }
-    
+
     throw new Error(`Failed to save user: ${error.message || error.name || 'Unknown error'}`);
   }
 }
@@ -101,13 +101,13 @@ export async function getUserByEmail(email: string) {
     return result.Items && result.Items.length > 0 ? result.Items[0] : null;
   } catch (error: any) {
     console.error('Error getting user by email:', error);
-    
+
     if (error.name === 'AccessDeniedException' || error.$metadata?.httpStatusCode === 403) {
       throw new Error('AWS Access Denied: Check DynamoDB permissions (Scan, GetItem)');
     } else if (error.name === 'ResourceNotFoundException') {
       throw new Error(`DynamoDB table "${USERS_TABLE}" not found. Create tables first.`);
     }
-    
+
     throw new Error(`Failed to get user: ${error.message || error.name || 'Unknown error'}`);
   }
 }
@@ -155,58 +155,58 @@ export async function getAllUsers(filters: {
 } = {}) {
   try {
     const client = getClient();
-    
+
     // Build filter expression if filters provided
     let filterExpression: string | undefined;
     const expressionAttributeValues: Record<string, any> = {};
     const expressionAttributeNames: Record<string, string> = {};
-    
+
     const conditions: string[] = [];
-    
+
     if (filters.platform) {
       expressionAttributeNames['#platform'] = 'platform';
       expressionAttributeValues[':platform'] = filters.platform;
       conditions.push('#platform = :platform');
     }
-    
+
     if (filters.status) {
       expressionAttributeNames['#status'] = 'status';
       expressionAttributeValues[':status'] = filters.status;
       conditions.push('#status = :status');
     }
-    
+
     if (filters.approvalStatus) {
       expressionAttributeValues[':approvalStatus'] = filters.approvalStatus;
       conditions.push('approvalStatus = :approvalStatus');
     }
-    
+
     if (filters.search) {
       expressionAttributeNames['#name'] = 'name';
       expressionAttributeValues[':search'] = filters.search.toLowerCase();
       conditions.push('(contains(#name, :search) OR contains(email, :search) OR contains(phone, :search))');
     }
-    
+
     if (conditions.length > 0) {
       filterExpression = conditions.join(' AND ');
     }
-    
+
     const result = await client.send(new ScanCommand({
       TableName: USERS_TABLE,
       FilterExpression: filterExpression,
       ExpressionAttributeNames: Object.keys(expressionAttributeNames).length > 0 ? expressionAttributeNames : undefined,
       ExpressionAttributeValues: Object.keys(expressionAttributeValues).length > 0 ? expressionAttributeValues : undefined,
     }));
-    
+
     return result.Items || [];
   } catch (error: any) {
     console.error('Error getting all users from DynamoDB:', error);
-    
+
     if (error.name === 'AccessDeniedException' || error.$metadata?.httpStatusCode === 403) {
       throw new Error('AWS Access Denied: Check DynamoDB permissions (Scan, GetItem). Your IAM user needs: dynamodb:Scan, dynamodb:GetItem, dynamodb:PutItem');
     } else if (error.name === 'ResourceNotFoundException') {
       throw new Error(`DynamoDB table "${USERS_TABLE}" not found. Run: node server/setup-dynamodb.js`);
     }
-    
+
     throw new Error(`Failed to get users: ${error.message || error.name || 'Unknown error'}`);
   }
 }
@@ -250,13 +250,13 @@ export async function getAnalyticsByUserId(userId: string) {
 // Check if DynamoDB is configured
 export function isDynamoDBConfigured(): boolean {
   const configured = !!(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY);
-  
+
   // Log configuration status (always log on Vercel to help debug)
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     const isProduction = hostname.includes('vercel.app') || hostname.includes('adda-millionaire') || hostname.includes('partners-adda');
     const isDevelopment = hostname.includes('localhost') || hostname.includes('127.0.0.1');
-    
+
     if (configured) {
       console.log('✅ DynamoDB configured:', {
         region: AWS_REGION,
@@ -270,17 +270,13 @@ export function isDynamoDBConfigured(): boolean {
       });
     } else {
       if (isProduction) {
-        console.error('❌ DynamoDB NOT configured! Form will use backend API.');
-        console.error('Set these in Vercel environment variables:');
-        console.error('  - VITE_AWS_REGION');
-        console.error('  - VITE_AWS_ACCESS_KEY_ID');
-        console.error('  - VITE_AWS_SECRET_ACCESS_KEY');
+        console.warn('⚠️ DynamoDB not configured locally. Will fallback to Backend API.');
       } else if (isDevelopment) {
-        console.warn('⚠️ DynamoDB not configured. Set VITE_AWS_ACCESS_KEY_ID and VITE_AWS_SECRET_ACCESS_KEY in .env.local');
+        console.log('ℹ️ DynamoDB not configured. Using Backend API for data.');
       }
     }
   }
-  
+
   return configured;
 }
 
@@ -288,12 +284,12 @@ export function isDynamoDBConfigured(): boolean {
 export async function updateUser(userId: string, updates: Record<string, any>) {
   try {
     const client = getClient();
-    
+
     // Build update expression
     const updateExpressions: string[] = [];
     const expressionAttributeValues: Record<string, any> = {};
     const expressionAttributeNames: Record<string, string> = {};
-    
+
     Object.keys(updates).forEach((key, index) => {
       if (updates[key] !== undefined) {
         const attrName = key === 'name' ? '#name' : key;
@@ -304,11 +300,11 @@ export async function updateUser(userId: string, updates: Record<string, any>) {
         expressionAttributeValues[`:val${index}`] = updates[key];
       }
     });
-    
+
     // Always update updatedAt
     updateExpressions.push('updatedAt = :updatedAt');
     expressionAttributeValues[':updatedAt'] = new Date().toISOString();
-    
+
     await client.send(new UpdateCommand({
       TableName: USERS_TABLE,
       Key: { id: userId },
@@ -317,7 +313,7 @@ export async function updateUser(userId: string, updates: Record<string, any>) {
       ExpressionAttributeValues: expressionAttributeValues,
       ReturnValues: 'ALL_NEW'
     }));
-    
+
     // Return updated user
     return await getUserById(userId);
   } catch (error: any) {

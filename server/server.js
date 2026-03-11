@@ -27,6 +27,10 @@ const APPTROVE_SECRET_ID = process.env.APPTROVE_SECRET_ID || '696dd5aa03258f6b92
 const APPTROVE_SECRET_KEY = process.env.APPTROVE_SECRET_KEY || 'f5a2d4a4-5389-429a-8aa9-cf0d09e9be86';
 const APPTROVE_API_URL = process.env.APPTROVE_API_URL || 'https://api.apptrove.com';
 
+// Adjust API Credentials
+const ADJUST_API_TOKEN = process.env.ADJUST_API_TOKEN || '8zTxM99vLdeeZ_kPAc3b-ykVL1QMPJvhfYSyC79cMq7evzxyeA';
+const ADJUST_APP_TOKEN = process.env.ADJUST_APP_TOKEN || '5chd8nwq2pkw';
+
 // Social Media API Credentials
 const TWITTER_CONSUMER_KEY = process.env.TWITTER_CONSUMER_KEY || 'zNKYcm6JKwmN1Be4M7YZrxsT8';
 const TWITTER_CONSUMER_SECRET = process.env.TWITTER_CONSUMER_SECRET || '28STLDRe55AueZlcS49PNlN6UkkaVUOEVizFFr5mNjEpNbIP35';
@@ -52,28 +56,28 @@ function rateLimit(maxRequests = RATE_LIMIT_MAX_REQUESTS) {
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
     const now = Date.now();
     const key = `${ip}-${req.path}`;
-    
+
     if (!rateLimitStore.has(key)) {
       rateLimitStore.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
       return next();
     }
-    
+
     const record = rateLimitStore.get(key);
-    
+
     if (now > record.resetTime) {
       record.count = 1;
       record.resetTime = now + RATE_LIMIT_WINDOW;
       return next();
     }
-    
+
     if (record.count >= maxRequests) {
-      return res.status(429).json({ 
-        error: 'Too many requests', 
+      return res.status(429).json({
+        error: 'Too many requests',
         message: 'Please try again later',
         retryAfter: Math.ceil((record.resetTime - now) / 1000)
       });
     }
-    
+
     record.count++;
     next();
   };
@@ -113,7 +117,7 @@ function sanitizeInput(req, res, next) {
     }
     return obj;
   };
-  
+
   if (req.body) {
     req.body = sanitize(req.body);
   }
@@ -123,7 +127,7 @@ function sanitizeInput(req, res, next) {
   if (req.params) {
     req.params = sanitize(req.params);
   }
-  
+
   next();
 }
 
@@ -138,7 +142,7 @@ function secureHeaders(req, res, next) {
   // Referrer policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   // Content Security Policy
-  res.setHeader('Content-Security-Policy', 
+  res.setHeader('Content-Security-Policy',
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
   );
   // Strict Transport Security (only in production)
@@ -180,7 +184,7 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     // In production, allow specific origins and Vercel deployments
     if (process.env.NODE_ENV === 'production') {
       if (allowedOrigins.indexOf(origin) !== -1 || vercelPreviewPattern.test(origin)) {
@@ -227,24 +231,24 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
     clientSecret: GOOGLE_CLIENT_SECRET,
     callbackURL: `${process.env.BACKEND_URL || 'http://localhost:3001'}/api/auth/google/callback`
   },
-  async (accessToken, refreshToken, profile, done) => {
-    // Check if user is an admin
-    const email = profile.emails?.[0]?.value;
-    if (!email) {
-      return done(new Error('No email found in Google profile'));
-    }
-    
-    if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(email)) {
-      return done(new Error('Access denied. Admin email not authorized.'));
-    }
-    
-    return done(null, {
-      id: profile.id,
-      email: email,
-      name: profile.displayName,
-      picture: profile.photos?.[0]?.value
-    });
-  }));
+    async (accessToken, refreshToken, profile, done) => {
+      // Check if user is an admin
+      const email = profile.emails?.[0]?.value;
+      if (!email) {
+        return done(new Error('No email found in Google profile'));
+      }
+
+      if (ADMIN_EMAILS.length > 0 && !ADMIN_EMAILS.includes(email)) {
+        return done(new Error('Access denied. Admin email not authorized.'));
+      }
+
+      return done(null, {
+        id: profile.id,
+        email: email,
+        name: profile.displayName,
+        picture: profile.photos?.[0]?.value
+      });
+    }));
 
   passport.serializeUser((user, done) => {
     done(null, user);
@@ -269,7 +273,7 @@ async function ensureDataDir() {
   } catch {
     await fs.mkdir(dataDir, { recursive: true });
   }
-  
+
   // Initialize database file if it doesn't exist
   try {
     await fs.access(DB_PATH);
@@ -331,21 +335,21 @@ function validatePhone(phone) {
 // Security: Additional input validation
 function validateInput(input, type) {
   if (typeof input !== 'string') return false;
-  
+
   // Remove potential dangerous characters
   const dangerousChars = /[<>'"&]/g;
   if (dangerousChars.test(input)) return false;
-  
+
   // Length limits
   if (input.length > 1000) return false;
-  
+
   if (type === 'email') return validateEmail(input);
   if (type === 'phone') return validatePhone(input);
   if (type === 'name') {
     // Name should be alphanumeric with spaces, hyphens, and common unicode characters
     return /^[\p{L}\s\-'\.]+$/u.test(input) && input.length >= 2 && input.length <= 100;
   }
-  
+
   return true;
 }
 
@@ -367,7 +371,7 @@ async function getLinkTemplates() {
       },
       timeout: 10000 // 10 second timeout
     });
-    
+
     // Handle different response structures
     if (response.data) {
       // Check if data is nested
@@ -382,7 +386,7 @@ async function getLinkTemplates() {
         return { linkTemplateList: response.data };
       }
     }
-    
+
     return { linkTemplateList: [] };
   } catch (error) {
     console.error('Error fetching link templates:', {
@@ -390,7 +394,7 @@ async function getLinkTemplates() {
       status: error.response?.status,
       data: error.response?.data
     });
-    
+
     // Return empty templates instead of throwing to allow user creation
     return { linkTemplateList: [] };
   }
@@ -465,9 +469,9 @@ async function createUniLinkTemplate(userId, userName, templateConfig = {}) {
       const appsResult = await getAppIds();
       if (appsResult.success && appsResult.apps.length > 0) {
         // Try to find Android app (most common)
-        const androidApp = appsResult.apps.find(app => 
-          app.platform === 'android' || 
-          app.os === 'android' || 
+        const androidApp = appsResult.apps.find(app =>
+          app.platform === 'android' ||
+          app.os === 'android' ||
           app.operatingSystem === 'Android'
         );
         if (androidApp && androidApp.appID) {
@@ -476,9 +480,9 @@ async function createUniLinkTemplate(userId, userName, templateConfig = {}) {
         }
 
         // Try to find iOS app
-        const iosApp = appsResult.apps.find(app => 
-          app.platform === 'ios' || 
-          app.os === 'ios' || 
+        const iosApp = appsResult.apps.find(app =>
+          app.platform === 'ios' ||
+          app.os === 'ios' ||
           app.operatingSystem === 'iOS'
         );
         if (iosApp && iosApp.appID) {
@@ -510,8 +514,8 @@ async function createUniLinkTemplate(userId, userName, templateConfig = {}) {
         iosRdt: 'app_links',
         androidRdt: 'app_links',
         // androidSha256 is REQUIRED by AppTrove API - must be an array with at least one value
-        androidSha256: process.env.APPTROVE_ANDROID_SHA256 
-          ? [process.env.APPTROVE_ANDROID_SHA256] 
+        androidSha256: process.env.APPTROVE_ANDROID_SHA256
+          ? [process.env.APPTROVE_ANDROID_SHA256]
           : (process.env.APPTROVE_ANDROID_SHA256_PLACEHOLDER ? [process.env.APPTROVE_ANDROID_SHA256_PLACEHOLDER] : ['placeholder_sha256']),
         iosTeamID: process.env.APPTROVE_IOS_TEAM_ID || '',
         iosBundleId: process.env.APPTROVE_IOS_BUNDLE_ID || ''
@@ -632,12 +636,12 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
       ...templateIdVariants.map(id => ({
         url: `${APPTROVE_API_URL}/internal/link-template/${id}/link`,
         method: 'POST',
-        payload: { 
+        payload: {
           name: linkName,
           campaign: customParams.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50),
           deepLinking: customParams.deepLink || '',
           status: 'active',
-          ...customParams 
+          ...customParams
         },
         auth: 'basic' // Use Basic Auth with secret ID and key
       })),
@@ -645,12 +649,12 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
       ...templateIdVariants.map(id => ({
         url: `${APPTROVE_API_URL}/internal/link-template/${id}/link`,
         method: 'POST',
-        payload: { 
+        payload: {
           name: linkName,
           campaign: customParams.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50),
           deepLinking: customParams.deepLink || '',
           status: 'active',
-          ...customParams 
+          ...customParams
         },
         auth: 'secret-headers' // Use secret ID and key as headers
       })),
@@ -658,12 +662,12 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
       ...templateIdVariants.map(id => ({
         url: `${APPTROVE_API_URL}/internal/link-template/${id}/link`,
         method: 'POST',
-        payload: { 
+        payload: {
           name: linkName,
           campaign: customParams.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50),
           deepLinking: customParams.deepLink || '',
           status: 'active',
-          ...customParams 
+          ...customParams
         },
         auth: 'api-key' // Use API key header
       })),
@@ -671,26 +675,26 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
       {
         url: `${APPTROVE_API_URL}/internal/unilink`,
         method: 'POST',
-        payload: { 
-          templateId: templateId, 
+        payload: {
+          templateId: templateId,
           name: linkName,
           campaign: customParams.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50),
           deepLinking: customParams.deepLink || '',
           status: 'active',
-          ...customParams 
+          ...customParams
         },
         auth: 'basic'
       },
       {
         url: `${APPTROVE_API_URL}/internal/link-template/link`,
         method: 'POST',
-        payload: { 
-          templateId: templateId, 
+        payload: {
+          templateId: templateId,
           name: linkName,
           campaign: customParams.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50),
           deepLinking: customParams.deepLink || '',
           status: 'active',
-          ...customParams 
+          ...customParams
         },
         auth: 'basic'
       },
@@ -698,12 +702,12 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
       ...templateIdVariants.map(id => ({
         url: `${APPTROVE_API_URL}/v2/link-template/${id}/link`,
         method: 'POST',
-        payload: { 
+        payload: {
           name: linkName,
           campaign: customParams.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50),
           deepLinking: customParams.deepLink || '',
           status: 'active',
-          ...customParams 
+          ...customParams
         },
         auth: 'basic'
       }))
@@ -734,7 +738,7 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
         }
 
         console.log(`Trying ${endpoint.method} ${endpoint.url} with ${endpoint.auth} auth`);
-        
+
         const response = await axios({
           method: endpoint.method,
           url: endpoint.url,
@@ -743,18 +747,18 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
           timeout: 20000,
           validateStatus: (status) => status < 500 // Don't throw on 4xx, only 5xx
         });
-        
+
         // Check for success (200-299) or created (201)
         if (response.status >= 200 && response.status < 300) {
           console.log(`✅ Success with ${endpoint.method} ${endpoint.url} using ${endpoint.auth} auth!`);
           const linkData = response.data;
-          
-          const unilinkUrl = 
+
+          const unilinkUrl =
             linkData.shortUrl || linkData.longUrl || linkData.link || linkData.url ||
             linkData.data?.shortUrl || linkData.data?.longUrl || linkData.data?.link ||
             linkData.data?.url || linkData.result?.link || linkData.result?.url || null;
 
-          const linkId = 
+          const linkId =
             linkData._id || linkData.id || linkData.linkId ||
             linkData.data?._id || linkData.data?.id || linkData.data?.linkId ||
             linkData.result?.id || linkData.result?.linkId || null;
@@ -817,48 +821,92 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
       }
     }
 
-    // If all API endpoints failed, try URL construction as fallback
-    console.log('⚠️  All direct API endpoints failed. Using URL construction fallback...');
+    // If all API endpoints failed, try Adjust URL creation fallback
+    console.log('⚠️  All AppTrove API endpoints failed. Using Adjust Campaign API...');
     const domain = template?.domain || process.env.APPTROVE_DOMAIN || 'applink.reevo.in';
     const androidAppID = template?.androidAppID || process.env.APPTROVE_ANDROID_APP_ID;
-    
+
     if (androidAppID) {
       const linkId = generateUniqueLinkId(linkName);
       const mediaSource = customParams.mediaSource || 'affiliate';
       const campaign = customParams.campaign || linkName.replace(/\s+/g, '-').toLowerCase().substring(0, 50);
       const deepLink = customParams.deepLink || '';
-      
-      const params = new URLSearchParams({
-        pid: mediaSource,
-        campaign: campaign,
-        templateId: templateId
-      });
-      
-      if (deepLink) {
-        params.append('dlv', deepLink);
+
+      let trackingUrl = null;
+      let adjustLinkId = null;
+
+      try {
+        console.log(`[Adjust] Creating link for campaign ${campaign}...`);
+        // Use Adjust Campaign API to create the link
+        const adjustRes = await axios.post(
+          `https://api.adjust.com/public/v2/apps/${ADJUST_APP_TOKEN}/trackers`,
+          {
+            name: linkName,
+            label: campaign
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${ADJUST_API_TOKEN}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (adjustRes.data && adjustRes.data.url) {
+          trackingUrl = adjustRes.data.url;
+          adjustLinkId = adjustRes.data.token;
+
+          // Add parameters to the Adjust URL
+          const params = new URLSearchParams({
+            campaign: campaign,
+            adgroup: templateId
+          });
+
+          if (deepLink) {
+            params.append('deep_link', deepLink);
+          }
+
+          trackingUrl = `${trackingUrl}?${params.toString()}`;
+          console.log(`[Adjust] ✅ Success: ${trackingUrl}`);
+        } else {
+          throw new Error('Adjust API returned success but no URL');
+        }
+      } catch (adjustError) {
+        console.error('[Adjust] ❌ Link creation failed:', adjustError.response?.data || adjustError.message);
+
+        // Fallback to manual URL construction if API fails (adjust.com format requires tracker token)
+        // Adjust standard URL format: https://app.adjust.com/{tracker_token}?campaign={campaign}&adgroup={adgroup}
+        // Without an API we can't generate the tracker token, so this fallback is fundamentally broken
+        // unless we use a static fallback tracker token
+        console.log('⚠️  Falling back to basic URL construction (Note: Adjust requires API for valid tracker tokens)');
+
+        const params = new URLSearchParams({
+          campaign: campaign,
+          adgroup: templateId
+        });
+
+        if (deepLink) {
+          params.append('deep_link', deepLink);
+        }
+
+        trackingUrl = `https://app.adjust.com/FALLBACK_TOKEN?${params.toString()}`;
       }
-      
-      const trackingUrl = `https://click.trackier.io/c/${androidAppID}?${params.toString()}`;
-      
-      console.log('⚠️  Using URL construction fallback');
-      console.log('   URL:', trackingUrl);
-      console.log('   Note: This URL will work for tracking but may not appear in dashboard');
-      
+
       return {
         success: true,
         link: trackingUrl,
-        linkId: linkId,
+        linkId: adjustLinkId || linkId,
         data: {
-          createdVia: 'url-construction-fallback',
+          createdVia: adjustLinkId ? 'adjust-campaign-api' : 'adjust-url-fallback',
           templateId: templateId,
           domain: domain,
           androidAppID: androidAppID,
-          note: 'Link constructed using URL format. API endpoints were not available. Link will track installs and purchases.'
+          note: adjustLinkId ? 'Link created via Adjust Campaign API.' : 'Link constructed using URL format due to API failure. Adjust requires valid tracker tokens.'
         },
-        note: 'Link constructed using URL format - functional for tracking'
+        note: adjustLinkId ? 'Link created via Adjust API' : 'Link constructed using URL format - requires specific tracker token'
       };
     }
-    
+
     // If all methods fail, return error
     return {
       success: false,
@@ -902,27 +950,27 @@ async function createUniLinkFromTemplate(templateId, linkName, customParams = {}
 async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
   try {
     const puppeteer = await import('puppeteer').catch(() => null);
-    
+
     if (!puppeteer) {
       return {
         success: false,
         error: 'Puppeteer not installed. Install it with: npm install puppeteer'
       };
     }
-    
+
     // Check for AppTrove dashboard credentials
     const APPTROVE_EMAIL = process.env.APPTROVE_EMAIL;
     const APPTROVE_PASSWORD = process.env.APPTROVE_PASSWORD;
-    
+
     if (!APPTROVE_EMAIL || !APPTROVE_PASSWORD) {
       return {
         success: false,
         error: 'AppTrove dashboard credentials not configured. Set APPTROVE_EMAIL and APPTROVE_PASSWORD in .env file.'
       };
     }
-    
+
     console.log('   Launching browser for automation...');
-    
+
     // Production-ready Puppeteer configuration
     const browserArgs = [
       '--no-sandbox',
@@ -934,25 +982,25 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
       '--disable-features=IsolateOrigins,site-per-process',
       '--window-size=1920,1080'
     ];
-    
+
     // Use executable path if provided (for production environments)
     const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    
+
     const launchOptions = {
       headless: true,
       args: browserArgs,
       timeout: 60000 // 60 second timeout
     };
-    
+
     if (executablePath) {
       launchOptions.executablePath = executablePath;
     }
-    
+
     // For production, consider using a remote browser service
     const browserWSEndpoint = process.env.PUPPETEER_WS_ENDPOINT;
     let browser;
     let isRemoteBrowser = false;
-    
+
     if (browserWSEndpoint) {
       // Connect to remote browser (e.g., Browserless.io, self-hosted)
       console.log('   Connecting to remote browser service...');
@@ -964,48 +1012,48 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
       // Launch local browser
       browser = await puppeteer.default.launch(launchOptions);
     }
-    
+
     try {
       const page = await browser.newPage();
-      
+
       // Navigate to AppTrove dashboard login
       console.log('   Navigating to AppTrove dashboard...');
       await page.goto('https://dashboard.apptrove.com/login', { waitUntil: 'networkidle2', timeout: 30000 });
-      
+
       // Login
       console.log('   Logging in...');
       await page.type('input[type="email"], input[name="email"]', APPTROVE_EMAIL, { delay: 100 });
       await page.type('input[type="password"], input[name="password"]', APPTROVE_PASSWORD, { delay: 100 });
       await page.click('button[type="submit"], button:has-text("Login"), button:has-text("Sign in")');
       await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 30000 });
-      
+
       // Navigate to Deep Links > Template
       console.log('   Navigating to template page...');
       const templateUrl = `https://dashboard.apptrove.com/v2/app/${templateId}/settings?tab=details`;
       await page.goto(templateUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-      
+
       // Wait for page to load and find "Add Link" button
       console.log('   Looking for Add Link button...');
       await page.waitForSelector('button:has-text("Add Link"), a:has-text("Add Link"), [data-testid*="add"], button[class*="add"]', { timeout: 10000 });
-      
+
       // Click Add Link button
       await page.click('button:has-text("Add Link"), a:has-text("Add Link")');
       await page.waitForTimeout(3000);
-      
+
       // STEP 1: Fill Basic Details (multi-step form)
       // Based on the image: Link Name, Campaign Name, Deep Linking, Status
       console.log('   Step 1: Filling Basic Details...');
-      
+
       // Wait for form modal/dialog to appear
       await page.waitForTimeout(2000);
-      
+
       // Wait for form inputs to appear
       await page.waitForSelector('input[type="text"], input[placeholder*="Name"], input[placeholder*="Enter"]', { timeout: 15000 });
-      
+
       // Get all text inputs on the page
       const allInputs = await page.$$('input[type="text"], input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
       console.log(`   Found ${allInputs.length} input fields`);
-      
+
       // Fill Link Name* (required) - first input with "Name" placeholder
       let nameFilled = false;
       for (const input of allInputs) {
@@ -1015,10 +1063,10 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           const lbl = el.closest('label') || el.previousElementSibling;
           return lbl?.textContent || '';
         });
-        
-        if (placeholder.toLowerCase().includes('name') && 
-            !placeholder.toLowerCase().includes('campaign') &&
-            !name.toLowerCase().includes('campaign')) {
+
+        if (placeholder.toLowerCase().includes('name') &&
+          !placeholder.toLowerCase().includes('campaign') &&
+          !name.toLowerCase().includes('campaign')) {
           await input.click({ clickCount: 3 });
           await input.type(linkName, { delay: 50 });
           nameFilled = true;
@@ -1026,23 +1074,23 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           break;
         }
       }
-      
+
       if (!nameFilled && allInputs.length > 0) {
         // Fallback: fill first input
         await allInputs[0].click({ clickCount: 3 });
         await allInputs[0].type(linkName, { delay: 50 });
         console.log('   ✅ Filled first input as Link Name');
       }
-      
+
       await page.waitForTimeout(500);
-      
+
       // Fill Campaign Name* (required) - second input
       const campaignName = process.env.APPTROVE_DEFAULT_CAMPAIGN || linkName;
       let campaignFilled = false;
       for (const input of allInputs) {
         const placeholder = await input.evaluate(el => el.getAttribute('placeholder') || '');
         const name = await input.evaluate(el => el.getAttribute('name') || '');
-        
+
         if (placeholder.toLowerCase().includes('campaign') || name.toLowerCase().includes('campaign')) {
           await input.click({ clickCount: 3 });
           await input.type(campaignName, { delay: 50 });
@@ -1051,22 +1099,22 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           break;
         }
       }
-      
+
       if (!campaignFilled && allInputs.length > 1) {
         await allInputs[1].click({ clickCount: 3 });
         await allInputs[1].type(campaignName, { delay: 50 });
         console.log('   ✅ Filled second input as Campaign Name');
       }
-      
+
       await page.waitForTimeout(500);
-      
+
       // Fill Deep Linking* (required) - third input
       const deepLinking = process.env.APPTROVE_DEEP_LINKING || 'default';
       let deepLinkFilled = false;
       for (const input of allInputs) {
         const placeholder = await input.evaluate(el => el.getAttribute('placeholder') || '');
         const name = await input.evaluate(el => el.getAttribute('name') || '');
-        
+
         if (placeholder.toLowerCase().includes('deep') || name.toLowerCase().includes('deep')) {
           await input.click({ clickCount: 3 });
           await input.type(deepLinking, { delay: 50 });
@@ -1075,15 +1123,15 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           break;
         }
       }
-      
+
       if (!deepLinkFilled && allInputs.length > 2) {
         await allInputs[2].click({ clickCount: 3 });
         await allInputs[2].type(deepLinking, { delay: 50 });
         console.log('   ✅ Filled third input as Deep Linking');
       }
-      
+
       await page.waitForTimeout(500);
-      
+
       // Ensure Status is set to Active (radio button)
       const radioButtons = await page.$$('input[type="radio"]');
       if (radioButtons.length > 0) {
@@ -1103,14 +1151,14 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           await radioButtons[0].click();
         }
       }
-      
+
       await page.waitForTimeout(1000);
-      
+
       // Click Next button to proceed to Advanced Settings
       console.log('   Clicking Next to proceed to Advanced Settings...');
       const nextButtons = await page.$$('button');
       let nextClicked = false;
-      
+
       for (const btn of nextButtons) {
         const text = await btn.evaluate(el => el.textContent || '');
         if (text.includes('Next') || text.includes('>')) {
@@ -1126,7 +1174,7 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           }
         }
       }
-      
+
       if (!nextClicked) {
         // Try to find green/primary button (usually Next)
         const primaryButtons = await page.$$('button[class*="primary"], button[class*="green"], button[style*="green"]');
@@ -1135,13 +1183,13 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           console.log('   ✅ Clicked primary button (likely Next)');
         }
       }
-      
+
       await page.waitForTimeout(3000);
-      
+
       // STEP 2: Advanced Settings (use defaults, click Next)
       console.log('   Step 2: Advanced Settings (using defaults)...');
       await page.waitForTimeout(2000);
-      
+
       // Look for Next button again
       const nextButtons2 = await page.$$('button');
       for (const btn of nextButtons2) {
@@ -1152,18 +1200,18 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           break;
         }
       }
-      
+
       await page.waitForTimeout(3000);
-      
+
       // STEP 3: Redirection (use template defaults, submit)
       console.log('   Step 3: Redirection (using template defaults)...');
       await page.waitForTimeout(2000);
-      
+
       // Click Create/Submit button
       console.log('   Submitting form...');
       const allButtons = await page.$$('button');
       let submitted = false;
-      
+
       // Look for Create, Submit, or final Next button
       for (const btn of allButtons) {
         const text = await btn.evaluate(el => el.textContent || '');
@@ -1171,9 +1219,9 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           const classList = Array.from(el.classList);
           return classList.some(c => c.includes('primary') || c.includes('green') || c.includes('submit'));
         });
-        
-        if (text.includes('Create') || text.includes('Submit') || text.includes('Save') || 
-            (text.includes('Next') && isPrimary)) {
+
+        if (text.includes('Create') || text.includes('Submit') || text.includes('Save') ||
+          (text.includes('Next') && isPrimary)) {
           const isVisible = await btn.evaluate(el => {
             const style = window.getComputedStyle(el);
             return style.display !== 'none' && style.visibility !== 'hidden';
@@ -1186,7 +1234,7 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           }
         }
       }
-      
+
       if (!submitted) {
         // Fallback: click the most prominent button (usually green/primary)
         const primaryBtns = await page.$$('button[class*="primary"], button[class*="green"], button[style*="green"]');
@@ -1197,17 +1245,17 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           throw new Error('Could not find submit button');
         }
       }
-      
+
       // Wait for link creation to complete
       console.log('   Waiting for link creation to complete...');
       await page.waitForTimeout(5000);
-      
+
       // Try to extract the created link URL
       console.log('   Extracting created link URL...');
-      
+
       // Wait for success message or page update
       await page.waitForTimeout(4000);
-      
+
       // Close any success modal/dialog if present
       try {
         const closeButtons = await page.$$('button[aria-label*="close"], button[aria-label*="Close"], [class*="close"], button:has-text("×")');
@@ -1218,7 +1266,7 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
       } catch (err) {
         // Ignore
       }
-      
+
       // Navigate to template links page to find the newly created link
       console.log('   Navigating to template links page to find created link...');
       const listUrls = [
@@ -1228,34 +1276,35 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
         `https://dashboard.apptrove.com/deep-links/${templateId}`,
         `https://dashboard.apptrove.com/unilink/${templateId}`
       ];
-      
+
       let linkUrl = null;
-      
+
       for (const listUrl of listUrls) {
         try {
           console.log(`   Trying URL: ${listUrl}`);
           await page.goto(listUrl, { waitUntil: 'networkidle2', timeout: 20000 });
           await page.waitForTimeout(5000); // Wait for table/list to load
-          
+
           // Refresh the page to ensure latest data
           await page.reload({ waitUntil: 'networkidle2', timeout: 15000 });
           await page.waitForTimeout(3000);
-          
+
           // Look for the link in the list/table
           linkUrl = await page.evaluate((linkName) => {
             // Method 1: Search all text for the link name and nearby URLs
             const allText = document.body.innerText || document.body.textContent || '';
             const linkNameIndex = allText.indexOf(linkName);
-            
+
             if (linkNameIndex !== -1) {
               // Extract surrounding text to find URL
               const surroundingText = allText.substring(Math.max(0, linkNameIndex - 200), linkNameIndex + 500);
-              const urlMatches = surroundingText.match(/https?:\/\/[^\s]+(applink|trackier|u9ilnk)[^\s]*/g);
+              // First check if there's a link field in unstructured text block
+              const urlMatches = surroundingText.match(/https?:\/\/[^\s]+(app.adjust.com|applink|trackier|u9ilnk)[^\s]*/g);
               if (urlMatches && urlMatches.length > 0) {
                 return urlMatches[0].trim();
               }
             }
-            
+
             // Method 2: Look in table rows
             const rows = document.querySelectorAll('tr, [class*="row"], [class*="item"], [role="row"]');
             for (const row of rows) {
@@ -1265,7 +1314,8 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
                 const linkElements = row.querySelectorAll('a[href], input[value], code, pre, [class*="url"], [class*="link"]');
                 for (const el of linkElements) {
                   const url = el.href || el.value || el.textContent || el.innerText;
-                  if (url && (url.includes('applink') || url.includes('trackier') || url.includes('u9ilnk') || url.includes('/d/'))) {
+                  // Match Adjust links as well as old links
+                  if (url && (url.includes('adjust.com') || url.includes('applink') || url.includes('trackier') || url.includes('u9ilnk') || url.includes('/d/'))) {
                     const cleanUrl = url.trim().split('\n')[0].split(' ')[0];
                     if (cleanUrl.startsWith('http')) {
                       return cleanUrl;
@@ -1274,68 +1324,68 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
                 }
               }
             }
-          
-          // Method 3: Search all links on page
-          const allLinks = document.querySelectorAll('a[href], input[value], code, pre');
-          for (const link of allLinks) {
-            const url = link.href || link.value || link.textContent || link.innerText;
-            if (url && (url.includes('applink') || url.includes('trackier') || url.includes('u9ilnk') || url.includes('/d/'))) {
-              const cleanUrl = url.trim().split('\n')[0].split(' ')[0];
-              if (cleanUrl.startsWith('http')) {
-                // Verify this is a recent link (check if link name is nearby in DOM)
-                const parent = link.closest('tr, [class*="row"], [class*="item"]');
-                if (parent && parent.textContent.includes(linkName)) {
-                  return cleanUrl;
+
+            // Method 3: Search all links on page
+            const allLinks = document.querySelectorAll('a[href], input[value], code, pre');
+            for (const link of allLinks) {
+              const url = link.href || link.value || link.textContent || link.innerText;
+              if (url && (url.includes('adjust.com') || url.includes('applink') || url.includes('trackier') || url.includes('u9ilnk') || url.includes('/d/'))) {
+                const cleanUrl = url.trim().split('\n')[0].split(' ')[0];
+                if (cleanUrl.startsWith('http')) {
+                  // Verify this is a recent link (check if link name is nearby in DOM)
+                  const parent = link.closest('tr, [class*="row"], [class*="item"]');
+                  if (parent && parent.textContent.includes(linkName)) {
+                    return cleanUrl;
+                  }
                 }
               }
             }
-          }
-          
-          return null;
-        }, linkName);
-        
-        if (linkUrl) {
-          console.log(`   ✅ Found link URL: ${linkUrl}`);
-          break;
-        }
-      } catch (err) {
-        console.log(`   Error checking ${listUrl}:`, err.message);
-        continue;
-      }
-      
-      // If still not found, try one more time with a longer wait
-      if (!linkUrl) {
-        console.log('   Link not found yet, waiting longer and retrying...');
-        await page.waitForTimeout(5000);
-        
-        try {
-          await page.goto(`https://dashboard.apptrove.com/v2/app/${templateId}`, { 
-            waitUntil: 'networkidle2', 
-            timeout: 20000 
-          });
-          await page.waitForTimeout(5000);
-          
-          linkUrl = await page.evaluate((linkName) => {
-            // Comprehensive search
-            const allElements = document.querySelectorAll('*');
-            for (const el of allElements) {
-              const text = el.textContent || '';
-              if (text.includes(linkName)) {
-                // Check for URL in this element or children
-                const urlMatch = text.match(/https?:\/\/[^\s]+(applink|trackier|u9ilnk)[^\s]*/);
-                if (urlMatch) {
-                  return urlMatch[0].trim();
-                }
-              }
-            }
+
             return null;
           }, linkName);
+
+          if (linkUrl) {
+            console.log(`   ✅ Found link URL: ${linkUrl}`);
+            break;
+          }
         } catch (err) {
-          console.log('   Final retry failed:', err.message);
+          console.log(`   Error checking ${listUrl}:`, err.message);
+          continue;
+        }
+
+        // If still not found, try one more time with a longer wait
+        if (!linkUrl) {
+          console.log('   Link not found yet, waiting longer and retrying...');
+          await page.waitForTimeout(5000);
+
+          try {
+            await page.goto(`https://dashboard.apptrove.com/v2/app/${templateId}`, {
+              waitUntil: 'networkidle2',
+              timeout: 20000
+            });
+            await page.waitForTimeout(5000);
+
+            linkUrl = await page.evaluate((linkName) => {
+              // Comprehensive search
+              const allElements = document.querySelectorAll('*');
+              for (const el of allElements) {
+                const text = el.textContent || '';
+                if (text.includes(linkName)) {
+                  // Check for URL in this element or children
+                  const urlMatch = text.match(/https?:\/\/[^\s]+(adjust.com|applink|trackier|u9ilnk)[^\s]*/);
+                  if (urlMatch) {
+                    return urlMatch[0].trim();
+                  }
+                }
+              }
+              return null;
+            }, linkName);
+          } catch (err) {
+            console.log('   Final retry failed:', err.message);
+          }
         }
       }
-    }
-      
+
       // Prepare result based on whether we found the URL
       let result;
       if (linkUrl) {
@@ -1348,16 +1398,16 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
         } else {
           linkId = generateUniqueLinkId(linkName);
         }
-        
+
         console.log('   ✅ Successfully created link in AppTrove dashboard!');
         console.log(`   Link URL: ${linkUrl}`);
         console.log(`   Link ID: ${linkId}`);
-        
+
         result = {
           success: true,
           link: linkUrl.trim(),
           linkId: linkId,
-          data: { 
+          data: {
             createdVia: 'browser-automation',
             note: 'Link created in AppTrove dashboard and will appear in the dashboard'
           }
@@ -1368,12 +1418,12 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
         console.log('   ⚠️  Link likely created but URL extraction failed');
         console.log('   The link should appear in the AppTrove dashboard');
         console.log(`   Please check: https://dashboard.apptrove.com/v2/app/${templateId}`);
-        
+
         result = {
           success: true,
           link: null, // Will need to be manually retrieved from dashboard
           linkId: generateUniqueLinkId(linkName),
-          data: { 
+          data: {
             createdVia: 'browser-automation',
             note: `Link "${linkName}" created successfully in AppTrove dashboard. Please check the dashboard to retrieve the link URL. The link should appear in the template links list.`,
             dashboardUrl: `https://dashboard.apptrove.com/v2/app/${templateId}`
@@ -1381,14 +1431,14 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
           warning: 'Link created but URL could not be automatically extracted. Please check AppTrove dashboard to retrieve the link URL.'
         };
       }
-      
+
       // Close/disconnect browser properly before returning
       if (isRemoteBrowser) {
         await browser.disconnect();
       } else {
         await browser.close();
       }
-      
+
       return result;
     } catch (err) {
       // Ensure browser is closed/disconnected even on error
@@ -1403,7 +1453,7 @@ async function createLinkViaBrowserAutomation(templateId, linkName, domain) {
       } catch (closeErr) {
         // Ignore close errors
       }
-      
+
       return {
         success: false,
         error: `Browser automation failed: ${err.message}`,
@@ -1492,7 +1542,7 @@ async function getUniLinkStats(linkId) {
         if (response.status >= 200 && response.status < 300) {
           // Normalize the response data
           const data = response.data?.data || response.data;
-          
+
           return {
             success: true,
             data: {
@@ -1543,7 +1593,7 @@ async function getUniLinkStats(linkId) {
       status: error.response?.status,
       data: error.response?.data
     });
-    
+
     return {
       success: false,
       error: error.message,
@@ -1574,7 +1624,7 @@ async function verifyInstagram(handle) {
     username = username.replace('@', '').trim();
 
     const profileUrl = `https://www.instagram.com/${username}/`;
-    
+
     // Method 1: Try HTML scraping with axios
     try {
       const response = await axios.get(profileUrl, {
@@ -1605,10 +1655,10 @@ async function verifyInstagram(handle) {
 
       // Parse HTML to extract follower count
       const html = response.data;
-      
+
       let followers = 0;
       let found = false;
-      
+
       // Method 1: Try window._sharedData (most reliable)
       const sharedDataMatch = html.match(/window\._sharedData\s*=\s*({.+?});/);
       if (sharedDataMatch) {
@@ -1665,7 +1715,7 @@ async function verifyInstagram(handle) {
                 }
               }
             }
-          } catch (e) {}
+          } catch (e) { }
         }
       }
 
@@ -1681,7 +1731,7 @@ async function verifyInstagram(handle) {
             /"followers":\s*(\d+)/,
             /"edge_followed_by":\s*{\s*"count":\s*(\d+)/m,
           ];
-          
+
           for (const pattern of patterns) {
             const match = script.match(pattern);
             if (match) {
@@ -1718,7 +1768,7 @@ async function verifyInstagram(handle) {
           /"([\d,]+)\s*Followers?"/i,
           /followers["']?\s*:\s*["']?([\d,]+)/i,
         ];
-        
+
         for (const pattern of contentPatterns) {
           const match = html.match(pattern);
           if (match) {
@@ -1781,7 +1831,7 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
   let browser = null;
   try {
     console.log(`Using Puppeteer to scrape Instagram: ${username}`);
-    
+
     browser = await puppeteer.launch({
       headless: true,
       args: [
@@ -1797,16 +1847,16 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     await page.setViewport({ width: 1920, height: 1080 });
-    
+
     // Navigate to profile
     await page.goto(profileUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-    
+
     // Wait for content to load
     await page.waitForTimeout(3000);
-    
+
     let followers = 0;
     let found = false;
-    
+
     // Method 1: Try to extract from page evaluation (most reliable with Puppeteer)
     try {
       const pageData = await page.evaluate(() => {
@@ -1817,9 +1867,9 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
             if (user && user.edge_followed_by?.count) {
               return { followers: user.edge_followed_by.count, method: '_sharedData' };
             }
-          } catch (e) {}
+          } catch (e) { }
         }
-        
+
         // Try to find in meta tags
         const metaDesc = document.querySelector('meta[property="og:description"]');
         if (metaDesc) {
@@ -1828,17 +1878,17 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
             return { followers: match[1].replace(/,/g, ''), method: 'meta' };
           }
         }
-        
+
         // Try to find in visible text
         const allText = document.body.innerText || document.body.textContent || '';
         const textMatch = allText.match(/([\d,]+)\s+Followers?/i);
         if (textMatch) {
           return { followers: textMatch[1].replace(/,/g, ''), method: 'text' };
         }
-        
+
         return null;
       });
-      
+
       if (pageData && pageData.followers) {
         followers = parseInt(pageData.followers);
         found = true;
@@ -1847,12 +1897,12 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
     } catch (e) {
       console.error('Puppeteer evaluate error:', e.message);
     }
-    
+
     // Method 2: Try to extract from page content/scripts
     if (!found) {
       try {
         const pageContent = await page.content();
-        
+
         // Look for JSON data patterns (more comprehensive)
         const jsonMatches = [
           /"edge_followed_by":\s*{\s*"count":\s*(\d+)/,
@@ -1862,7 +1912,7 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
           /"edge_followed_by":\s*{\s*"count":\s*(\d+)/m,
           /followers["']?\s*:\s*["']?(\d+)/i,
         ];
-        
+
         for (const regex of jsonMatches) {
           const match = pageContent.match(regex);
           if (match) {
@@ -1878,7 +1928,7 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
         console.error('Puppeteer content extraction error:', e.message);
       }
     }
-    
+
     // Method 3: Try to find follower count in visible text elements
     if (!found) {
       try {
@@ -1890,7 +1940,7 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
             '[data-testid="followers"]',
             'header section ul li span',
           ];
-          
+
           for (const selector of selectors) {
             try {
               const elements = document.querySelectorAll(selector);
@@ -1901,9 +1951,9 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
                   return match[1];
                 }
               }
-            } catch (e) {}
+            } catch (e) { }
           }
-          
+
           // Fallback: search all elements
           const allElements = Array.from(document.querySelectorAll('*'));
           for (const el of allElements) {
@@ -1913,10 +1963,10 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
               return match[1];
             }
           }
-          
+
           return null;
         });
-        
+
         if (followerText) {
           followers = parseInt(followerText.replace(/,/g, ''));
           if (followers > 0) {
@@ -1928,9 +1978,9 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
         console.error('Puppeteer text extraction error:', e.message);
       }
     }
-    
+
     await browser.close();
-    
+
     if (found && followers > 0) {
       return {
         verified: true,
@@ -1950,7 +2000,7 @@ async function verifyInstagramWithPuppeteer(username, profileUrl) {
     }
   } catch (error) {
     if (browser) {
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
     }
     console.error('Puppeteer Instagram verification error:', error.message);
     throw error;
@@ -1962,7 +2012,7 @@ async function verifyYouTube(handle) {
     // Extract channel ID or username from URL
     let channelId = null;
     let username = null;
-    
+
     if (handle.includes('youtube.com/channel/')) {
       channelId = handle.split('youtube.com/channel/')[1].split('/')[0].split('?')[0];
     } else if (handle.includes('youtube.com/c/') || handle.includes('youtube.com/user/')) {
@@ -1991,7 +2041,7 @@ async function verifyYouTube(handle) {
         // First, search for the channel by handle
         const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(username)}&key=${YOUTUBE_API_KEY}&maxResults=1`;
         const searchResponse = await axios.get(searchUrl, { timeout: 10000 });
-        
+
         if (searchResponse.data.items && searchResponse.data.items.length > 0) {
           // Found channel via search, now get full details
           const foundChannelId = searchResponse.data.items[0].id.channelId;
@@ -2012,7 +2062,7 @@ async function verifyYouTube(handle) {
     }
 
     const response = await axios.get(apiUrl, { timeout: 10000 });
-    
+
     if (response.data.items && response.data.items.length > 0) {
       const channel = response.data.items[0];
       return {
@@ -2034,7 +2084,7 @@ async function verifyYouTube(handle) {
       status: error.response?.status,
       data: error.response?.data
     });
-    
+
     let errorMessage = 'Failed to verify YouTube channel';
     if (error.response?.data?.error) {
       const apiError = error.response.data.error;
@@ -2043,7 +2093,7 @@ async function verifyYouTube(handle) {
       } else if (apiError.errors && apiError.errors.length > 0) {
         errorMessage = apiError.errors[0].message || errorMessage;
       }
-      
+
       // Handle specific API errors
       if (apiError.code === 403) {
         errorMessage = 'YouTube API quota exceeded or access denied. Please check your API key.';
@@ -2053,7 +2103,7 @@ async function verifyYouTube(handle) {
     } else if (error.message) {
       errorMessage = error.message;
     }
-    
+
     return {
       verified: false,
       error: errorMessage
@@ -2066,7 +2116,7 @@ async function verifyFacebook(handle) {
     // Extract page/username from URL
     let pageId = null;
     let username = null;
-    
+
     if (handle.includes('facebook.com/')) {
       const path = handle.split('facebook.com/')[1].split('/')[0].split('?')[0];
       if (path && !path.includes('pages') && !path.includes('profile')) {
@@ -2079,7 +2129,7 @@ async function verifyFacebook(handle) {
     // Note: Facebook Graph API requires access token
     // You'll need to set FACEBOOK_ACCESS_TOKEN in environment variables
     const FACEBOOK_ACCESS_TOKEN = process.env.FACEBOOK_ACCESS_TOKEN;
-    
+
     if (!FACEBOOK_ACCESS_TOKEN) {
       return {
         verified: false,
@@ -2089,9 +2139,9 @@ async function verifyFacebook(handle) {
 
     // Try to get page info
     const apiUrl = `https://graph.facebook.com/v18.0/${username || pageId}?fields=name,fan_count&access_token=${FACEBOOK_ACCESS_TOKEN}`;
-    
+
     const response = await axios.get(apiUrl, { timeout: 10000 });
-    
+
     if (response.data) {
       return {
         verified: true,
@@ -2133,7 +2183,7 @@ async function verifyTwitter(handle) {
 
     // Twitter API v2 - Get user by username
     // Using OAuth 1.0a for authentication
-    
+
     // Generate OAuth signature
     const oauthParams = {
       oauth_consumer_key: TWITTER_CONSUMER_KEY,
@@ -2146,7 +2196,7 @@ async function verifyTwitter(handle) {
 
     const baseUrl = `https://api.twitter.com/2/users/by/username/${username}`;
     const queryParams = { 'user.fields': 'public_metrics' };
-    
+
     // Create parameter string for signature (include query params)
     const allParams = { ...oauthParams, ...queryParams };
     const paramString = Object.entries(allParams)
@@ -2168,7 +2218,7 @@ async function verifyTwitter(handle) {
     // Retry logic for Twitter API
     let lastError = null;
     const maxRetries = 2;
-    
+
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         // Try Twitter API v2 first
@@ -2201,7 +2251,7 @@ async function verifyTwitter(handle) {
       } catch (apiError) {
         lastError = apiError;
         console.error(`Twitter API v2 attempt ${attempt + 1} error:`, apiError.response?.data || apiError.message);
-        
+
         // If it's a rate limit or temporary error, wait and retry
         if (attempt < maxRetries && (apiError.response?.status === 429 || apiError.response?.status >= 500)) {
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
@@ -2219,13 +2269,13 @@ async function verifyTwitter(handle) {
             .join(', ');
           continue;
         }
-        
+
         // If v2 fails after retries, try v1.1 API
         if (attempt === maxRetries) {
           try {
             const v1Url = `https://api.twitter.com/1.1/users/show.json`;
             const v1Params = { screen_name: username };
-            
+
             // Recreate signature for v1.1
             const v1OauthParams = {
               oauth_consumer_key: TWITTER_CONSUMER_KEY,
@@ -2235,17 +2285,17 @@ async function verifyTwitter(handle) {
               oauth_nonce: crypto.randomBytes(16).toString('hex'),
               oauth_version: '1.0'
             };
-            
+
             const v1AllParams = { ...v1OauthParams, ...v1Params };
             const v1ParamString = Object.entries(v1AllParams)
               .sort(([a], [b]) => a.localeCompare(b))
               .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
               .join('&');
-            
+
             const v1SignatureBaseString = `GET&${encodeURIComponent(v1Url)}&${encodeURIComponent(v1ParamString)}`;
             const v1Signature = crypto.createHmac('sha1', signingKey).update(v1SignatureBaseString).digest('base64');
             v1OauthParams.oauth_signature = v1Signature;
-            
+
             const v1AuthHeader = 'OAuth ' + Object.entries(v1OauthParams)
               .map(([k, v]) => `${encodeURIComponent(k)}="${encodeURIComponent(String(v))}"`)
               .join(', ');
@@ -2274,7 +2324,7 @@ async function verifyTwitter(handle) {
         }
       }
     }
-    
+
     // If all attempts fail, return error
     return {
       verified: false,
@@ -2292,9 +2342,9 @@ async function verifyTwitter(handle) {
 async function verifySocialMedia(platform, handle) {
   // Normalize platform name (handle case variations and spaces)
   const normalizedPlatform = platform.toLowerCase().trim().replace(/\s+/g, '');
-  
+
   console.log(`Verifying platform: "${platform}" -> normalized: "${normalizedPlatform}"`);
-  
+
   switch (normalizedPlatform) {
     case 'instagram':
       return await verifyInstagram(handle);
@@ -2350,14 +2400,14 @@ async function getTemplateLinks(templateId) {
           },
           timeout: 10000
         });
-        
+
         // Handle different response structures
-        const links = response.data?.data?.linkList || 
-                     response.data?.linkList || 
-                     response.data?.links || 
-                     response.data?.data || 
-                     [];
-        
+        const links = response.data?.data?.linkList ||
+          response.data?.linkList ||
+          response.data?.links ||
+          response.data?.data ||
+          [];
+
         return {
           success: true,
           links: Array.isArray(links) ? links : []
@@ -2374,7 +2424,7 @@ async function getTemplateLinks(templateId) {
       message: error.message,
       status: error.response?.status
     });
-    
+
     return {
       success: false,
       links: []
@@ -2482,9 +2532,9 @@ app.post('/api/social/verify', rateLimit(10), async (req, res) => {
     }
 
     console.log(`Verifying ${platform} handle: ${handle}`);
-    
+
     const result = await verifySocialMedia(platform, handle);
-    
+
     if (result.verified) {
       res.json({
         verified: true,
@@ -2507,40 +2557,40 @@ app.post('/api/social/verify', rateLimit(10), async (req, res) => {
   }
 });
 
-// Register new user and create Trackier link
+// Register new user and create Adjust link
 app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res) => {
   try {
     const { name, email, phone, followerCount, socialHandles } = req.body;
 
     // Validate required fields
     if (!name || !email || !phone) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Missing required fields',
-        details: 'Name, email, and phone are required' 
+        details: 'Name, email, and phone are required'
       });
     }
 
     // Validate and sanitize inputs with security checks
     if (!validateInput(name, 'name')) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid name format',
-        details: 'Name must be 2-100 characters and contain only letters, spaces, hyphens, and apostrophes' 
+        details: 'Name must be 2-100 characters and contain only letters, spaces, hyphens, and apostrophes'
       });
     }
 
     // Validate email format
     if (!validateInput(email, 'email')) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid email format',
-        details: 'Please provide a valid email address' 
+        details: 'Please provide a valid email address'
       });
     }
 
     // Validate phone format
     if (!validateInput(phone, 'phone')) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid phone number',
-        details: 'Please provide a valid phone number (10-15 digits)' 
+        details: 'Please provide a valid phone number (10-15 digits)'
       });
     }
 
@@ -2552,7 +2602,7 @@ app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res)
     // Check if user already exists
     let existingUser = null;
     let existingLink = null;
-    
+
     if (USE_DYNAMODB) {
       existingUser = await dynamodb.getUserByEmail(sanitizedEmail);
       if (existingUser) {
@@ -2566,13 +2616,13 @@ app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res)
         existingLink = db.links.find(l => l.userId === existingUser.id);
       }
     }
-    
+
     if (existingUser) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         error: 'User already exists',
         details: 'A user with this email already exists',
         userId: existingUser.id,
-        trackierLink: existingLink?.link || null
+        adjustLink: existingLink?.link || null
       });
     }
 
@@ -2591,8 +2641,8 @@ app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res)
       .reduce((sum, h) => sum + (h.verifiedFollowers || 0), 0);
 
     // Get primary platform (first verified handle, or first handle)
-    const primaryPlatform = processedHandles.find(h => h.verified)?.platform || 
-                            processedHandles[0]?.platform || '';
+    const primaryPlatform = processedHandles.find(h => h.verified)?.platform ||
+      processedHandles[0]?.platform || '';
 
     // Create new user with pending approval status
     const newUser = {
@@ -2644,7 +2694,7 @@ app.post('/api/users/register', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, res)
 app.get('/api/users/:id', async (req, res) => {
   try {
     let user, userLinks, userAnalytics;
-    
+
     if (USE_DYNAMODB) {
       user = await dynamodb.getUserById(req.params.id);
       if (!user) {
@@ -2665,7 +2715,7 @@ app.get('/api/users/:id', async (req, res) => {
     const totalConversions = userAnalytics.reduce((sum, a) => sum + (a.conversions || 0), 0);
     const totalEarnings = userAnalytics.reduce((sum, a) => sum + (a.earnings || 0), 0);
     const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks * 100).toFixed(2) : 0;
-    
+
     // Try to fetch latest stats from AppTrove if link exists
     if (userLinks.length > 0 && userLinks[0].linkId && APPTROVE_API_KEY && user.approvalStatus === 'approved') {
       try {
@@ -2677,10 +2727,10 @@ app.get('/api/users/:id', async (req, res) => {
           const apptroveConversions = apptroveData.conversions || apptroveData.totalConversions || totalConversions;
           const apptroveEarnings = apptroveData.earnings || apptroveData.totalEarnings || totalEarnings;
           const apptroveRate = apptroveClicks > 0 ? (apptroveConversions / apptroveClicks * 100).toFixed(2) : 0;
-          
+
           const apptroveInstalls = apptroveData.installs || apptroveData.totalInstalls || 0;
           const apptrovePurchases = apptroveData.purchases || apptroveData.subscriptions || apptroveData.totalPurchases || 0;
-          
+
           return res.json({
             ...user,
             links: userLinks.map(link => ({
@@ -2701,8 +2751,8 @@ app.get('/api/users/:id', async (req, res) => {
               conversionRate: parseFloat(apptroveRate),
               installRate: apptroveClicks > 0 ? ((apptroveInstalls / apptroveClicks) * 100).toFixed(2) : 0,
               purchaseRate: apptroveInstalls > 0 ? ((apptrovePurchases / apptroveInstalls) * 100).toFixed(2) : 0,
-              lastActivity: userAnalytics.length > 0 
-                ? userAnalytics[userAnalytics.length - 1].date 
+              lastActivity: userAnalytics.length > 0
+                ? userAnalytics[userAnalytics.length - 1].date
                 : user.createdAt,
               source: 'apptrove'
             }
@@ -2740,8 +2790,8 @@ app.get('/api/users/:id', async (req, res) => {
         conversionRate: parseFloat(conversionRate),
         installRate: parseFloat(installRate),
         purchaseRate: parseFloat(purchaseRate),
-        lastActivity: userAnalytics.length > 0 
-          ? userAnalytics[userAnalytics.length - 1].date 
+        lastActivity: userAnalytics.length > 0
+          ? userAnalytics[userAnalytics.length - 1].date
           : user.createdAt,
         source: 'local'
       }
@@ -2756,14 +2806,14 @@ app.get('/api/users/email/:email', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, r
   try {
     // Sanitize email input
     const email = decodeURIComponent(req.params.email).trim().toLowerCase();
-    
+
     // Validate email format
     if (!validateEmail(email)) {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
     let user, userLinks;
-    
+
     if (USE_DYNAMODB) {
       user = await dynamodb.getUserByEmail(email);
       if (!user) {
@@ -2799,14 +2849,14 @@ app.get('/api/users/phone/:phone', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, r
     // Sanitize phone input
     const phone = decodeURIComponent(req.params.phone).trim();
     const phoneDigits = phone.replace(/\D/g, '');
-    
+
     // Validate phone format
     if (phoneDigits.length < 10) {
       return res.status(400).json({ error: 'Invalid phone number format' });
     }
 
     let user, userLinks;
-    
+
     if (USE_DYNAMODB) {
       user = await dynamodb.getUserByPhone(phone);
       if (!user) {
@@ -2844,9 +2894,9 @@ app.get('/api/users/phone/:phone', rateLimit(RATE_LIMIT_AUTH_MAX), async (req, r
 app.get('/api/users', isAdmin, async (req, res) => {
   try {
     const { search, platform, status, approvalStatus, sortBy, sortOrder } = req.query;
-    
+
     let users, allLinks, allAnalytics;
-    
+
     if (USE_DYNAMODB) {
       users = await dynamodb.getAllUsers({ search, platform, status, approvalStatus });
       allLinks = await dynamodb.getAllLinks();
@@ -2857,17 +2907,17 @@ app.get('/api/users', isAdmin, async (req, res) => {
       allLinks = db.links;
       allAnalytics = db.analytics;
     }
-    
+
     let processedUsers = users.map(user => {
       const userLinks = allLinks.filter(l => l.userId === user.id);
       const userAnalytics = allAnalytics.filter(a => a.userId === user.id);
-      
+
       // Calculate totals
       const totalClicks = userAnalytics.reduce((sum, a) => sum + (a.clicks || 0), 0);
       const totalConversions = userAnalytics.reduce((sum, a) => sum + (a.conversions || 0), 0);
       const totalEarnings = userAnalytics.reduce((sum, a) => sum + (a.earnings || 0), 0);
       const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks * 100).toFixed(2) : 0;
-      
+
       return {
         ...user,
         links: userLinks,
@@ -2876,41 +2926,41 @@ app.get('/api/users', isAdmin, async (req, res) => {
           totalConversions,
           totalEarnings,
           conversionRate: parseFloat(conversionRate),
-          lastActivity: userAnalytics.length > 0 
-            ? userAnalytics[userAnalytics.length - 1].date 
+          lastActivity: userAnalytics.length > 0
+            ? userAnalytics[userAnalytics.length - 1].date
             : user.createdAt
         }
       };
     });
-    
+
     // Filter out deleted users by default (unless explicitly requested)
     const includeDeleted = req.query.includeDeleted === 'true';
     if (!includeDeleted) {
       processedUsers = processedUsers.filter(u => u.status !== 'deleted' && u.approvalStatus !== 'deleted');
     }
-    
+
     // Apply filters (if not already applied by DynamoDB)
     if (search && !USE_DYNAMODB) {
       const searchLower = search.toLowerCase();
-      processedUsers = processedUsers.filter(u => 
+      processedUsers = processedUsers.filter(u =>
         u.name.toLowerCase().includes(searchLower) ||
         u.email.toLowerCase().includes(searchLower) ||
         (u.socialHandle && u.socialHandle.toLowerCase().includes(searchLower))
       );
     }
-    
+
     if (platform && !USE_DYNAMODB) {
       processedUsers = processedUsers.filter(u => u.platform === platform);
     }
-    
+
     if (approvalStatus && !USE_DYNAMODB) {
       processedUsers = processedUsers.filter(u => (u.approvalStatus || 'pending') === approvalStatus);
     }
-    
+
     if (status && !USE_DYNAMODB) {
       processedUsers = processedUsers.filter(u => (u.status || 'active') === status);
     }
-    
+
     // Apply sorting
     if (sortBy) {
       const order = sortOrder === 'desc' ? -1 : 1;
@@ -2929,7 +2979,7 @@ app.get('/api/users', isAdmin, async (req, res) => {
         return 0;
       });
     }
-    
+
     res.json(processedUsers);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch users', details: error.message });
@@ -2941,37 +2991,37 @@ app.get('/api/users/:id/analytics', async (req, res) => {
   try {
     const { startDate, endDate, groupBy = 'day' } = req.query;
     const db = await readDB();
-    
+
     // Ensure db structure exists
     if (!db.users) db.users = [];
     if (!db.links) db.links = [];
     if (!db.analytics) db.analytics = [];
-    
+
     const user = db.users.find(u => u.id === req.params.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     // Check if user is approved
     if (user.approvalStatus !== 'approved') {
       return res.status(403).json({ error: 'User not approved', message: 'Analytics are only available for approved users' });
     }
-    
+
     // Get user's link
     const userLink = db.links.find(l => l.userId === user.id);
-    
+
     let analytics = [];
-    
+
     // Try to fetch from AppTrove API if link exists
     if (userLink && userLink.linkId && ((APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) || APPTROVE_API_KEY)) {
       try {
         const apptroveStats = await getUniLinkStats(userLink.linkId);
-        
+
         if (apptroveStats && apptroveStats.success && apptroveStats.data) {
           // Transform AppTrove data to our format
           // Adjust based on actual AppTrove API response structure
           const apptroveData = apptroveStats.data;
-          
+
           // Map AppTrove response to our analytics format
           // Include installs and purchases/subscriptions
           if (apptroveData.clicks || apptroveData.conversions || apptroveData.earnings) {
@@ -2999,12 +3049,12 @@ app.get('/api/users/:id/analytics', async (req, res) => {
         // Fall back to local analytics if AppTrove fails
       }
     }
-    
+
     // Fall back to local analytics if AppTrove data not available
     if (analytics.length === 0) {
       analytics = db.analytics.filter(a => a.userId === req.params.id);
     }
-    
+
     // Apply date filters
     if (startDate) {
       analytics = analytics.filter(a => new Date(a.date) >= new Date(startDate));
@@ -3012,7 +3062,7 @@ app.get('/api/users/:id/analytics', async (req, res) => {
     if (endDate) {
       analytics = analytics.filter(a => new Date(a.date) <= new Date(endDate));
     }
-    
+
     // Group by day/week/month if needed
     if (groupBy === 'day') {
       const grouped = {};
@@ -3029,12 +3079,12 @@ app.get('/api/users/:id/analytics', async (req, res) => {
       });
       analytics = Object.values(grouped).sort((a, b) => new Date(a.date) - new Date(b.date));
     }
-    
+
     res.json(analytics);
   } catch (error) {
     console.error('Error in /api/users/:id/analytics:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch analytics', 
+    res.status(500).json({
+      error: 'Failed to fetch analytics',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -3046,33 +3096,33 @@ app.post('/api/users/:id/sync-analytics', async (req, res) => {
   try {
     const db = await readDB();
     const user = db.users.find(u => u.id === req.params.id);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     if (user.approvalStatus !== 'approved') {
       return res.status(403).json({ error: 'User not approved' });
     }
-    
+
     const userLink = db.links.find(l => l.userId === user.id);
-    
+
     if (!userLink || !userLink.linkId) {
       return res.status(404).json({ error: 'User link not found. Please ensure user has been approved and unilink created.' });
     }
-    
+
     if (!APPTROVE_API_KEY) {
       return res.status(500).json({ error: 'AppTrove API key not configured' });
     }
-    
+
     // Fetch latest stats from AppTrove using linkId
     console.log(`Fetching analytics for link ${userLink.linkId}`);
     const apptroveStats = await getUniLinkStats(userLink.linkId);
-    
+
     if (apptroveStats.success && apptroveStats.data) {
       // Extract stats from AppTrove response
       const stats = apptroveStats.data;
-      
+
       // Save to local analytics
       const analyticsEntry = {
         id: uuidv4(),
@@ -3089,10 +3139,10 @@ app.post('/api/users/:id/sync-analytics', async (req, res) => {
         source: 'apptrove',
         rawData: apptroveStats.rawData // Store raw data for reference
       };
-      
+
       db.analytics.push(analyticsEntry);
       await writeDB(db);
-      
+
       res.json({
         success: true,
         message: 'Analytics synced successfully from AppTrove',
@@ -3122,12 +3172,12 @@ app.put('/api/users/:id', isAdmin, async (req, res) => {
   try {
     const { name, phone, platform, socialHandle, followerCount, status, approvalStatus, adminNotes, unilink, linkId, templateId } = req.body;
     const db = await readDB();
-    
+
     const userIndex = db.users.findIndex(u => u.id === req.params.id);
     if (userIndex === -1) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     // Update user fields
     if (name) db.users[userIndex].name = name;
     if (phone) db.users[userIndex].phone = phone;
@@ -3146,11 +3196,11 @@ app.put('/api/users/:id', isAdmin, async (req, res) => {
     }
     if (adminNotes !== undefined) db.users[userIndex].adminNotes = adminNotes;
     db.users[userIndex].updatedAt = new Date().toISOString();
-    
+
     // Allow manual unilink assignment
     if (unilink) {
       const existingLinkIndex = db.links.findIndex(l => l.userId === db.users[userIndex].id);
-      
+
       if (existingLinkIndex >= 0) {
         db.links[existingLinkIndex].link = unilink;
         if (linkId) db.links[existingLinkIndex].linkId = linkId;
@@ -3171,9 +3221,9 @@ app.put('/api/users/:id', isAdmin, async (req, res) => {
         db.links.push(newLink);
       }
     }
-    
+
     await writeDB(db);
-    
+
     res.json(db.users[userIndex]);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update user', details: error.message });
@@ -3185,14 +3235,14 @@ app.post('/api/users/:id/approve', isAdmin, async (req, res) => {
   try {
     const { adminNotes, approvedBy } = req.body;
     const db = await readDB();
-    
+
     const userIndex = db.users.findIndex(u => u.id === req.params.id);
     if (userIndex === -1) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     const user = db.users[userIndex];
-    
+
     // Update user approval status
     db.users[userIndex].approvalStatus = 'approved';
     db.users[userIndex].status = 'active';
@@ -3200,18 +3250,18 @@ app.post('/api/users/:id/approve', isAdmin, async (req, res) => {
     db.users[userIndex].approvedAt = new Date().toISOString();
     if (adminNotes) db.users[userIndex].adminNotes = adminNotes;
     db.users[userIndex].updatedAt = new Date().toISOString();
-    
+
     // Create AppTrove UniLink Template and Link for approved user
     let unilink = null;
     let linkId = null;
     let templateId = null;
     let linkError = null;
-    
+
     if (APPTROVE_API_KEY) {
       try {
         // Use the "EduRise" template (ID: wBehUW) for all new users
         const EDURISE_TEMPLATE_ID = process.env.APPTROVE_TEMPLATE_ID || 'wBehUW';
-        
+
         console.log(`Using EduRise template (${EDURISE_TEMPLATE_ID}) for user ${user.id} (${user.name})`);
         templateId = EDURISE_TEMPLATE_ID;
 
@@ -3243,11 +3293,11 @@ app.post('/api/users/:id/approve', isAdmin, async (req, res) => {
     } else {
       linkError = 'AppTrove API key not configured';
     }
-    
+
     // Save or update link in database
     if (unilink) {
       const existingLinkIndex = db.links.findIndex(l => l.userId === user.id);
-      
+
       if (existingLinkIndex >= 0) {
         // Update existing link
         db.links[existingLinkIndex].link = unilink;
@@ -3274,19 +3324,19 @@ app.post('/api/users/:id/approve', isAdmin, async (req, res) => {
     } else {
       console.warn(`No unilink created for user ${user.id}. Error: ${linkError}`);
     }
-    
+
     await writeDB(db);
-    
+
     // Return response with unilink information
     const updatedUser = {
       ...db.users[userIndex],
       unilink: unilink
     };
-    
+
     res.json({
       success: true,
       user: updatedUser,
-      message: unilink 
+      message: unilink
         ? `User approved successfully! UniLink created: ${unilink}`
         : `User approved successfully. ${linkError ? 'Warning: ' + linkError : 'Unilink creation pending. Please check AppTrove API configuration.'}`,
       unilink: unilink,
@@ -3304,21 +3354,21 @@ app.post('/api/users/:id/reject', isAdmin, async (req, res) => {
   try {
     const { adminNotes, approvedBy } = req.body;
     const db = await readDB();
-    
+
     const userIndex = db.users.findIndex(u => u.id === req.params.id);
     if (userIndex === -1) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     db.users[userIndex].approvalStatus = 'rejected';
     db.users[userIndex].status = 'inactive';
     db.users[userIndex].approvedBy = approvedBy || 'admin';
     db.users[userIndex].approvedAt = new Date().toISOString();
     if (adminNotes) db.users[userIndex].adminNotes = adminNotes;
     db.users[userIndex].updatedAt = new Date().toISOString();
-    
+
     await writeDB(db);
-    
+
     res.json({
       success: true,
       user: db.users[userIndex],
@@ -3333,21 +3383,21 @@ app.post('/api/users/:id/reject', isAdmin, async (req, res) => {
 app.delete('/api/users/:id', isAdmin, async (req, res) => {
   try {
     const db = await readDB();
-    
+
     const userIndex = db.users.findIndex(u => u.id === req.params.id);
     if (userIndex === -1) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     // Soft delete - mark as deleted instead of removing
     db.users[userIndex].status = 'deleted';
     db.users[userIndex].approvalStatus = 'deleted';
     db.users[userIndex].deletedAt = new Date().toISOString();
     db.users[userIndex].deletedBy = req.user?.email || 'admin';
     db.users[userIndex].updatedAt = new Date().toISOString();
-    
+
     await writeDB(db);
-    
+
     res.json({
       success: true,
       message: 'User deleted successfully',
@@ -3367,13 +3417,13 @@ app.delete('/api/users/:id', isAdmin, async (req, res) => {
 app.post('/api/analytics', async (req, res) => {
   try {
     const { userId, linkId, clicks, conversions, earnings, date } = req.body;
-    
+
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
-    
+
     const db = await readDB();
-    
+
     const analyticsEntry = {
       id: uuidv4(),
       userId,
@@ -3384,10 +3434,10 @@ app.post('/api/analytics', async (req, res) => {
       date: date || new Date().toISOString(),
       createdAt: new Date().toISOString()
     };
-    
+
     db.analytics.push(analyticsEntry);
     await writeDB(db);
-    
+
     res.status(201).json(analyticsEntry);
   } catch (error) {
     res.status(500).json({ error: 'Failed to record analytics', details: error.message });
@@ -3398,22 +3448,22 @@ app.post('/api/analytics', async (req, res) => {
 app.get('/api/dashboard/stats', isAdmin, async (req, res) => {
   try {
     const db = await readDB();
-    
+
     // Ensure db structure exists
     if (!db.users) db.users = [];
     if (!db.links) db.links = [];
     if (!db.analytics) db.analytics = [];
-    
+
     const totalAffiliates = db.users.length;
     const activeAffiliates = db.users.filter(u => u.status !== 'inactive').length;
-    
+
     // Fetch stats from AppTrove for all links using Secret ID/Key
     let totalClicks = 0;
     let totalConversions = 0;
     let totalEarnings = 0;
     let totalInstalls = 0;
     let totalPurchases = 0;
-    
+
     // Use Secret ID/Key if available, otherwise fall back to API key
     if ((APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) || APPTROVE_API_KEY) {
       for (const link of db.links) {
@@ -3435,25 +3485,25 @@ app.get('/api/dashboard/stats', isAdmin, async (req, res) => {
         }
       }
     }
-    
+
     // Fallback to local analytics if AppTrove data not available
     if (totalClicks === 0 && totalConversions === 0) {
       totalClicks = db.analytics.reduce((sum, a) => sum + (a.clicks || 0), 0);
       totalConversions = db.analytics.reduce((sum, a) => sum + (a.conversions || 0), 0);
       totalEarnings = db.analytics.reduce((sum, a) => sum + (a.earnings || 0), 0);
     }
-    
+
     const conversionRate = totalClicks > 0 ? (totalConversions / totalClicks * 100).toFixed(2) : 0;
     const installRate = totalClicks > 0 ? (totalInstalls / totalClicks * 100).toFixed(2) : 0;
     const purchaseRate = totalInstalls > 0 ? (totalPurchases / totalInstalls * 100).toFixed(2) : 0;
-    
+
     // Get top performers with AppTrove data
     const userStats = await Promise.all(db.users.map(async (user) => {
       const userLink = db.links.find(l => l.userId === user.id);
       let earnings = 0;
       let clicks = 0;
       let conversions = 0;
-      
+
       if (userLink && userLink.linkId && ((APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) || APPTROVE_API_KEY)) {
         try {
           const stats = await getUniLinkStats(userLink.linkId);
@@ -3467,19 +3517,19 @@ app.get('/api/dashboard/stats', isAdmin, async (req, res) => {
           console.error(`Error fetching stats for user ${user.id}:`, error.message);
         }
       }
-      
+
       if (earnings === 0) {
         const userAnalytics = db.analytics.filter(a => a.userId === user.id);
         earnings = userAnalytics.reduce((sum, a) => sum + (a.earnings || 0), 0);
         clicks = userAnalytics.reduce((sum, a) => sum + (a.clicks || 0), 0);
         conversions = userAnalytics.reduce((sum, a) => sum + (a.conversions || 0), 0);
       }
-      
+
       return { userId: user.id, name: user.name, earnings, clicks, conversions };
     }));
-    
+
     const topPerformers = userStats.sort((a, b) => b.earnings - a.earnings).slice(0, 5);
-    
+
     // Get recent activity
     const recentAnalytics = db.analytics
       .sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -3491,7 +3541,7 @@ app.get('/api/dashboard/stats', isAdmin, async (req, res) => {
           userName: user?.name || 'Unknown'
         };
       });
-    
+
     res.json({
       overview: {
         totalAffiliates,
@@ -3511,8 +3561,8 @@ app.get('/api/dashboard/stats', isAdmin, async (req, res) => {
     });
   } catch (error) {
     console.error('Error in /api/dashboard/stats:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch dashboard stats', 
+    res.status(500).json({
+      error: 'Failed to fetch dashboard stats',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -3525,10 +3575,10 @@ app.get('/api/apptrove/templates/:templateId/links', isAdmin, async (req, res) =
     if (!APPTROVE_API_KEY) {
       return res.status(500).json({ error: 'AppTrove API key not configured' });
     }
-    
+
     const { templateId } = req.params;
     const result = await getTemplateLinks(templateId);
-    
+
     if (result.success) {
       res.json({
         success: true,
@@ -3557,7 +3607,7 @@ app.get('/api/apptrove/templates', isAdmin, async (req, res) => {
     if (!APPTROVE_API_KEY) {
       return res.status(500).json({ error: 'AppTrove API key not configured' });
     }
-    
+
     const templates = await getLinkTemplates();
     res.json({
       success: true,
@@ -3573,31 +3623,31 @@ app.post('/api/apptrove/templates/:templateId/create-link', isAdmin, async (req,
   try {
     const { templateId } = req.params;
     const { name, userId } = req.body;
-    
+
     console.log(`Creating link from template ${templateId} for user ${userId}`);
-    
+
     if (!APPTROVE_API_KEY) {
       return res.status(500).json({ error: 'AppTrove API key not configured' });
     }
-    
+
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }
-    
+
     const db = await readDB();
     const user = db.users.find(u => u.id === userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     const linkName = name || `${user.name} - Affiliate Link`;
-    
+
     console.log(`Attempting to create unilink: ${linkName} from template ${templateId}`);
-    
+
     // Create unilink from template
     const linkResult = await createUniLinkFromTemplate(templateId, linkName);
-    
+
     console.log('Link creation result:', {
       success: linkResult.success,
       hasLink: !!linkResult.link,
@@ -3605,11 +3655,11 @@ app.post('/api/apptrove/templates/:templateId/create-link', isAdmin, async (req,
       linkId: linkResult.linkId,
       note: linkResult.note
     });
-    
+
     if (linkResult.success && linkResult.link) {
       // Automatically assign the link to the user
       const existingLinkIndex = db.links.findIndex(l => l.userId === userId);
-      
+
       if (existingLinkIndex >= 0) {
         // Update existing link
         db.links[existingLinkIndex].link = linkResult.link;
@@ -3633,9 +3683,9 @@ app.post('/api/apptrove/templates/:templateId/create-link', isAdmin, async (req,
         db.links.push(newLink);
         console.log(`Created new link entry for user ${userId}`);
       }
-      
+
       await writeDB(db);
-      
+
       // Return success response
       res.json({
         success: true,
@@ -3646,7 +3696,7 @@ app.post('/api/apptrove/templates/:templateId/create-link', isAdmin, async (req,
       });
     } else {
       console.error('Link creation failed:', linkResult);
-      
+
       // Check if this is the "API not available" error with solution
       if (linkResult.solution) {
         return res.status(400).json({
@@ -3661,7 +3711,7 @@ app.post('/api/apptrove/templates/:templateId/create-link', isAdmin, async (req,
           }
         });
       }
-      
+
       // Other errors
       res.status(500).json({
         error: linkResult.error || 'Failed to create link',
@@ -3673,8 +3723,8 @@ app.post('/api/apptrove/templates/:templateId/create-link', isAdmin, async (req,
   } catch (error) {
     console.error('Error creating link from template:', error);
     console.error('Error stack:', error.stack);
-    res.status(500).json({ 
-      error: 'Failed to create link', 
+    res.status(500).json({
+      error: 'Failed to create link',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -3685,21 +3735,21 @@ app.post('/api/apptrove/templates/:templateId/create-link', isAdmin, async (req,
 app.post('/api/users/:id/assign-link', isAdmin, async (req, res) => {
   try {
     const { unilink, linkId, templateId } = req.body;
-    
+
     if (!unilink) {
       return res.status(400).json({ error: 'Unilink URL is required' });
     }
-    
+
     const db = await readDB();
     const userIndex = db.users.findIndex(u => u.id === req.params.id);
-    
+
     if (userIndex === -1) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     // Check if link already exists
     const existingLinkIndex = db.links.findIndex(l => l.userId === req.params.id);
-    
+
     if (existingLinkIndex >= 0) {
       // Update existing link
       db.links[existingLinkIndex].link = unilink;
@@ -3721,9 +3771,9 @@ app.post('/api/users/:id/assign-link', isAdmin, async (req, res) => {
       };
       db.links.push(newLink);
     }
-    
+
     await writeDB(db);
-    
+
     res.json({
       success: true,
       message: 'Link assigned successfully',
@@ -3739,17 +3789,17 @@ app.get('/api/dashboard/analytics', isAdmin, async (req, res) => {
   try {
     const { days = 30 } = req.query;
     const db = await readDB();
-    
+
     // Ensure db structure exists
     if (!db.links) db.links = [];
     if (!db.analytics) db.analytics = [];
-    
+
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(days));
-    
+
     // Fetch analytics from AppTrove for all links using Secret ID/Key
     const analyticsMap = new Map();
-    
+
     // Use Secret ID/Key if available, otherwise fall back to API key
     if ((APPTROVE_SECRET_ID && APPTROVE_SECRET_KEY) || APPTROVE_API_KEY) {
       for (const link of db.links) {
@@ -3759,11 +3809,11 @@ app.get('/api/dashboard/analytics', isAdmin, async (req, res) => {
             if (stats && stats.success && stats.data) {
               const data = stats.data;
               const date = new Date().toISOString().split('T')[0];
-              
+
               if (!analyticsMap.has(date)) {
                 analyticsMap.set(date, { date, clicks: 0, conversions: 0, earnings: 0, installs: 0, purchases: 0 });
               }
-              
+
               const entry = analyticsMap.get(date);
               entry.clicks += data.clicks || 0;
               entry.conversions += data.conversions || 0;
@@ -3778,17 +3828,17 @@ app.get('/api/dashboard/analytics', isAdmin, async (req, res) => {
         }
       }
     }
-    
+
     // Fallback to local analytics
     if (analyticsMap.size === 0) {
       const localAnalytics = db.analytics.filter(a => new Date(a.date) >= startDate);
-      
+
       localAnalytics.forEach(a => {
         const date = new Date(a.date).toISOString().split('T')[0];
         if (!analyticsMap.has(date)) {
           analyticsMap.set(date, { date, clicks: 0, conversions: 0, earnings: 0, installs: 0, purchases: 0 });
         }
-        
+
         const entry = analyticsMap.get(date);
         entry.clicks += a.clicks || 0;
         entry.conversions += a.conversions || 0;
@@ -3797,15 +3847,15 @@ app.get('/api/dashboard/analytics', isAdmin, async (req, res) => {
         entry.purchases += a.purchases || 0;
       });
     }
-    
+
     const analytics = Array.from(analyticsMap.values())
       .sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     res.json(analytics);
   } catch (error) {
     console.error('Error in /api/dashboard/analytics:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch analytics', 
+    res.status(500).json({
+      error: 'Failed to fetch analytics',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
@@ -3818,27 +3868,27 @@ app.post('/api/analytics/sync', async (req, res) => {
     if (!APPTROVE_API_KEY) {
       return res.status(500).json({ error: 'AppTrove API key not configured' });
     }
-    
+
     // This is a placeholder - you'll need to check AppTrove API docs
     // for the actual endpoint to fetch link analytics
     // Common endpoints might be:
     // - GET /internal/unilink/:id/stats
     // - GET /internal/analytics
     // - GET /api/reports
-    
+
     const db = await readDB();
     const links = db.links;
-    
+
     // For each link, fetch stats from AppTrove
     const syncResults = [];
-    
+
     for (const link of links) {
       try {
         // Placeholder - replace with actual API call
         // const response = await axios.get(`${APPTROVE_API_URL}/internal/unilink/${link.id}/stats`, {
         //   headers: { 'api-key': APPTROVE_API_KEY }
         // });
-        
+
         // For now, return a message that sync needs to be implemented
         syncResults.push({
           linkId: link.id,
@@ -3853,7 +3903,7 @@ app.post('/api/analytics/sync', async (req, res) => {
         });
       }
     }
-    
+
     res.json({
       message: 'Sync completed',
       results: syncResults,
@@ -3889,7 +3939,7 @@ app.use((req, res) => {
 async function startServer() {
   try {
     await ensureDataDir();
-    
+
     app.listen(PORT, () => {
       console.log('\n🚀 Server started successfully!');
       console.log(`📍 URL: http://localhost:${PORT}`);

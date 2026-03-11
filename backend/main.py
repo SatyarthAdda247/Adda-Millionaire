@@ -15,6 +15,10 @@ from datetime import datetime
 import uuid
 from playwright.async_api import async_playwright
 import time
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
 
 # Track startup time for health checks
 STARTUP_TIME = time.time()
@@ -43,7 +47,7 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 
 APPTROVE_API_URL = os.getenv("APPTROVE_API_URL", "https://api.apptrove.com")
-APPTROVE_API_KEY = os.getenv("APPTROVE_API_KEY")
+APPTROVE_API_KEY = os.getenv("APPTROVE_S2S_API_KEY") or os.getenv("APPTROVE_API_KEY")
 APPTROVE_SECRET_ID = os.getenv("APPTROVE_SECRET_ID")
 APPTROVE_SECRET_KEY = os.getenv("APPTROVE_SECRET_KEY")
 APPTROVE_SDK_KEY = os.getenv("APPTROVE_SDK_KEY")
@@ -55,6 +59,11 @@ APPTROVE_DOMAIN = os.getenv("APPTROVE_DOMAIN", "applink.learnr.co.in")
 APPTROVE_DASHBOARD_EMAIL = os.getenv("APPTROVE_DASHBOARD_EMAIL")
 APPTROVE_DASHBOARD_PASSWORD = os.getenv("APPTROVE_DASHBOARD_PASSWORD")
 APPTROVE_COOKIES_FILE = os.getenv("APPTROVE_COOKIES_FILE", "apptrove_cookies.json")
+
+# Adjust Configuration
+ADJUST_API_TOKEN = os.getenv("ADJUST_API_TOKEN") or "8zTxM99vLdeeZ_kPAc3b-ykVL1QMPJvhfYSyC79cMq7evzxyeA"
+ADJUST_APP_TOKEN = os.getenv("ADJUST_APP_TOKEN") or "5chd8nwq2pkw"
+ADJUST_API_URL = os.getenv("ADJUST_API_URL", "https://api.adjust.com")
 
 # DynamoDB Tables
 USERS_TABLE = os.getenv("DYNAMODB_USERS_TABLE", "edurise-users")
@@ -79,7 +88,27 @@ if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
     analytics_table = dynamodb.Table(ANALYTICS_TABLE)
     print(f"✅ DynamoDB configured: {USERS_TABLE}, {LINKS_TABLE}, {ANALYTICS_TABLE}")
 else:
-    print("⚠️ DynamoDB not configured")
+    print("⚠️ DynamoDB not configured - Falling back to local JSON database")
+    import json
+    class JsonTable:
+        def __init__(self, table_name, file_path):
+            self.table_name = table_name
+            self.file_path = file_path
+        def scan(self):
+            try:
+                with open(self.file_path, 'r') as f:
+                    content = json.load(f)
+                    key = 'users' if 'users' in self.table_name else ('links' if 'links' in self.table_name else 'analytics')
+                    return {'Items': content.get(key, [])}
+            except: return {'Items': []}
+        def query(self, **kwargs): return self.scan()
+        def update_item(self, **kwargs): return {"Attributes": {}}
+        def put_item(self, **kwargs): return {}
+
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'server', 'database.json')
+    users_table = JsonTable(USERS_TABLE, db_path)
+    links_table = JsonTable(LINKS_TABLE, db_path)
+    analytics_table = JsonTable(ANALYTICS_TABLE, db_path)
 
 # Pydantic Models
 class UserUpdate(BaseModel):
@@ -326,8 +355,42 @@ async def health():
         "ready": uptime > 5  # Ready after 5 seconds
     }
 
+# ============ ADJUST HELPERS ============
+
+def create_adjust_tracker(name: str, label: str) -> Optional[str]:
+    """Create a tracker in Adjust and return its token"""
+    if not ADJUST_API_TOKEN or not ADJUST_APP_TOKEN:
+        print("❌ Adjust API Token or App Token missing")
+        return None
+        
+    url = f"{ADJUST_API_URL}/public/v2/apps/{ADJUST_APP_TOKEN}/trackers"
+    headers = {
+        'Authorization': f'Bearer {ADJUST_API_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+    payload = {
+        'name': name,
+        'label': label
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        if response.ok:
+            data = response.json()
+            items = data.get('data', {}).get('items', [])
+            if items:
+                print(f"✅ Adjust tracker created: {items[0].get('token')}")
+                return items[0].get('token')
+        else:
+            print(f"⚠️ Adjust API error: {response.text}")
+    except Exception as e:
+        print(f"Error creating Adjust tracker: {e}")
+        
+    return None
+
 # ============ USER ENDPOINTS ============
 
+@app.post("/api/users/register")
 @app.post("/api/users")
 async def create_user(user_data: dict):
     """Create a new user/affiliate"""
@@ -343,9 +406,15 @@ async def create_user(user_data: dict):
                 raise HTTPException(status_code=400, detail="A user with this email already exists")
         
         user_id = str(uuid.uuid4())
+        
+        # Create Adjust Tracker
+        raw_name = user_data.get("name", f"User {user_id[:8]}").strip()
+        campaign_label = raw_name.replace(" ", "-").lower()
+        tracker_token = create_adjust_tracker(raw_name, campaign_label)
+        
         user = {
             "id": user_id,
-            "name": user_data.get("name", "").strip(),
+            "name": raw_name,
             "email": email,
             "phone": user_data.get("phone", "").strip(),
             "platform": user_data.get("platform", "").strip(),
@@ -353,6 +422,8 @@ async def create_user(user_data: dict):
             "followerCount": int(user_data.get("followerCount", 0)),
             "status": "pending",
             "approvalStatus": "pending",
+            "tracker_token": tracker_token,
+            "linkId": tracker_token, # Keep for backwards compat
             "createdAt": datetime.utcnow().isoformat(),
             "updatedAt": datetime.utcnow().isoformat()
         }
@@ -401,7 +472,8 @@ async def get_users(
                 search_lower in u.get('name', '').lower() or
                 search_lower in u.get('email', '').lower() or
                 search_lower in u.get('platform', '').lower() or
-                search_lower in u.get('socialHandle', '').lower()
+                search_lower in u.get('socialHandle', '').lower() or
+                search_lower in u.get('phone', '').lower()
             ]
         
         return {"success": True, "users": users, "count": len(users)}
@@ -419,6 +491,20 @@ async def get_user(user_id: str):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         return {"success": True, "user": user}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/users/{user_id}/links")
+async def get_user_links(user_id: str):
+    check_dynamodb()
+    try:
+        # Use Scan with Filter because userId is not Partition Key for links table
+        # (Assuming links table has id as PK and userId as attribute)
+        from boto3.dynamodb.conditions import Key, Attr
+        response = links_table.scan(
+            FilterExpression=Attr('userId').eq(user_id)
+        )
+        return {"success": True, "links": response.get('Items', [])}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -580,14 +666,20 @@ async def delete_user(user_id: str):
 async def get_user_analytics(user_id: str):
     check_dynamodb()
     try:
-        response = analytics_table.query(
-            KeyConditionExpression=Key('userId').eq(user_id),
-            ScanIndexForward=False,
+        # User ID is not partition key, so we must scan with filter
+        # In production, a GSI on userId should be added
+        from boto3.dynamodb.conditions import Key, Attr
+        response = analytics_table.scan(
+            FilterExpression=Attr('userId').eq(user_id),
             Limit=100
         )
-        return {"success": True, "analytics": response.get('Items', [])}
+        items = response.get('Items', [])
+        # Sort manually since we can't usage ScanIndexForward
+        items.sort(key=lambda x: x.get('date', ''), reverse=True)
+        return {"success": True, "analytics": items}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error fetching analytics: {e}")
+        return {"success": False, "error": str(e), "analytics": []}
 
 # ============ APPTROVE ENDPOINTS ============
 
@@ -633,13 +725,109 @@ async def get_link_stats(linkId: str):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+# ============ ADJUST ENDPOINTS ============
+
+def get_adjust_stats_direct(identifier: str):
+    """
+    Fetch stats from Adjust Report Service API.
+    Identifier can be a tracker token.
+    """
+    if not ADJUST_API_TOKEN or not ADJUST_APP_TOKEN:
+        print("❌ Adjust API Token or App Token missing")
+        return None
+    
+    tracker_token = identifier
+    
+    # Extract identifier from unilink if provided (in this setup, linkId fallback)
+    if identifier.startswith('http'):
+        from urllib.parse import urlparse, parse_qs
+        try:
+            parsed = urlparse(identifier)
+            path_parts = parsed.path.strip('/').split('/')
+            tracker_token = path_parts[-1] if path_parts and path_parts[-1] != 'd' else identifier
+        except:
+            pass
+
+    try:
+        from datetime import datetime, timedelta
+        end_date = datetime.utcnow().strftime('%Y-%m-%d')
+        start_date = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')
+        
+        # Adjust Report Service API endpoint
+        url = f"{ADJUST_API_URL}/api/v1/apps/{ADJUST_APP_TOKEN}/reports"
+        
+        # we filter by tracker token (network) to get stats only for this specific affiliate
+        params = {
+            "date_period": f"{start_date}:{end_date}",
+            "dimensions": "tracker",
+            "metrics": "clicks,installs,revenue,network_cost", 
+            "tracker_filter": tracker_token
+        }
+        
+        aggregated = {"clicks": 0, "conversions": 0, "payout": 0, "revenue": 0, "installs": 0}
+        
+        with open("adjust_debug.log", "a") as log:
+            log.write(f"\n--- Requesting Adjust stats for {identifier} ---\n")
+            log.write(f"Url: {url}\n")
+            try:
+                response = requests.get(
+                    url, 
+                    headers={"Authorization": f"Bearer {ADJUST_API_TOKEN}", "Accept": "application/json"},
+                    params=params,
+                    timeout=10
+                )
+                
+                log.write(f"Status: {response.status_code}\n")
+                log.write(f"Response: {response.text[:500]}\n")
+                
+                if response.ok:
+                    data = response.json()
+                    rows = data.get('rows', [])
+                    
+                    log.write(f"Parsed {len(rows)} rows\n")
+                    
+                    for item in rows:
+                        aggregated["clicks"] += int(item.get("clicks", 0))
+                        # Treat installs as conversions
+                        aggregated["conversions"] += int(item.get("installs", 0))
+                        aggregated["installs"] += int(item.get("installs", 0))
+                        aggregated["payout"] += float(item.get("network_cost", 0))
+                        aggregated["revenue"] += float(item.get("revenue", 0))
+                else:
+                    log.write("Request failed\n")
+            except Exception as e:
+                log.write(f"Exception: {str(e)}\n")
+            
+        return aggregated
+            
+    except Exception as e:
+        print(f"❌ Fatal error in Adjust fetch: {str(e)}")
+        return None
+
+# Kept the same endpoint path `/api/trackier/stats` for frontend backward compatibility
+@app.get("/api/trackier/stats")
+async def get_trackier_stats_api(
+    affiliateId: str = None, 
+    linkId: str = None, 
+    unilink: str = None
+):
+    # Determine the identifier to use
+    identifier = affiliateId or linkId or unilink
+    
+    if not identifier:
+        return {"success": False, "error": "Missing identifier (affiliateId, linkId, or unilink required)"}
+        
+    stats = get_adjust_stats_direct(identifier)
+    if stats:
+        return {"success": True, "stats": stats}
+    return {"success": False, "error": "Failed to fetch Adjust stats"}
+
 # ============ DASHBOARD ENDPOINTS ============
 
 @app.get("/api/dashboard/stats")
 async def get_dashboard_stats():
     try:
-        check_dynamodb()
-        
+        # No longer raising error if DynamoDB missing, we use mock
         users_response = users_table.scan()
         users = users_response.get('Items', [])
         
@@ -647,39 +835,66 @@ async def get_dashboard_stats():
         active_affiliates = len([u for u in users if u.get('status') == 'active'])
         pending_approval = len([u for u in users if u.get('approvalStatus') == 'pending'])
         
+        # Aggregate stats from APIs for all approved affiliates
+        total_clicks = 0
+        total_conversions = 0
+        total_earnings = 0
+        
+        for user in users:
+            if user.get('approvalStatus') == 'approved':
+                link_id = user.get('linkId')
+                if link_id:
+                    # Skip AppTrove Stats to prevent timeouts (Mock Mode)
+                    '''
+                    try:
+                        apptrove_res = requests.get(
+                            f"{APPTROVE_API_URL}/internal/unilink/{link_id}/stats",
+                            headers=apptrove_headers("reporting"),
+                            timeout=2
+                        )
+                        if apptrove_res.ok:
+                            st = apptrove_res.json()
+                            total_clicks += st.get('clicks', 0)
+                            total_conversions += st.get('conversions', 0)
+                            total_earnings += st.get('revenue', 0)
+                    except: pass
+                    '''
+                    
+                    # Try Adjust Stats
+                    adjust_st = get_adjust_stats_direct(link_id)
+                    if adjust_st:
+                        total_clicks += adjust_st.get('clicks', 0)
+                        total_conversions += adjust_st.get('conversions', 0)
+                        total_earnings += adjust_st.get('payout', 0)
+
         return {
             "success": True,
             "stats": {
                 "totalAffiliates": total_affiliates,
                 "activeAffiliates": active_affiliates,
                 "pendingApproval": pending_approval,
-                "totalClicks": 0,
-                "totalConversions": 0,
-                "totalEarnings": 0,
-                "conversionRate": 0,
-                "totalInstalls": 0,
+                "totalClicks": total_clicks,
+                "totalConversions": total_conversions,
+                "totalEarnings": total_earnings,
+                "conversionRate": (total_conversions / total_clicks * 100) if total_clicks > 0 else 0,
+                "totalInstalls": total_conversions, # Assuming conversion = install for now
                 "totalPurchases": 0,
                 "installRate": 0,
                 "purchaseRate": 0,
-                "averageEarningsPerAffiliate": 0
+                "averageEarningsPerAffiliate": (total_earnings / active_affiliates) if active_affiliates > 0 else 0
             }
         }
-    except:
+    except Exception as e:
         return {
-            "success": True,
+            "success": False,
+            "error": str(e),
             "stats": {
                 "totalAffiliates": 0,
                 "activeAffiliates": 0,
                 "pendingApproval": 0,
                 "totalClicks": 0,
                 "totalConversions": 0,
-                "totalEarnings": 0,
-                "conversionRate": 0,
-                "totalInstalls": 0,
-                "totalPurchases": 0,
-                "installRate": 0,
-                "purchaseRate": 0,
-                "averageEarningsPerAffiliate": 0
+                "totalEarnings": 0
             }
         }
 

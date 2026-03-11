@@ -1,9 +1,11 @@
 /**
- * Vercel Serverless Function: Get Trackier Stats for Unilink
+ * Vercel Serverless Function: Get Adjust Stats for Unilink
  * 
- * AppTrove unilinks are tracked by Trackier. This endpoint fetches
- * installs, conversions, clicks, and revenue data from Trackier API.
- */
+ * AppTrove unilinks are tracked by Adjust.This endpoint fetches
+ * installs, conversions, clicks, and revenue data from Adjust API.
+ * 
+ * Note: Kept path as api / trackier / stats.ts for frontend backward compatibility
+  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
@@ -14,14 +16,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { unilink, linkId, affiliateId, campaignId, startDate, endDate } = req.query;
 
-  // Get Trackier credentials
-  const TRACKIER_API_KEY = process.env.TRACKIER_API_KEY || process.env.TRACKIER_PUBLISHER_API_KEY;
-  const TRACKIER_API_URL = process.env.TRACKIER_API_URL || 'https://api.trackier.com/v2';
+  // Get Adjust credentials
+  const ADJUST_API_TOKEN = process.env.ADJUST_API_TOKEN || '8zTxM99vLdeeZ_kPAc3b-ykVL1QMPJvhfYSyC79cMq7evzxyeA';
+  const ADJUST_APP_TOKEN = process.env.ADJUST_APP_TOKEN || '5chd8nwq2pkw';
+  const ADJUST_API_URL = process.env.ADJUST_API_URL || 'https://api.adjust.com';
 
-  if (!TRACKIER_API_KEY) {
+  if (!ADJUST_API_TOKEN || !ADJUST_APP_TOKEN) {
     return res.status(500).json({
       success: false,
-      error: 'Trackier API key not configured. Add TRACKIER_API_KEY or TRACKIER_PUBLISHER_API_KEY to Vercel environment variables.',
+      error: 'Adjust API token or App token not configured. Add them to Vercel environment variables.',
     });
   }
 
@@ -36,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Extract campaign from query params
       const camp = url.searchParams.get('camp') || url.searchParams.get('campaign');
       if (camp) campaignIdToUse = camp;
-      
+
       // Extract affiliate ID from path (e.g., /d/Smritibisht)
       const pathParts = url.pathname.split('/');
       const linkIdentifier = pathParts[pathParts.length - 1];
@@ -66,52 +69,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const start = startDate as string || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   try {
-    // Try multiple Trackier endpoints
-    const endpoints = [
-      // Publisher API - Affiliate Reports
-      {
-        url: `${TRACKIER_API_URL}/publisher/reports/affiliates`,
-        params: new URLSearchParams({
-          start,
-          end,
-          ...(affiliateIdToUse && { affiliate_id: affiliateIdToUse }),
-          ...(campaignIdToUse && { campaign_id: campaignIdToUse }),
-        }),
-        label: 'Publisher Affiliate Reports',
-      },
-      // Publisher API - Campaign Reports
-      {
-        url: `${TRACKIER_API_URL}/publisher/reports/campaigns`,
-        params: new URLSearchParams({
-          start,
-          end,
-          ...(campaignIdToUse && { campaign_id: campaignIdToUse }),
-        }),
-        label: 'Publisher Campaign Reports',
-      },
-      // Conversions API
-      {
-        url: `${TRACKIER_API_URL}/conversions`,
-        params: new URLSearchParams({
-          start,
-          end,
-          ...(affiliateIdToUse && { affiliate_id: affiliateIdToUse }),
-          ...(campaignIdToUse && { campaign_id: campaignIdToUse }),
-        }),
-        label: 'Conversions',
-      },
-      // Clicks API
-      {
-        url: `${TRACKIER_API_URL}/clicks`,
-        params: new URLSearchParams({
-          start,
-          end,
-          ...(affiliateIdToUse && { affiliate_id: affiliateIdToUse }),
-          ...(campaignIdToUse && { campaign_id: campaignIdToUse }),
-        }),
-        label: 'Clicks',
-      },
-    ];
+    const url = `${ADJUST_API_URL}/api/v1/apps/${ADJUST_APP_TOKEN}/reports`;
+
+    // Create query parameters
+    const params = new URLSearchParams({
+      date_period: `${start}:${end}`,
+      dimensions: 'tracker',
+      metrics: 'clicks,installs,revenue,network_cost',
+    });
+
+    // Add tracker filter if available
+    // Note: Assuming affiliateId is the tracker token in Adjust
+    if (affiliateIdToUse) {
+      params.append('tracker_filter', affiliateIdToUse);
+    }
+
+    const requestUrl = `${url}?${params.toString()}`;
+    console.log(`[Adjust] Querying Report API: ${requestUrl}`);
 
     let lastError: any = null;
     let aggregatedStats = {
@@ -123,70 +97,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       impressions: 0,
     };
 
-    // Try each endpoint
-    for (const endpoint of endpoints) {
-      try {
-        const url = `${endpoint.url}?${endpoint.params.toString()}`;
-        console.log(`[Trackier] Trying ${endpoint.label}: ${url}`);
+    try {
+      const response = await fetch(requestUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${ADJUST_API_TOKEN}`,
+          'Accept': 'application/json',
+        },
+      });
 
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'X-Api-Key': TRACKIER_API_KEY,
-            'Accept': 'application/json',
-          },
+      const text = await response.text();
+      let data: any = null;
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
+
+      if (response.ok && data) {
+        console.log(`[Adjust] ✅ Success fetching stats`);
+
+        const rows = data.rows || [];
+
+        rows.forEach((item: any) => {
+          aggregatedStats.clicks += item.clicks || 0;
+          // Treat installs as conversions for now
+          aggregatedStats.conversions += item.installs || 0;
+          aggregatedStats.installs += item.installs || 0;
+          aggregatedStats.revenue += parseFloat(item.revenue || '0');
+          aggregatedStats.earnings += parseFloat(item.network_cost || '0');
         });
 
-        const text = await response.text();
-        let data: any = null;
-
-        try {
-          data = JSON.parse(text);
-        } catch {
-          data = text;
-        }
-
-        if (response.ok && data) {
-          console.log(`[Trackier] ✅ Success with ${endpoint.label}`);
-
-          // Aggregate stats from different endpoint formats
-          if (Array.isArray(data)) {
-            // If response is an array of events
-            data.forEach((item: any) => {
-              aggregatedStats.clicks += item.clicks || item.click_count || 0;
-              aggregatedStats.conversions += item.conversions || item.conversion_count || 0;
-              aggregatedStats.installs += item.installs || item.install_count || 0;
-              aggregatedStats.revenue += parseFloat(item.revenue || item.revenue_amount || 0);
-              aggregatedStats.earnings += parseFloat(item.payout || item.earning || 0);
-              aggregatedStats.impressions += item.impressions || item.impression_count || 0;
-            });
-          } else if (data.data && Array.isArray(data.data)) {
-            // If response has data array
-            data.data.forEach((item: any) => {
-              aggregatedStats.clicks += item.clicks || item.click_count || 0;
-              aggregatedStats.conversions += item.conversions || item.conversion_count || 0;
-              aggregatedStats.installs += item.installs || item.install_count || 0;
-              aggregatedStats.revenue += parseFloat(item.revenue || item.revenue_amount || 0);
-              aggregatedStats.earnings += parseFloat(item.payout || item.earning || 0);
-              aggregatedStats.impressions += item.impressions || item.impression_count || 0;
-            });
-          } else {
-            // If response is a single object with stats
-            aggregatedStats.clicks += data.clicks || data.click_count || data.total_clicks || 0;
-            aggregatedStats.conversions += data.conversions || data.conversion_count || data.total_conversions || 0;
-            aggregatedStats.installs += data.installs || data.install_count || data.total_installs || 0;
-            aggregatedStats.revenue += parseFloat(data.revenue || data.revenue_amount || data.total_revenue || 0);
-            aggregatedStats.earnings += parseFloat(data.payout || data.earning || data.total_payout || 0);
-            aggregatedStats.impressions += data.impressions || data.impression_count || data.total_impressions || 0;
-          }
-        } else {
-          lastError = data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`;
-          console.log(`[Trackier] ❌ Failed ${endpoint.label}: ${lastError}`);
-        }
-      } catch (error: any) {
-        lastError = error.message;
-        console.error(`[Trackier] Error with ${endpoint.label}:`, error);
+      } else {
+        lastError = data?.message || data?.error || `HTTP ${response.status}: ${response.statusText}`;
+        console.log(`[Adjust] ❌ Failed query: ${lastError}`);
       }
+    } catch (error: any) {
+      lastError = error.message;
+      console.error(`[Adjust] Error querying report API:`, error);
     }
 
     // Calculate conversion rate
@@ -205,7 +154,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         impressions: aggregatedStats.impressions,
         conversionRate: parseFloat(conversionRate),
       },
-      source: 'trackier',
+      source: 'adjust',
       period: { start, end },
       identifiers: {
         unilink: unilink || null,
@@ -213,13 +162,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         affiliateId: affiliateIdToUse || null,
         campaignId: campaignIdToUse || null,
       },
-      note: lastError ? `Some endpoints failed: ${lastError}` : 'All endpoints queried successfully',
+      note: lastError ? `Query failed: ${lastError}` : 'Successfully fetched Adjust stats',
     });
   } catch (error: any) {
-    console.error('[Trackier] Fatal error:', error);
+    console.error('[Adjust] Fatal error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to fetch stats from Trackier',
+      error: 'Failed to fetch stats from Adjust',
       details: error.message,
     });
   }
