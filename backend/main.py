@@ -423,6 +423,7 @@ async def create_user(user_data: dict):
             "status": "pending",
             "approvalStatus": "pending",
             "tracker_token": tracker_token,
+            "unilink": f"https://app.adjust.com/{tracker_token}" if tracker_token else None,
             "linkId": tracker_token, # Keep for backwards compat
             "createdAt": datetime.utcnow().isoformat(),
             "updatedAt": datetime.utcnow().isoformat()
@@ -754,14 +755,15 @@ def get_adjust_stats_direct(identifier: str):
         start_date = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d')
         
         # Adjust Report Service API endpoint
-        url = f"{ADJUST_API_URL}/api/v1/apps/{ADJUST_APP_TOKEN}/reports"
+        url = "https://automate.adjust.com/reports-service/report"
         
         # we filter by tracker token (network) to get stats only for this specific affiliate
         params = {
             "date_period": f"{start_date}:{end_date}",
-            "dimensions": "tracker",
+            "dimensions": "network",
             "metrics": "clicks,installs,revenue,network_cost", 
-            "tracker_filter": tracker_token
+            "tracker_filter": tracker_token,
+            "app_token__in": ADJUST_APP_TOKEN
         }
         
         aggregated = {"clicks": 0, "conversions": 0, "payout": 0, "revenue": 0, "installs": 0}
