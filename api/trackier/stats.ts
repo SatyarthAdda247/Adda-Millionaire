@@ -57,10 +57,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     affiliateIdToUse = linkId as string;
   }
 
-  if (!affiliateIdToUse && !campaignIdToUse) {
+  const fetchAll = req.query.all === 'true';
+
+  if (!affiliateIdToUse && !campaignIdToUse && !fetchAll) {
     return res.status(400).json({
       success: false,
-      error: 'Either unilink, linkId, affiliateId, or campaignId is required',
+      error: 'Either unilink, linkId, affiliateId, campaignId, or all=true is required',
     });
   }
 
@@ -69,17 +71,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const start = startDate as string || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   try {
-    const url = `${ADJUST_API_URL}/api/v1/apps/${ADJUST_APP_TOKEN}/reports`;
+    const url = `https://automate.adjust.com/reports-service/report`;
 
     // Create query parameters
     const params = new URLSearchParams({
       date_period: `${start}:${end}`,
-      dimensions: 'tracker',
+      dimensions: 'network',
       metrics: 'clicks,installs,revenue,network_cost',
+      app_token__in: ADJUST_APP_TOKEN,
     });
 
     // Add tracker filter if available
-    // Note: Assuming affiliateId is the tracker token in Adjust
     if (affiliateIdToUse) {
       params.append('tracker_filter', affiliateIdToUse);
     }

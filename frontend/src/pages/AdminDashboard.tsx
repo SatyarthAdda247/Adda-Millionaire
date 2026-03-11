@@ -69,8 +69,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-
-import { getTemplates, getTemplateLinks, createLink, isAppTroveConfigured, fetchLinkStats } from "@/lib/apptrove";
+import { fetchLinkStats } from "@/lib/apptrove";
 import {
   getAllAffiliates,
   updateAffiliate,
@@ -199,14 +198,11 @@ const AdminDashboard = () => {
     purchaseRate: 0,
     averageEarningsPerAffiliate: 0
   });
-  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
-  const [templates, setTemplates] = useState<any[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
-  const [availableLinks, setAvailableLinks] = useState<any[]>([]);
-  const [selectedLink, setSelectedLink] = useState<string>("");
   const [manualUnilink, setManualUnilink] = useState("");
   const [userAnalytics, setUserAnalytics] = useState<any[]>([]);
   const [appTroveLinkStats, setAppTroveLinkStats] = useState<any>(null);
+  const [analyticsData, setAnalyticsData] = useState<any[]>([]);
+
 
   // Helper function to extract linkId from unilink URL
   const extractLinkIdFromUnilink = (unilink: string): string | null => {
@@ -246,45 +242,8 @@ const AdminDashboard = () => {
       fetchAffiliates();
       fetchOverallStats();
       fetchAnalytics();
-      fetchTemplates();
     }
   }, [authenticated, approvalFilter, navigate]);
-
-  useEffect(() => {
-    if (selectedTemplate) {
-      fetchTemplateLinks(selectedTemplate);
-    }
-  }, [selectedTemplate]);
-
-  // Auto-select template when dialog opens (Mehak Instagram Influencers - applink.learnr.co.in)
-  useEffect(() => {
-    if (!assignLinkDialogOpen) return;
-
-    // If templates are loaded, try to find "Mehak Instagram Influencers" template
-    if (templates.length > 0 && !selectedTemplate) {
-      const defaultTemplate = templates.find(
-        (t) =>
-          t.name?.toLowerCase().includes("mehak") ||
-          t.name?.toLowerCase().includes("learnr") ||
-          t.name?.toLowerCase().includes("instagram influencer") ||
-          t.domain?.includes("learnr.co.in") ||
-          t.domain?.includes("applink.learnr")
-      );
-
-      if (defaultTemplate) {
-        const templateId = defaultTemplate._id || defaultTemplate.id;
-        console.log('✅ Auto-selected Mehak Instagram template:', templateId, defaultTemplate.name);
-        setSelectedTemplate(templateId);
-      } else {
-        // Fallback: select first available template
-        console.log('⚠️ Mehak template not found, using first available template');
-        const firstTemplate = templates[0];
-        if (firstTemplate) {
-          setSelectedTemplate(firstTemplate._id || firstTemplate.id);
-        }
-      }
-    }
-  }, [assignLinkDialogOpen, templates]);
 
   const fetchOverallStats = async () => {
     try {
@@ -315,100 +274,48 @@ const AdminDashboard = () => {
     }
   };
 
-  const fetchTemplates = async () => {
-    try {
-      // Use AppTrove API directly from frontend
-      if (isAppTroveConfigured()) {
-        const data = await getTemplates();
-        if (data.success && data.templates && data.templates.length > 0) {
-          setTemplates(data.templates);
-          console.log('✅ Fetched templates from AppTrove:', data.templates.length);
-        } else {
-          // Silently set empty templates - no error messages
-          setTemplates([]);
-        }
-      } else {
-        // Silently set empty templates - no warnings
-        setTemplates([]);
-      }
-    } catch (error) {
-      // Silently handle errors - templates are non-critical
-      setTemplates([]);
-    }
-  };
-
-  const fetchTemplateLinks = async (templateId: string) => {
-    try {
-      // Use AppTrove API directly from frontend
-      if (isAppTroveConfigured()) {
-        const data = await getTemplateLinks(templateId);
-        if (data.success && data.links && data.links.length > 0) {
-          setAvailableLinks(data.links);
-        } else {
-          // Silently set empty links - no error messages
-          setAvailableLinks([]);
-        }
-      } else {
-        // Silently set empty links - no warnings
-        setAvailableLinks([]);
-      }
-    } catch (error) {
-      // Silently handle errors - template links are non-critical
-      setAvailableLinks([]);
-    }
-  };
-
   const handleAssignLink = async () => {
     if (!selectedAffiliate) return;
 
     let unilink = manualUnilink.trim();
     let linkId = null;
-    let templateId = selectedTemplate;
-
-    // If a link was selected from template, use its data
-    if (selectedLink) {
-      const link = availableLinks.find(l => l.id === selectedLink);
-      if (link) {
-        unilink = link.shortUrl || link.longUrl;
-        linkId = link.id;
-      }
-    }
 
     // If template is selected but no link chosen, try to create a new link from template
-    if (!unilink && selectedTemplate) {
+    if (!unilink) {
       try {
         toast({
           title: "Creating link...",
-          description: "Creating a new unilink from template. Please wait.",
+          description: "Generating Adjust Tracker. Please wait.",
         });
 
-        // Create a new link from the template using AppTrove API directly
-        if (isAppTroveConfigured()) {
-          const createData = await createLink(selectedTemplate, {
-            name: `${selectedAffiliate.name} - Affiliate Link`,
-            userId: selectedAffiliate.id
+        // Create a new link from the template using Adjust Backend directly
+        const adjustRes = await fetch('/api/adjust/create-tracker', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: selectedAffiliate.name || selectedAffiliate.email || selectedAffiliate.id,
+            label: selectedAffiliate.email
+          })
+        });
+
+        const adjustData = await adjustRes.json().catch(() => null);
+
+        if (adjustRes.ok && adjustData?.success && adjustData?.tracker_token) {
+          unilink = `https://app.adjust.com/${adjustData.tracker_token}`;
+          linkId = adjustData.tracker_token;
+
+          toast({
+            title: "✅ Link Created",
+            description: `New Adjust tracker created: ${unilink}`,
           });
-
-          if (createData.success && createData.unilink) {
-            unilink = createData.unilink;
-            linkId = createData.link?.id || null;
-
-            toast({
-              title: "✅ Link Created",
-              description: `New unilink created: ${unilink}`,
-            });
-          } else {
-            throw new Error('Failed to create link from template');
-          }
         } else {
-          // AppTrove not configured - user must enter link manually
-          console.warn('⚠️ AppTrove not configured. Link must be entered manually.');
+          throw new Error('Failed to create Adjust Tracker');
         }
       } catch (error) {
         console.error('Error creating link:', error);
         toast({
           title: "Link Creation Failed",
-          description: error instanceof Error ? error.message : "AppTrove API may not support programmatic link creation. Please create links manually in the AppTrove dashboard and paste the URL here.",
+          description: error instanceof Error ? error.message : "Adjust API error. Please paste the URL manually.",
           variant: "destructive",
           duration: 10000,
         });
@@ -420,7 +327,7 @@ const AdminDashboard = () => {
     if (!unilink || !unilink.trim()) {
       toast({
         title: "Missing Link",
-        description: "Please enter a unilink URL manually. Create the link in AppTrove dashboard first, then paste the URL here.",
+        description: "Please enter a unilink URL manually.",
         variant: "destructive",
         duration: 8000,
       });
@@ -428,7 +335,7 @@ const AdminDashboard = () => {
     }
 
     try {
-      // Extract linkId from unilink URL (e.g., "Smritibisht" from "https://applink.learnr.co.in/d/Smritibisht")
+      // Extract linkId from unilink URL
       const extractedLinkId = extractLinkIdFromUnilink(unilink);
       console.log(`📎 Extracted linkId from unilink: ${extractedLinkId}`);
 
@@ -436,7 +343,7 @@ const AdminDashboard = () => {
       await assignLinkToAffiliate(selectedAffiliate.id, {
         unilink,
         linkId: extractedLinkId || linkId || null,
-        templateId: templateId || null,
+        tracker_token: linkId || extractedLinkId || null
       });
 
       toast({
@@ -444,30 +351,16 @@ const AdminDashboard = () => {
         description: `Link assigned to ${selectedAffiliate.name}`,
       });
       setAssignLinkDialogOpen(false);
-      setSelectedLink("");
       setManualUnilink("");
-      setSelectedTemplate("");
-      setAvailableLinks([]);
       setSelectedAffiliate(null);
       fetchAffiliates();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.includes('isDynamoDBConfigured') || errorMsg.includes('is not defined')) {
-        toast({
-          title: "⚠️ Deployment Error - Old Cached Code",
-          description: "Action Required:\n1. Go to Vercel Dashboard → Deployments\n2. Click 'Redeploy' (disable cache)\n3. Hard reload browser: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)\n\nCode is fixed in GitHub but Vercel needs to rebuild.",
-          variant: "destructive",
-          duration: 20000,
-        });
-        console.error('🚨 DEPLOYMENT ERROR:', errorMsg);
-        console.error('📝 Instructions:', 'See VERCEL_MANUAL_DEPLOY_INSTRUCTIONS.md in repo');
-      } else {
-        toast({
-          title: "Error",
-          description: errorMsg || "Failed to assign link",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: errorMsg || "Failed to assign link",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1205,9 +1098,6 @@ const AdminDashboard = () => {
                             className="flex-1 bg-blue-600 hover:bg-blue-700"
                             onClick={async () => {
                               setSelectedAffiliate(affiliate);
-                              if (templates.length === 0) {
-                                await fetchTemplates();
-                              }
                               setAssignLinkDialogOpen(true);
                             }}
                           >
@@ -1743,80 +1633,28 @@ const AdminDashboard = () => {
           <div className="space-y-4 py-4">
             <Alert>
               <AlertDescription>
-                <strong>Auto-Create:</strong> If you select the default template (Millionaire's Adda/EduRise) and don't choose an existing link, a new link will be automatically created when you click "Assign Link".
+                <strong>Auto-Create:</strong> Leave the URL field empty to automatically generate a brand new Adjust Tracker for this user.
               </AlertDescription>
             </Alert>
 
             <div>
               <label className="text-sm font-medium mb-2 block">
-                Select Template (Optional - to view existing links)
-              </label>
-              <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a template to view existing links" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templates.map((template) => (
-                    <SelectItem key={template._id || template.id} value={template._id || template.id}>
-                      {template.name} ({template.domain})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedTemplate && (
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Select Existing Link from Template {availableLinks.length > 0 && `(${availableLinks.length} available)`}
-                </label>
-                {availableLinks.length > 0 ? (
-                  <Select value={selectedLink} onValueChange={setSelectedLink}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose an existing link" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableLinks.map((link) => (
-                        <SelectItem key={link.id} value={link.id}>
-                          {link.name} - {link.shortUrl || link.longUrl}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <div className="text-sm text-gray-500 p-3 bg-gray-50 rounded border">
-                    No existing links found. Please create a link in AppTrove dashboard and paste the URL below.
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                UniLink URL
-                <span className="text-red-500 ml-1">*</span>
+                Adjust Tracker URL (Optional)
               </label>
               <Input
-                placeholder="https://applink.reevo.in/d/... or https://applink.adda247.com/d/..."
+                placeholder="https://app.adjust.com/..."
                 value={manualUnilink}
                 onChange={(e) => setManualUnilink(e.target.value)}
-                required
-                className="font-mono text-sm"
               />
               <p className="text-xs text-gray-500 mt-1">
-                {selectedLink
-                  ? 'Selected link will override this entry.'
-                  : 'Paste the unilink URL from AppTrove dashboard here. You can find it after creating a link in the default template (Millionaire\'s Adda/EduRise).'}
+                Enter an existing Adjust Tracker Unilink. Leave blank to automatically generate a new one.
               </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setAssignLinkDialogOpen(false);
-              setSelectedLink("");
               setManualUnilink("");
-              setSelectedTemplate("");
-              setAvailableLinks([]);
             }}>
               Cancel
             </Button>
