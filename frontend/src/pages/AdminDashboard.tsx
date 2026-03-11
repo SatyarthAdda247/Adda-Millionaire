@@ -564,7 +564,7 @@ const AdminDashboard = () => {
 
       <div className="container mx-auto px-6 py-8">
         {/* Enhanced Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-yellow-800">Pending Approval</CardTitle>
@@ -635,9 +635,9 @@ const AdminDashboard = () => {
               <DollarSign className="w-6 h-6 text-green-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-4xl font-bold text-green-700 mb-1">₹{overallStats.totalEarnings.toLocaleString()}</div>
+              <div className="text-4xl font-bold text-green-700 mb-1">₹{overallStats.totalEarnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div>
               <div className="text-sm text-green-600">
-                Avg: ₹{overallStats.averageEarningsPerAffiliate.toLocaleString()}/affiliate
+                Avg: ₹{overallStats.averageEarningsPerAffiliate.toLocaleString(undefined, { maximumFractionDigits: 0 })}/affiliate
               </div>
             </CardContent>
           </Card>

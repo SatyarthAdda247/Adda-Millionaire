@@ -459,7 +459,7 @@ export async function getDashboardStats() {
       const totalLinks = links.length;
 
       // Fetch stats from Adjust
-      let adjustStats = { clicks: 0, installs: 0, earnings: 0, conversions: 0, conversionRate: 0 };
+      let adjustStats = { clicks: 0, installs: 0, revenue: 0, earnings: 0, conversions: 0, conversionRate: 0 };
       try {
         const adjustRes = await fetch('/api/trackier/stats?all=true');
         const adjustData = await adjustRes.json().catch(() => null);
@@ -468,6 +468,11 @@ export async function getDashboardStats() {
         }
       } catch (e) { console.error("Error fetching adjust stats for dashboard", e); }
 
+      const adjustEarnings = adjustStats.revenue || adjustStats.earnings || 0;
+      const totalPurchases = adjustStats.conversions || adjustStats.installs || 0;
+      const installRate = adjustStats.clicks > 0 ? (adjustStats.installs / adjustStats.clicks) * 100 : 0;
+      const purchaseRate = adjustStats.installs > 0 ? (totalPurchases / adjustStats.installs) * 100 : 0;
+
       return {
         success: true,
         totalAffiliates,
@@ -475,21 +480,21 @@ export async function getDashboardStats() {
         approvedAffiliates,
         totalLinks,
         totalClicks: adjustStats.clicks,
-        totalConversions: adjustStats.installs,
+        totalConversions: totalPurchases,
         stats: {
           totalAffiliates,
           pendingApprovals,
           approvedAffiliates,
           totalLinks,
           totalClicks: adjustStats.clicks,
-          totalConversions: adjustStats.installs,
-          totalEarnings: adjustStats.earnings,
-          conversionRate: adjustStats.conversionRate,
+          totalConversions: totalPurchases,
+          totalEarnings: adjustEarnings,
+          conversionRate: adjustStats.conversionRate || 0,
           totalInstalls: adjustStats.installs,
-          totalPurchases: 0,
-          installRate: 0,
-          purchaseRate: 0,
-          averageEarningsPerAffiliate: approvedAffiliates > 0 ? (adjustStats.earnings / approvedAffiliates) : 0
+          totalPurchases: totalPurchases,
+          installRate: installRate,
+          purchaseRate: purchaseRate,
+          averageEarningsPerAffiliate: approvedAffiliates > 0 ? (adjustEarnings / approvedAffiliates) : 0
         }
       };
     } catch (error) {
