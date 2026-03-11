@@ -146,7 +146,7 @@ async function apiCall<T = any>(
 
           // Generate unique ID for new user
           const userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-          const userWithId = {
+          const userWithId: any = {
             id: userId,
             ...userData,
             approvalStatus: 'pending',
@@ -154,6 +154,34 @@ async function apiCall<T = any>(
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           };
+
+          // Generate Adjust tracker using Vercel serverless function securely
+          try {
+            console.log("🔗 Generating Adjust tracker for new user...");
+
+            // Call the Vercel serverless function from relative path
+            const adjustRes = await fetch('/api/adjust/create-tracker', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: userData.name || userData.email || userId,
+                label: userData.email
+              })
+            });
+
+            const adjustData = await adjustRes.json().catch(() => null);
+
+            if (adjustRes.ok && adjustData?.success && adjustData?.tracker_token) {
+              console.log(`✅ Successfully generated Adjust tracker: ${adjustData.tracker_token}`);
+              userWithId.tracker_token = adjustData.tracker_token;
+              userWithId.unilink = `https://app.adjust.com/${adjustData.tracker_token}`;
+              userWithId.linkId = adjustData.tracker_token; // backwards compat for Stats
+            } else {
+              console.warn("⚠️ Failed to create Adjust tracker via serverless API:", adjustData?.error || 'Unknown error');
+            }
+          } catch (e) {
+            console.error("❌ Error calling Adjust serverless API:", e);
+          }
 
           console.log(`✅ Generated user ID: ${userId}`);
           const result = await saveUserToDynamoDB(userWithId);
