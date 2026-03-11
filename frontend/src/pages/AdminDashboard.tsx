@@ -1661,10 +1661,9 @@ const AdminDashboard = () => {
             <Button
               onClick={handleAssignLink}
               className="bg-blue-600 hover:bg-blue-700"
-              disabled={!selectedTemplate && !manualUnilink.trim() && !selectedLink}
             >
               <LinkIcon className="w-4 h-4 mr-2" />
-              {selectedTemplate && !selectedLink ? "Create & Assign Link" : "Assign Link"}
+              Assign Link
             </Button>
           </DialogFooter>
         </DialogContent>
